@@ -1,0 +1,32 @@
+
+:root{
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color:#17212b;background:#f5f7fa;font-synthesis:none;
+  --navy:#20364f;--navy2:#31506f;--paper:#fff;--muted:#687386;--line:#e3e8ef;
+  --good:#1f7a54;--warn:#986018;--bad:#a44242;--bluebg:#edf4fb;
+}
+*{box-sizing:border-box} body{margin:0;min-width:320px}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.top{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:13px 18px}
+.logo{font-weight:900;letter-spacing:.1px;color:var(--navy);font-size:20px}.logo span{font-weight:650;color:var(--navy2)}
+.wrap{max-width:1160px;margin:auto;padding:22px}
+.hero{border:1px solid var(--line);border-radius:24px;padding:26px;background:linear-gradient(135deg,#eaf1f8,#fff);margin-bottom:16px}
+.hero h1{margin:0 0 8px;font-size:clamp(31px,5vw,50px);line-height:1}.hero p{margin:0;color:var(--muted);font-size:17px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:15px}.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:0 10px 28px rgba(21,33,49,.035)}
+.card h2,.card h3{margin-top:0}.label{font-size:13px;color:var(--muted)}.metric{font-size:31px;font-weight:850;color:var(--navy)}
+.btn{border:0;border-radius:11px;padding:11px 15px;background:var(--navy);color:#fff;font-weight:750}.btn.secondary{background:#edf2f7;color:var(--navy)}.btn.ghost{background:#fff;border:1px solid var(--line);color:var(--navy)}.btn:disabled{opacity:.45;cursor:not-allowed}
+.field{display:flex;flex-direction:column;gap:6px;margin:12px 0}.field label{font-size:13px;font-weight:700;color:#465363}.field input,.field select{border:1px solid #cfd7e2;background:#fff;border-radius:10px;padding:12px;width:100%}
+.auth{max-width:520px;margin:7vh auto}.auth .card{padding:24px}.tabs{display:flex;gap:7px;margin-bottom:15px}.tab{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--navy);font-weight:700}.tab.active{background:var(--navy);color:#fff}
+.notice{padding:13px 14px;border:1px solid #cedced;background:var(--bluebg);border-radius:12px;color:#355471}.error{padding:12px;border-radius:10px;background:#fff0f0;color:#8d3535;margin:10px 0}.success{padding:12px;border-radius:10px;background:#eaf7ef;color:#145f3e;margin:10px 0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.muted{color:var(--muted)}.small{font-size:13px;color:var(--muted)}
+.progress{height:10px;border-radius:999px;background:#edf0f3;overflow:hidden}.progress>div{height:100%;background:var(--navy2)}
+.lesson{border:1px solid var(--line);border-radius:14px;padding:14px;margin:9px 0;display:flex;align-items:center;justify-content:space-between;gap:12px}.locked{opacity:.55}
+.badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:750;background:#eef2f6;color:var(--navy)}.good{background:#e9f5ee;color:var(--good)}.warn{background:#fff4df;color:var(--warn)}
+.option{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:14px;margin:7px 0}.option.sel{border-color:var(--navy);background:#f1f5f9}.passage{line-height:1.65;background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:15px}.question{font-size:22px;line-height:1.45;margin:18px 0}.feedback{padding:14px;border-radius:12px;margin-top:12px}.feedback.ok{background:#eaf7ef;color:#145f3e}.feedback.no{background:#fff0f0;color:#8d3535}
+hr{border:0;border-top:1px solid var(--line);margin:18px 0}.right{display:flex;gap:8px;align-items:center}.navlinks{display:flex;gap:8px;flex-wrap:wrap}
+.linkbtn{border:0;background:transparent;color:var(--navy);font-weight:750;padding:8px}
+.skill{margin:13px 0}.skill .head{display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:35px}
+@media(max-width:850px){.wrap{padding:14px}.c3,.c4,.c5,.c6,.c7,.c8{grid-column:span 12}.lesson{align-items:flex-start;flex-direction:column}.top{padding:11px 12px}.question{font-size:20px}.hero{padding:20px}}
