@@ -13,6 +13,7 @@ let authMode = "login";
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
 const pct = x => Math.round((x || 0) * 100);
+const fullName = p => [p?.first_name, p?.last_name].filter(Boolean).join(" ") || p?.email || "User";
 
 function top(){
   return `<div class="top"><div class="logo">SAT<span>prep.io</span></div><div class="navlinks">
@@ -29,8 +30,8 @@ function renderConfig(){
   app.innerHTML = top()+`<main class="wrap"><div class="auth"><div class="card">
     <h1>SATprep.io</h1>
     <div class="notice"><strong>Application is ready for its cloud connection.</strong><br><br>
-    Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> as environment variables in Hostinger after creating the Supabase project.</div>
-    <p class="small">The repository can be deployed now, but account creation and cross-device synchronization begin after the Supabase credentials are connected.</p>
+    Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> as environment variables in Vercel.</div>
+    <p class="small">Account creation and cross-device synchronization begin after the Supabase credentials are connected.</p>
   </div></div></main>`;
 }
 
@@ -41,7 +42,7 @@ function renderAuth(message=""){
     <div class="tabs"><button class="tab ${authMode==="login"?"active":""}" id="loginTab">Sign in</button><button class="tab ${authMode==="signup"?"active":""}" id="signupTab">Create account</button></div>
     ${message ? `<div class="${message.startsWith("Check")?"success":"error"}">${esc(message)}</div>`:""}
     <form id="authForm">
-      ${authMode==="signup" ? `<div class="field"><label>Account type</label><select id="role"><option value="student">Student</option><option value="parent">Parent</option></select></div><div class="field"><label>First name</label><input id="firstName" required /></div>`:""}
+      ${authMode==="signup" ? `<div class="field"><label>Account type</label><select id="role"><option value="student">Student</option><option value="parent">Parent</option></select></div><div class="field"><label>First name</label><input id="firstName" autocomplete="given-name" required /></div><div class="field"><label>Last name</label><input id="lastName" autocomplete="family-name" required /></div>`:""}
       <div class="field"><label>Email</label><input id="email" type="email" autocomplete="email" required /></div>
       <div class="field"><label>Password</label><input id="password" type="password" minlength="8" required /></div>
       <button class="btn" type="submit">${authMode==="login"?"Sign in":"Create account"}</button>
@@ -62,7 +63,8 @@ async function handleAuth(e){
   }else{
     const role=document.querySelector("#role").value;
     const first_name=document.querySelector("#firstName").value.trim();
-    const {data,error}=await supabase.auth.signUp({email,password,options:{data:{role,first_name}}});
+    const last_name=document.querySelector("#lastName").value.trim();
+    const {data,error}=await supabase.auth.signUp({email,password,options:{data:{role,first_name,last_name}}});
     if(error) return renderAuth(error.message);
     if(!data.session) renderAuth("Check your email to confirm your account, then sign in.");
   }
@@ -248,9 +250,35 @@ function renderParent(){
   bindTop();
 }
 
-function renderAdmin(){
- app.innerHTML=top()+`<main class="wrap"><section class="hero"><h1>Administrator</h1><p>Platform controls and account management.</p></section><div class="grid"><div class="card c6"><h2>Current MVP</h2><p>Multi-user authentication, learner profiles, student progress, parent linking, skill mastery, and cloud-saved lesson state.</p></div><div class="card c6"><h2>Next build</h2><p>Admin student search, parent/student linking UI, assessment upload intake, question-bank editor, adaptive remediation rules, and expanded curriculum.</p></div></div></main>`;
- bindTop();
+async function renderAdmin(){
+  app.innerHTML=top()+`<main class="wrap"><section class="hero"><h1>Administrator</h1><p>Loading platform accounts and billing status…</p></section></main>`;
+  bindTop();
+  const [{data:profiles,error:pe},{data:students,error:se},{data:subs,error:be}] = await Promise.all([
+    supabase.from("profiles").select("id,email,first_name,last_name,role,created_at").order("created_at",{ascending:false}),
+    supabase.from("students").select("id,profile_id,display_name,grade_level,target_exam,target_score,onboarding_complete"),
+    supabase.from("subscriptions").select("profile_id,plan_key,status,current_period_end,cancel_at_period_end")
+  ]);
+  if(pe||se||be){
+    app.innerHTML=top()+`<main class="wrap"><div class="card"><h1>Administrator</h1><div class="error">${esc(pe?.message||se?.message||be?.message||"Unable to load administrator data.")}</div></div></main>`;
+    bindTop(); return;
+  }
+  const studentByProfile=Object.fromEntries((students||[]).map(s=>[s.profile_id,s]));
+  const subByProfile=Object.fromEntries((subs||[]).map(s=>[s.profile_id,s]));
+  const active=(subs||[]).filter(s=>["active","trialing"].includes(s.status)).length;
+  app.innerHTML=top()+`<main class="wrap">
+    <section class="hero"><h1>Administrator Dashboard</h1><p>${esc(fullName(profile))} · Platform management</p></section>
+    <section class="grid">
+      <div class="card c3"><div class="label">Accounts</div><div class="metric">${profiles?.length||0}</div></div>
+      <div class="card c3"><div class="label">Students</div><div class="metric">${students?.length||0}</div></div>
+      <div class="card c3"><div class="label">Active Paid/Trial</div><div class="metric">${active}</div></div>
+      <div class="card c3"><div class="label">Curriculum Lessons</div><div class="metric">${CURRICULUM.length}</div></div>
+      <div class="card c12"><div class="row"><div><h2>Accounts</h2><p class="small">Full names, roles, learner status, and subscription state.</p></div></div>
+        ${(profiles||[]).map(p=>{const s=studentByProfile[p.id],sub=subByProfile[p.id];return `<div class="lesson"><div><strong>${esc(fullName(p))}</strong><div class="small">${esc(p.email)} · ${esc(p.role)}${s?` · Grade ${s.grade_level||"—"} · ${esc(s.target_exam||"PSAT")} ${s.target_score||""}`:""}</div></div><div class="right"><span class="badge ${sub&&["active","trialing"].includes(sub.status)?"good":"warn"}">${esc(sub?.status||"no subscription")}</span></div></div>`}).join("")||`<p class="small">No accounts found.</p>`}
+      </div>
+      <div class="card c6"><h2>Billing Foundation</h2><p>Subscription records are ready for Stripe customer IDs, subscription IDs, plans, trials, renewals, cancellations, and past-due status.</p><div class="notice">Checkout and billing-portal buttons will be activated when the Stripe account and product prices are connected.</div></div>
+      <div class="card c6"><h2>Next Admin Controls</h2><p>Parent/student linking, user search and editing, diagnostics, curriculum management, and detailed performance analytics.</p></div>
+    </section></main>`;
+  bindTop();
 }
 
 async function boot(){
