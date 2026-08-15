@@ -45,18 +45,38 @@ function renderHome(){
 }
 
 function openAuth(mode){
- window.dispatchEvent(new CustomEvent("satprep:auth",{detail:{mode}}));
+ const signup=mode==="signup";
+ const app=document.querySelector("#app");
+ app.innerHTML=`<div class="top"><div class="logo">SAT<span>prep.io</span></div><div class="navlinks"><button class="linkbtn" id="marketingHome">Home</button></div></div>
+ <main class="wrap"><div class="auth"><div class="card">
+ <h1 style="margin-bottom:4px">${signup?"Get started with SATprep.io":"Welcome back"}</h1>
+ <p class="muted">${signup?"Create your account and begin building a personalized learning path.":"Sign in to continue your SAT or PSAT preparation."}</p>
+ <div class="tabs"><button class="tab ${signup?"":"active"}" data-switch="login">Sign in</button><button class="tab ${signup?"active":""}" data-switch="signup">Create account</button></div>
+ <div id="authMessage"></div>
+ <form id="authForm">
+ ${signup?`<div class="field"><label>Account type</label><select id="role"><option value="student">Student</option><option value="parent">Parent</option></select></div><div class="field"><label>First name</label><input id="firstName" autocomplete="given-name" required /></div><div class="field"><label>Last name</label><input id="lastName" autocomplete="family-name" required /></div>`:""}
+ <div class="field"><label>Email</label><input id="email" type="email" autocomplete="email" required /></div>
+ <div class="field"><label>Password</label><input id="password" type="password" minlength="8" required /></div>
+ <button class="btn" type="submit">${signup?"Create account":"Sign in"}</button>
+ </form></div></div></main>`;
+ document.querySelector("#marketingHome").onclick=renderHome;
+ document.querySelectorAll("[data-switch]").forEach(b=>b.onclick=()=>openAuth(b.dataset.switch));
+ if(!signup){
+   document.querySelector("#authForm").onsubmit=async e=>{
+     e.preventDefault();
+     const email=document.querySelector("#email").value.trim();
+     const password=document.querySelector("#password").value;
+     const {error}=await supabase.auth.signInWithPassword({email,password});
+     if(error){document.querySelector("#authMessage").innerHTML=`<div class="error">${esc(error.message)}</div>`;return;}
+     location.assign("/");
+   };
+ }
 }
 
 async function init(){
  const {data:{session}}=await supabase.auth.getSession();
  if(session) return;
  renderHome();
- const observer=new MutationObserver(async()=>{
-   const {data:{session:s}}=await supabase.auth.getSession();
-   if(!s && !document.querySelector(".marketing-page") && !document.querySelector(".auth")) renderHome();
- });
- observer.observe(document.documentElement,{childList:true,subtree:true});
 }
 
 init();
