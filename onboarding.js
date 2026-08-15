@@ -1,163 +1,158 @@
 import { supabase } from "./supabase.js";
 
 const esc=s=>String(s??"").replace(/[&<>\"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;"}[m]));
-let replacing=false;
+let busy=false;
 
-function signupWizard(){
-  const form=document.querySelector("#authForm");
-  const role=document.querySelector("#role");
-  if(!form||!role||form.dataset.householdWizard==="1"||replacing) return;
-  replacing=true;
-  form.dataset.householdWizard="1";
-  form.innerHTML=`
-    <div class="field"><label>Who is setting up SATprep.io?</label>
+async function getProfile(){
+  const {data:{session}}=await supabase.auth.getSession();
+  if(!session) return {session:null,profile:null};
+  const {data:profile}=await supabase.from("profiles").select("id,role,household_id,first_name,last_name").eq("id",session.user.id).maybeSingle();
+  return {session,profile};
+}
+
+async function getHouseholdStudents(householdId){
+  if(!householdId) return [];
+  const {data,error}=await supabase.from("students").select("id,first_name,last_name,display_name,date_of_birth,grade_level,target_exam,target_score,created_at").eq("household_id",householdId).order("created_at",{ascending:true});
+  if(error) return [];
+  return data||[];
+}
+
+function childForm(title="Tell us about your child",second=false){
+  return `<div class="eyebrow">${second?"ADD ANOTHER STUDENT":"STUDENT SETUP"}</div>
+    <h2>${esc(title)}</h2>
+    <p class="small">Start with one student. You can add another afterward if needed.</p>
+    ${second?`<div class="notice">Adding a second student will require a Family plan when billing is activated.</div>`:""}
+    <div id="childSaveMessage"></div>
+    <form id="childSetupForm">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <button type="button" class="btn secondary" id="chooseParent">Parent or Guardian</button>
-        <button type="button" class="btn secondary" id="chooseStudent">Student</button>
+        <div class="field"><label>First name</label><input id="childFirst" autocomplete="given-name" required></div>
+        <div class="field"><label>Last name</label><input id="childLast" autocomplete="family-name" required></div>
       </div>
+      <div class="field"><label>Date of birth</label><input id="childDob" type="date"></div>
+      <div class="field"><label>Current grade</label><select id="childGrade">${Array.from({length:9},(_,i)=>`<option value="${i+4}">${i+4}</option>`).join("")}</select></div>
+      <div class="field"><label>Primary test goal</label><select id="childExam"><option value="PSAT">PSAT</option><option value="PSAT/NMSQT">PSAT/NMSQT</option><option value="SAT">SAT</option></select></div>
+      <button class="btn" id="saveChildBtn" type="submit">Save student and continue</button>
+    </form>`;
+}
+
+async function saveChild(profile,container){
+  if(busy) return;
+  busy=true;
+  const btn=document.querySelector("#saveChildBtn");
+  if(btn){btn.disabled=true;btn.textContent="Saving…";}
+  const first_name=document.querySelector("#childFirst")?.value.trim();
+  const last_name=document.querySelector("#childLast")?.value.trim();
+  const date_of_birth=document.querySelector("#childDob")?.value||null;
+  const grade_level=Number(document.querySelector("#childGrade")?.value||0)||null;
+  const target_exam=document.querySelector("#childExam")?.value||"PSAT";
+  if(!first_name||!last_name){busy=false;if(btn){btn.disabled=false;btn.textContent="Save student and continue";}return;}
+
+  const display_name=`${first_name} ${last_name}`;
+  const {data:student,error}=await supabase.from("students").insert({
+    household_id:profile.household_id,
+    first_name,
+    last_name,
+    display_name,
+    date_of_birth,
+    grade_level,
+    target_exam
+  }).select("id,first_name,last_name,display_name,grade_level,target_exam").single();
+
+  if(error){
+    busy=false;
+    if(btn){btn.disabled=false;btn.textContent="Save student and continue";}
+    const m=document.querySelector("#childSaveMessage");
+    if(m)m.innerHTML=`<div class="error">${esc(error.message)}</div>`;
+    return;
+  }
+
+  const {error:linkError}=await supabase.from("parent_students").insert({parent_profile_id:profile.id,student_id:student.id});
+  if(linkError){
+    busy=false;
+    if(btn){btn.disabled=false;btn.textContent="Save student and continue";}
+    const m=document.querySelector("#childSaveMessage");
+    if(m)m.innerHTML=`<div class="error">The student was saved, but the parent link could not be completed: ${esc(linkError.message)}</div>`;
+    return;
+  }
+
+  busy=false;
+  await renderParentSetup(profile,container,true,student);
+}
+
+function afterChildSaved(container,students,justSaved){
+  const first=justSaved||students[students.length-1];
+  container.innerHTML=`<div class="success"><strong>${esc(first?.display_name||"Student")} was saved successfully.</strong><br>The student is now linked to your family account.</div>
+    <h2 style="margin-top:20px">Your family is set up.</h2>
+    <p class="small">Most families start with one student. You can continue now, or add another student if you need a Family plan.</p>
+    <div class="card" style="margin:14px 0;padding:14px">
+      ${students.map(s=>`<div class="row" style="padding:6px 0"><div><strong>${esc(s.display_name||[s.first_name,s.last_name].filter(Boolean).join(" "))}</strong><div class="small">Grade ${s.grade_level||"—"} · ${esc(s.target_exam||"PSAT")}</div></div><span class="badge good">Saved</span></div>`).join("")}
     </div>
-    <div id="signupStep"><div class="notice">Choose the option that best describes who is creating the account.</div></div>`;
-
-  document.querySelector("#chooseParent").onclick=renderParentSignup;
-  document.querySelector("#chooseStudent").onclick=renderStudentAgeGate;
-  replacing=false;
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="continueParentOnboarding">Continue to plans & billing</button>
+      <button class="btn secondary" id="addAnotherStudent">Add another student</button>
+    </div>`;
+  document.querySelector("#continueParentOnboarding")?.addEventListener("click",()=>location.assign("/?app=1&openBilling=1"));
+  document.querySelector("#addAnotherStudent")?.addEventListener("click",()=>{
+    container.innerHTML=childForm("Add another student",true);
+    document.querySelector("#childSetupForm").onsubmit=e=>{e.preventDefault();getProfile().then(({profile})=>saveChild(profile,container));};
+  });
 }
 
-function renderParentSignup(){
-  const step=document.querySelector("#signupStep");
-  step.innerHTML=`<h2>Parent or Guardian</h2><p class="small">Your account will manage the household, student access, progress and billing.</p>
-    <div class="field"><label>First name</label><input id="pFirst" autocomplete="given-name" required></div>
-    <div class="field"><label>Last name</label><input id="pLast" autocomplete="family-name" required></div>
-    <div class="field"><label>Email</label><input id="pEmail" type="email" autocomplete="email" required></div>
-    <div class="field"><label>Password</label><input id="pPass" type="password" minlength="8" required></div>
-    <button class="btn" id="createParent" type="button">Create parent account</button>`;
-  document.querySelector("#createParent").onclick=createParent;
+async function renderParentSetup(profile,container,justSaved=false,newStudent=null){
+  const students=await getHouseholdStudents(profile.household_id);
+  if(justSaved||students.length){
+    afterChildSaved(container,students,newStudent);
+    return;
+  }
+  container.innerHTML=childForm();
+  document.querySelector("#childSetupForm").onsubmit=e=>{e.preventDefault();saveChild(profile,container);};
 }
 
-async function createParent(){
-  const first_name=document.querySelector("#pFirst").value.trim();
-  const last_name=document.querySelector("#pLast").value.trim();
-  const email=document.querySelector("#pEmail").value.trim();
-  const password=document.querySelector("#pPass").value;
-  if(!first_name||!last_name||!email||password.length<8) return alert("Please complete all fields.");
-  const {data,error}=await supabase.auth.signUp({email,password,options:{data:{role:"parent",first_name,last_name}}});
-  if(error) return alert(error.message);
-  alert(data.session?"Parent account created.":"Check your email to confirm your account, then sign in.");
-}
-
-function renderStudentAgeGate(){
-  const step=document.querySelector("#signupStep");
-  step.innerHTML=`<h2>Student</h2><p class="small">We ask age first so we can use the right account setup.</p>
-    <div class="field"><label>How old are you?</label><select id="studentAge"><option value="">Choose age</option>${Array.from({length:14},(_,i)=>`<option value="${i+7}">${i+7}${i===13?"+":""}</option>`).join("")}</select></div>
-    <button class="btn" id="ageContinue" type="button">Continue</button>`;
-  document.querySelector("#ageContinue").onclick=()=>{
-    const age=Number(document.querySelector("#studentAge").value);
-    if(!age) return alert("Please choose your age.");
-    if(age<13) renderUnder13(); else renderTeenSignup(age);
-  };
-}
-
-function renderUnder13(){
-  const step=document.querySelector("#signupStep");
-  step.innerHTML=`<h2>Let's get a parent or guardian</h2>
-    <div class="notice">Because you're under 13, a parent or guardian needs to finish setting up SATprep.io before we create your student account.</div>
-    <p class="small">Enter your parent or guardian's email. We won't ask for your name or create your account yet.</p>
-    <div class="field"><label>Parent or guardian email</label><input id="guardianEmail" type="email" autocomplete="email" required></div>
-    <button class="btn" id="requestParent" type="button">Send setup request</button>`;
-  document.querySelector("#requestParent").onclick=async()=>{
-    const parent_email=document.querySelector("#guardianEmail").value.trim();
-    if(!parent_email) return alert("Please enter a parent or guardian email.");
-    const {error}=await supabase.from("parent_setup_requests").insert({parent_email,age_band:"under13"});
-    if(error) return alert(error.message);
-    step.innerHTML=`<div class="success"><strong>You're all set for now.</strong><br>We've saved the parent setup request. Your parent or guardian can create the household account and then add your student profile.</div>`;
-  };
-}
-
-function renderTeenSignup(age){
-  const step=document.querySelector("#signupStep");
-  step.innerHTML=`<h2>Student account</h2><p class="small">You can create your learner account now. When Premium access is needed, we'll encourage you to invite a parent or guardian to manage billing.</p>
-    <div class="field"><label>First name</label><input id="sFirst" autocomplete="given-name" required></div>
-    <div class="field"><label>Last name</label><input id="sLast" autocomplete="family-name" required></div>
-    <div class="field"><label>Date of birth</label><input id="sDob" type="date" required></div>
-    <div class="field"><label>Email</label><input id="sEmail" type="email" autocomplete="email" required></div>
-    <div class="field"><label>Password</label><input id="sPass" type="password" minlength="8" required></div>
-    <button class="btn" id="createStudent" type="button">Create student account</button>`;
-  document.querySelector("#createStudent").onclick=()=>createTeen(age);
-}
-
-async function createTeen(age){
-  const first_name=document.querySelector("#sFirst").value.trim();
-  const last_name=document.querySelector("#sLast").value.trim();
-  const date_of_birth=document.querySelector("#sDob").value;
-  const email=document.querySelector("#sEmail").value.trim();
-  const password=document.querySelector("#sPass").value;
-  if(!first_name||!last_name||!date_of_birth||!email||password.length<8) return alert("Please complete all fields.");
-  const {data,error}=await supabase.auth.signUp({email,password,options:{data:{role:"student",first_name,last_name,date_of_birth,age_at_signup:String(age)}}});
-  if(error) return alert(error.message);
-  alert(data.session?"Student account created.":"Check your email to confirm your account, then sign in.");
+async function injectParentSetup(){
+  if(busy||document.querySelector("#parentFamilySetup")) return;
+  const {profile}=await getProfile();
+  if(!profile||profile.role!=="parent"||!profile.household_id) return;
+  const main=document.querySelector("main");
+  if(!main) return;
+  const container=document.createElement("section");
+  container.id="parentFamilySetup";
+  container.className="card";
+  container.style.maxWidth="720px";
+  container.style.margin="16px auto";
+  const hero=document.querySelector(".hero");
+  if(hero) hero.insertAdjacentElement("afterend",container); else main.prepend(container);
+  await renderParentSetup(profile,container,false,null);
 }
 
 async function injectStudentParentInvite(){
-  const {data:{session}}=await supabase.auth.getSession();
-  if(!session||document.querySelector("#parentInviteCard")) return;
-  const {data:p}=await supabase.from("profiles").select("id,role,household_id,date_of_birth").eq("id",session.user.id).maybeSingle();
-  if(!p||p.role!=="student"||p.household_id) return;
+  if(document.querySelector("#parentInviteCard")) return;
+  const {profile}=await getProfile();
+  if(!profile||profile.role!=="student"||profile.household_id) return;
   const hero=document.querySelector(".hero");
   if(!hero) return;
   const card=document.createElement("div");
   card.id="parentInviteCard";
   card.className="card";
   card.style.marginTop="16px";
-  card.innerHTML=`<h2>Invite a parent or guardian</h2><p class="small">Linking a parent lets them activate your trial, manage billing, see your progress and help keep your plan on track.</p>
-    <div class="field"><label>Parent or guardian email</label><input id="inviteParentEmail" type="email" placeholder="parent@example.com"></div>
-    <button class="btn" id="inviteParentBtn">Invite my parent</button>`;
+  card.innerHTML=`<h2>Invite a parent or guardian</h2><p class="small">Linking a parent lets them activate your trial, manage billing, see your progress and help keep your plan on track.</p><div class="field"><label>Parent or guardian email</label><input id="inviteParentEmail" type="email" placeholder="parent@example.com"></div><button class="btn" id="inviteParentBtn">Invite my parent</button>`;
   hero.insertAdjacentElement("afterend",card);
   document.querySelector("#inviteParentBtn").onclick=async()=>{
     const parent_email=document.querySelector("#inviteParentEmail").value.trim();
-    if(!parent_email) return alert("Enter a parent or guardian email.");
-    const {error}=await supabase.from("parent_invitations").insert({student_profile_id:p.id,parent_email});
-    if(error) return alert(error.message);
-    card.innerHTML=`<div class="success"><strong>Invitation created.</strong><br>Your parent or guardian can now be linked to your SATprep.io account. Email delivery is the next integration step.</div>`;
+    if(!parent_email)return;
+    const{error}=await supabase.from("parent_invitations").insert({student_profile_id:profile.id,parent_email});
+    if(error)return alert(error.message);
+    card.innerHTML=`<div class="success"><strong>Invitation created.</strong><br>Your parent or guardian can now be linked to your SATprep.io account.</div>`;
   };
 }
 
-async function injectParentStudentSetup(){
-  const {data:{session}}=await supabase.auth.getSession();
-  if(!session||document.querySelector("#addStudentCard")) return;
-  const {data:p}=await supabase.from("profiles").select("id,role,household_id").eq("id",session.user.id).maybeSingle();
-  if(!p||p.role!=="parent"||!p.household_id) return;
-  const hero=document.querySelector(".hero")||document.querySelector("main .card");
-  if(!hero) return;
-  const card=document.createElement("div");
-  card.id="addStudentCard";
-  card.className="card";
-  card.style.margin="16px auto";
-  card.innerHTML=`<h2>Add a student</h2><p class="small">Create the learner profile under your household. A separate child login can be activated afterward.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="field"><label>First name</label><input id="childFirst"></div><div class="field"><label>Last name</label><input id="childLast"></div></div>
-    <div class="field"><label>Grade</label><select id="childGrade">${Array.from({length:9},(_,i)=>`<option value="${i+4}">${i+4}</option>`).join("")}</select></div>
-    <button class="btn" id="addStudentBtn">Add student profile</button>`;
-  hero.insertAdjacentElement("afterend",card);
-  document.querySelector("#addStudentBtn").onclick=async()=>{
-    const first_name=document.querySelector("#childFirst").value.trim();
-    const last_name=document.querySelector("#childLast").value.trim();
-    const grade_level=Number(document.querySelector("#childGrade").value);
-    if(!first_name||!last_name) return alert("Please enter the student's first and last name.");
-    const display_name=`${first_name} ${last_name}`;
-    const {error}=await supabase.from("students").insert({household_id:p.household_id,first_name,last_name,display_name,grade_level});
-    if(error) return alert(error.message);
-    card.innerHTML=`<div class="success"><strong>${esc(display_name)} was added.</strong><br>The learner profile now belongs to your household.</div>`;
-  };
-}
-
-async function enhanceLoggedIn(){
+async function enhance(){
+  const params=new URLSearchParams(location.search);
+  if(params.get("app")!=="1") return;
+  await injectParentSetup();
   await injectStudentParentInvite();
-  await injectParentStudentSetup();
 }
 
-const observer=new MutationObserver(()=>{
-  signupWizard();
-  enhanceLoggedIn();
-});
+const observer=new MutationObserver(()=>setTimeout(enhance,0));
 observer.observe(document.documentElement,{childList:true,subtree:true});
-setTimeout(()=>{signupWizard();enhanceLoggedIn();},0);
-supabase.auth.onAuthStateChange(()=>setTimeout(enhanceLoggedIn,100));
+setTimeout(enhance,100);
+supabase.auth.onAuthStateChange(()=>setTimeout(enhance,150));
