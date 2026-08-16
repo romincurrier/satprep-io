@@ -4,6 +4,7 @@ const esc=s=>String(s??"").replace(/[&<>\"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&
 let busy=false;
 let injectingParentSetup=false;
 let enhancing=false;
+let profileCache=null;
 
 async function getProfile(){
   const {data:{session}}=await supabase.auth.getSession();
@@ -22,7 +23,7 @@ async function getHouseholdStudents(householdId){
 function childForm(title="Tell us about your child",additional=false){
   return `<div class="eyebrow">${additional?"ADD ANOTHER STUDENT":"STUDENT SETUP"}</div>
     <h2>${esc(title)}</h2>
-    <p class="small">${additional?"Enter one additional student below.":"Let's start with one student. You can add another afterward if needed."}</p>
+    <p class="small">${additional?"Enter one additional student below.":"Let's start with one student. If you need another, you can add one student at a time."}</p>
     ${additional?`<div class="notice">Adding a second student will require a Family plan when billing is activated.</div>`:""}
     <div id="childSaveMessage"></div>
     <form id="childSetupForm">
@@ -33,27 +34,31 @@ function childForm(title="Tell us about your child",additional=false){
       <div class="field"><label>Date of birth</label><input id="childDob" type="date"></div>
       <div class="field"><label>Current grade</label><select id="childGrade">${Array.from({length:9},(_,i)=>`<option value="${i+4}">${i+4}</option>`).join("")}</select></div>
       <div class="field"><label>Primary test goal</label><select id="childExam"><option value="PSAT">PSAT</option><option value="PSAT/NMSQT">PSAT/NMSQT</option><option value="SAT">SAT</option></select></div>
-      <button class="btn" id="saveChildBtn" type="submit">Save student and continue</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" id="saveAndBilling" type="button">Save & continue to billing</button>
+        <button class="btn secondary" id="saveAndAdd" type="button">Save & add another student</button>
+      </div>
     </form>`;
 }
 
-async function saveChild(profile,container){
+async function saveChild(profile,container,nextAction){
   if(busy) return;
   busy=true;
-  const btn=container.querySelector("#saveChildBtn");
-  if(btn){btn.disabled=true;btn.textContent="Saving…";}
+  const primary=container.querySelector("#saveAndBilling");
+  const secondary=container.querySelector("#saveAndAdd");
+  [primary,secondary].forEach(b=>{if(b)b.disabled=true;});
+
   const first_name=container.querySelector("#childFirst")?.value.trim();
   const last_name=container.querySelector("#childLast")?.value.trim();
   const date_of_birth=container.querySelector("#childDob")?.value||null;
   const grade_level=Number(container.querySelector("#childGrade")?.value||0)||null;
   const target_exam=container.querySelector("#childExam")?.value||"PSAT";
-  if(!first_name||!last_name){busy=false;if(btn){btn.disabled=false;btn.textContent="Save student and continue";}return;}
+  if(!first_name||!last_name){busy=false;[primary,secondary].forEach(b=>{if(b)b.disabled=false;});return;}
 
   const display_name=`${first_name} ${last_name}`;
   const {data:student,error}=await supabase.from("students").insert({household_id:profile.household_id,first_name,last_name,display_name,date_of_birth,grade_level,target_exam}).select("id,first_name,last_name,display_name,grade_level,target_exam").single();
   if(error){
-    busy=false;
-    if(btn){btn.disabled=false;btn.textContent="Save student and continue";}
+    busy=false;[primary,secondary].forEach(b=>{if(b)b.disabled=false;});
     const m=container.querySelector("#childSaveMessage");
     if(m)m.innerHTML=`<div class="error">${esc(error.message)}</div>`;
     return;
@@ -61,56 +66,44 @@ async function saveChild(profile,container){
 
   const {error:linkError}=await supabase.from("parent_students").upsert({parent_profile_id:profile.id,student_id:student.id},{onConflict:"parent_profile_id,student_id"});
   if(linkError){
-    busy=false;
-    if(btn){btn.disabled=false;btn.textContent="Save student and continue";}
+    busy=false;[primary,secondary].forEach(b=>{if(b)b.disabled=false;});
     const m=container.querySelector("#childSaveMessage");
     if(m)m.innerHTML=`<div class="error">The student was saved, but the parent link could not be completed: ${esc(linkError.message)}</div>`;
     return;
   }
 
   busy=false;
-  const students=await getHouseholdStudents(profile.household_id);
-  afterChildSaved(container,students,student);
+  if(nextAction==="add"){
+    container.innerHTML=`<div class="success"><strong>${esc(display_name)} was saved successfully.</strong></div>${childForm("Add another student",true)}`;
+    bindChildForm(profile,container);
+    return;
+  }
+  location.assign("/?app=1&openBilling=1");
 }
 
-function afterChildSaved(container,students,justSaved){
-  const first=justSaved||students[students.length-1];
-  container.innerHTML=`<div class="success"><strong>${esc(first?.display_name||"Student")} was saved successfully.</strong><br>The student is now linked to your family account.</div>
-    <h2 style="margin-top:20px">Student setup complete.</h2>
-    <p class="small">You can continue with this student now. Add another student only if your family needs one.</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn" id="continueParentOnboarding">Continue to plans & billing</button>
-      <button class="btn secondary" id="addAnotherStudent">Add another student</button>
-    </div>`;
-  container.querySelector("#continueParentOnboarding")?.addEventListener("click",()=>location.assign("/?app=1&openBilling=1"));
-  container.querySelector("#addAnotherStudent")?.addEventListener("click",()=>{
-    container.innerHTML=childForm("Add another student",true);
-    const form=container.querySelector("#childSetupForm");
-    if(form)form.onsubmit=e=>{e.preventDefault();saveChild(profileCache,container);};
-  });
+function bindChildForm(profile,container){
+  profileCache=profile;
+  container.querySelector("#saveAndBilling")?.addEventListener("click",()=>saveChild(profile,container,"billing"));
+  container.querySelector("#saveAndAdd")?.addEventListener("click",()=>saveChild(profile,container,"add"));
 }
 
-let profileCache=null;
 async function renderParentSetup(profile,container){
   profileCache=profile;
   const students=await getHouseholdStudents(profile.household_id);
   if(students.length){
     container.innerHTML=`<div class="eyebrow">FAMILY SETUP</div><h2>Your student is already saved.</h2><p class="small">Continue to plans & billing, or add another student if needed.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="continueParentOnboarding">Continue to plans & billing</button><button class="btn secondary" id="addAnotherStudent">Add another student</button></div>`;
     container.querySelector("#continueParentOnboarding")?.addEventListener("click",()=>location.assign("/?app=1&openBilling=1"));
-    container.querySelector("#addAnotherStudent")?.addEventListener("click",()=>{
-      container.innerHTML=childForm("Add another student",true);
-      const form=container.querySelector("#childSetupForm");
-      if(form)form.onsubmit=e=>{e.preventDefault();saveChild(profile,container);};
-    });
+    container.querySelector("#addAnotherStudent")?.addEventListener("click",()=>{container.innerHTML=childForm("Add another student",true);bindChildForm(profile,container);});
     return;
   }
   container.innerHTML=childForm();
-  const form=container.querySelector("#childSetupForm");
-  if(form)form.onsubmit=e=>{e.preventDefault();saveChild(profile,container);};
+  bindChildForm(profile,container);
 }
 
 async function injectParentSetup(){
   if(busy||injectingParentSetup||document.querySelector("#parentFamilySetup")) return;
+  const params=new URLSearchParams(location.search);
+  if(params.get("openBilling")==="1") return;
   injectingParentSetup=true;
   try{
     const {profile}=await getProfile();
@@ -126,9 +119,7 @@ async function injectParentSetup(){
     const hero=document.querySelector(".hero");
     if(hero) hero.insertAdjacentElement("afterend",container); else main.prepend(container);
     await renderParentSetup(profile,container);
-  } finally {
-    injectingParentSetup=false;
-  }
+  } finally { injectingParentSetup=false; }
 }
 
 async function injectStudentParentInvite(){
@@ -138,31 +129,18 @@ async function injectStudentParentInvite(){
   const hero=document.querySelector(".hero");
   if(!hero) return;
   const card=document.createElement("div");
-  card.id="parentInviteCard";
-  card.className="card";
-  card.style.marginTop="16px";
+  card.id="parentInviteCard";card.className="card";card.style.marginTop="16px";
   card.innerHTML=`<h2>Invite a parent or guardian</h2><p class="small">Linking a parent lets them activate your trial, manage billing, see your progress and help keep your plan on track.</p><div class="field"><label>Parent or guardian email</label><input id="inviteParentEmail" type="email" placeholder="parent@example.com"></div><button class="btn" id="inviteParentBtn">Invite my parent</button>`;
   hero.insertAdjacentElement("afterend",card);
-  card.querySelector("#inviteParentBtn").onclick=async()=>{
-    const parent_email=card.querySelector("#inviteParentEmail").value.trim();
-    if(!parent_email)return;
-    const{error}=await supabase.from("parent_invitations").insert({student_profile_id:profile.id,parent_email});
-    if(error)return alert(error.message);
-    card.innerHTML=`<div class="success"><strong>Invitation created.</strong><br>Your parent or guardian can now be linked to your SATprep.io account.</div>`;
-  };
+  card.querySelector("#inviteParentBtn").onclick=async()=>{const parent_email=card.querySelector("#inviteParentEmail").value.trim();if(!parent_email)return;const{error}=await supabase.from("parent_invitations").insert({student_profile_id:profile.id,parent_email});if(error)return alert(error.message);card.innerHTML=`<div class="success"><strong>Invitation created.</strong><br>Your parent or guardian can now be linked to your SATprep.io account.</div>`;};
 }
 
 async function enhance(){
   if(enhancing) return;
   const params=new URLSearchParams(location.search);
-  if(params.get("app")!=="1") return;
+  if(params.get("app")!=="1"||params.get("openBilling")==="1") return;
   enhancing=true;
-  try{
-    await injectParentSetup();
-    await injectStudentParentInvite();
-  } finally {
-    enhancing=false;
-  }
+  try{await injectParentSetup();await injectStudentParentInvite();}finally{enhancing=false;}
 }
 
 const observer=new MutationObserver(()=>setTimeout(enhance,0));
