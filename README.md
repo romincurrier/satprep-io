@@ -16,6 +16,10 @@ Adaptive multi-user SAT/PSAT preparation platform.
 - Cross-device resume through Supabase
 - Initial first-week diagnostics and foundation lessons
 - Supabase SQL schema with Row Level Security
+- Parent household onboarding and billing flow
+- Stripe test-mode subscription checkout integration
+- Adaptive diagnostic engine
+- Road to Test Day journey, XP, milestones, and achievements
 
 ## Local development
 
@@ -33,31 +37,25 @@ Adaptive multi-user SAT/PSAT preparation platform.
 
 The Express server serves the Vite `dist` directory and listens on `process.env.PORT`.
 
-## Hostinger GitHub deployment
+## Deployment
 
-Hostinger should detect Vite / Node automatically.
+Production is deployed through Vercel from the `main` branch.
 
-Recommended settings if Hostinger asks:
-- Node version: 20 or 22
-- Install command: `npm install`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Entry file: `server.js`
-- Start command: `npm start`
-
-Add these environment variables in Hostinger:
+Required public application environment variables:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
+
+Billing also uses server-side Stripe environment variables. Stripe secret credentials must never be committed to this repository or exposed to browser code.
 
 ## Supabase setup
 
 1. Create a Supabase project.
 2. Open SQL Editor.
-3. Run `supabase/schema.sql`.
+3. Run the required migrations/schema.
 4. In Authentication settings, enable Email/Password.
 5. Add `https://satprep.io` as the Site URL and allowed redirect URL.
-6. Copy the Project URL and anon/public key into Hostinger environment variables.
-7. Redeploy the Hostinger application.
+6. Configure the Supabase environment variables in Vercel.
+7. Redeploy the application after environment-variable changes.
 
 ## Initial admin
 
@@ -65,20 +63,12 @@ Create your account normally, then in Supabase SQL Editor run:
 
 `update public.profiles set role='admin' where email='YOUR_EMAIL';`
 
-## MVP parent linking
+## Current development priorities
 
-Until the admin linking screen is built, create both accounts, locate the UUIDs in Supabase, and insert:
-
-`insert into public.parent_students(parent_profile_id,student_id) values ('PARENT_PROFILE_UUID','STUDENT_UUID');`
-
-## Next development milestones
-
-- Admin user management UI
-- Parent/student linking workflow
-- Uploaded score-report intake
-- Full diagnostic engine
-- Adaptive remediation rules
-- Curriculum/question-bank database
-- 2026–27 course expansion
+- End-to-end Stripe test subscription lifecycle
+- Student diagnostic expansion and adaptive difficulty
+- Dynamic remediation and prerequisite mapping
+- Journey missions, weekly goals, and celebrations
+- Parent progress reporting and student invitations
+- Curriculum/question-bank expansion
 - Benchmark and predicted-score engine
-- Subscription/billing architecture
