@@ -28,8 +28,8 @@ function statusText(){if(profile?.role==="admin")return"Administrator access";if
 function planCard(p){return `<div class="card" style="min-width:240px;flex:1"><div class="label">${esc(p.students)}</div><h2 style="margin:8px 0 2px">${esc(p.name)}</h2><div class="metric" style="font-size:32px">${esc(p.price)}</div><div class="small">${esc(p.cadence)}</div>${p.value?`<div class="success" style="margin-top:12px">${esc(p.value)}</div>`:""}<p class="small">14-day free trial. Payment method collected securely by Stripe. Cancel before the trial ends to avoid being charged.</p><button class="btn billing-checkout" data-plan="${esc(p.key)}" style="width:100%">Start 14-day trial</button></div>`}
 
 async function renderBilling(){
-  await refreshBillingState();const app=document.querySelector("#app");if(!app)return;
-  app.innerHTML=`<div class="top"><div class="logo">SAT<span>prep.io</span></div><div class="navlinks"><button class="linkbtn" id="billingBack">Dashboard</button></div></div><main class="wrap"><section class="hero"><h1>Plans & Billing</h1><p>Choose the plan that fits your family. Every paid plan begins with a 14-day free trial.</p></section><section class="grid"><div class="card c12"><div class="row"><div><h2>Account</h2><div class="small">${esc(session?.user?.email||"")}</div></div><span class="badge ${profile?.role==="admin"||["active","trialing"].includes(subscription?.status)?"good":"warn"}">${esc(statusText())}</span></div></div><div class="card c12"><div style="display:flex;gap:16px;flex-wrap:wrap">${PLANS.map(planCard).join("")}</div></div><div class="card c12"><div class="notice"><strong>Test billing is active.</strong> Stripe is currently in test mode, so no real card will be charged. Subscription access will only be activated from a verified Stripe event once the webhook layer is connected.</div></div></section></main>`;
+  await refreshBillingState();const app=document.querySelector("#app");if(!app||!session)return;
+  app.innerHTML=`<div id="parentFamilySetup" style="display:none"></div><div class="top"><div class="logo">SAT<span>prep.io</span></div><div class="navlinks"><button class="linkbtn" id="billingBack">Dashboard</button></div></div><main class="wrap"><section class="hero"><h1>Plans & Billing</h1><p>Choose the plan that fits your family. Every paid plan begins with a 14-day free trial.</p></section><section class="grid"><div class="card c12"><div class="row"><div><h2>Account</h2><div class="small">${esc(session?.user?.email||"")}</div></div><span class="badge ${profile?.role==="admin"||["active","trialing"].includes(subscription?.status)?"good":"warn"}">${esc(statusText())}</span></div></div><div class="card c12"><div style="display:flex;gap:16px;flex-wrap:wrap">${PLANS.map(planCard).join("")}</div></div><div class="card c12"><div class="notice"><strong>Test billing is active.</strong> Stripe is currently in test mode, so no real card will be charged. Subscription access will only be activated from a verified Stripe event once the webhook layer is connected.</div></div></section></main>`;
   document.querySelector("#billingBack")?.addEventListener("click",()=>location.assign("/?app=1"));
   document.querySelectorAll(".billing-checkout").forEach(btn=>btn.addEventListener("click",()=>location.href=checkoutUrl(btn.dataset.plan)));
 }
@@ -37,7 +37,12 @@ function injectBillingButton(){const nav=document.querySelector(".navlinks");if(
 async function init(){
   await refreshBillingState();const params=new URLSearchParams(location.search);
   if(params.get("billing")==="success"){history.replaceState({},"",location.pathname+"?app=1");setTimeout(async()=>{await refreshBillingState();alert("Stripe checkout completed in test mode. We are verifying the subscription before activating paid access.");},400)}
-  if(params.get("openBilling")==="1"&&session){await renderBilling();return;}
+  if(params.get("openBilling")==="1"&&session){
+    await renderBilling();
+    const observer=new MutationObserver(()=>{if(!document.querySelector(".billing-checkout"))setTimeout(renderBilling,0)});
+    observer.observe(document.documentElement,{subtree:true,childList:true});
+    return;
+  }
   injectBillingButton();const observer=new MutationObserver(()=>injectBillingButton());observer.observe(document.documentElement,{subtree:true,childList:true});
   supabase.auth.onAuthStateChange(async(_event,s)=>{session=s;await refreshBillingState();setTimeout(injectBillingButton,0)});
 }
