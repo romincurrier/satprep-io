@@ -7,7 +7,8 @@ export default function handler(req,res){
     'STRIPE_PRICE_FAMILY_ANNUAL',
     'STRIPE_WEBHOOK_SECRET',
     'VITE_SUPABASE_URL',
-    'VITE_SUPABASE_ANON_KEY'
+    'VITE_SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY'
   ];
   const configured=Object.fromEntries(names.map(name=>[name,Boolean(process.env[name])]));
   const secretMode=process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')?'test':process.env.STRIPE_SECRET_KEY?.startsWith('sk_live_')?'live':'missing-or-unrecognized';
