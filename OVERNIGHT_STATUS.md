@@ -3,125 +3,80 @@
 Last updated: 2026-08-24
 
 ## Current state
-SATprep.io is a **pre-launch commercial candidate**, not approved for public paying customers. The repository now contains substantial student/parent/admin/billing/onboarding functionality, prior-assessment ingestion, an assessment-only adaptive diagnostic, guided learning/practice with explanations, mastery/progress tracking, content QA/review tooling, SEO/trust content, marketing plans, privacy/security operating materials, durable API abuse controls, and baseline accessibility/security hardening.
+SATprep.io is a **pre-launch commercial candidate**, not approved for public paying customers. The codebase now includes student/parent/admin/onboarding/billing flows, prior-assessment ingestion, an assessment-only adaptive diagnostic, server-oriented guided practice with explanations, mastery/progress tracking, content review and calibration tooling, SEO/trust content, marketing/measurement plans, privacy/security controls, youth-account safeguards, accessibility checks, durable API rate limiting, and launch runbooks.
 
-## Latest completed engineering
+The latest main-branch Vercel commit check is **green** after the new commercial-launch gates and marketing-claims validator were added.
 
-### Mastery-adaptive commercial guided practice
-- Added a pure, server-compatible adaptive practice selector that uses the student's current trusted skill mastery when creating a **new** commercial practice session.
-- Current instructional bands are deliberately simple and non-psychometric: foundation (`<40%`) targets difficulty mix `1,1,2,2,2`; balanced (`40–74%` or no trusted baseline) targets `1,2,2,2,3`; challenge (`75%+`) targets `2,2,2,3,3`.
-- The selector still prefers recently unseen approved content and falls back to the closest available difficulty without duplicating an item.
-- Existing in-progress sessions remain immutable, so refresh/new-browser resume continues the exact saved question plan instead of regenerating a different session.
-- `/api/practice-session-v3` now returns the current instructional adaptive level for UI context.
-- Added `validate:adaptive-practice` to the production build. Regression coverage checks band boundaries, expected difficulty distributions, missing-mastery behavior, sparse-bank fallback, and uniqueness.
-- Updated the commercial-practice architecture documentation to make clear that these bands guide instruction only; they are not SAT score predictions or College Board-calibrated psychometrics.
+## Most recent launch hardening
 
-### Independent CI/build observability
-- Added a minimal GitHub Actions build-validation workflow that runs the full production validation/build pipeline on pushes to `main` and pull requests using Node 22.
-- This provides an independent CI path in addition to the Vercel integration and will make future validator failures easier to isolate once workflow-run visibility is available through the connected tooling.
-- The Vercel commit status is currently **failing**, including on the pre-existing baseline commit immediately before this run (`16c2f28...`) and on the current adaptive-practice commits. This failure therefore predates the adaptive-practice work.
-- Direct Vercel build-log inspection is presently blocked because the connected Vercel tool is not authorized to the `satprep-io-060ea753` project scope. Do not treat the current deployment as verified green until that access/build issue is resolved.
+### Explicit commercial launch gates
+- Added `launch-gates.json` as the repository-level source of truth for launch-sensitive state.
+- Public indexing, public billing, live payments, and outbound marketing remain explicitly disabled.
+- The production launch validator now fails closed if those controls are changed while the College Board trademark/naming review remains unresolved.
+- The global Vercel `X-Robots-Tag: noindex, nofollow, noarchive` remains in place, so the prepared SEO pages are not being intentionally opened to public search indexing.
 
-### Server-enforced public billing launch locks
-- Public checkout is no longer protected only by browser UI/prelaunch code. The Stripe server layer now identifies `satprep.io` and `www.satprep.io` as public hosts and fails closed unless an explicit server-side public billing flag is enabled.
-- Checkout creation **and checkout confirmation** both require `PUBLIC_BILLING_ENABLED=true` on the public host.
-- Billing-portal access is independently gated by `PUBLIC_BILLING_PORTAL_ENABLED=true`, so post-purchase account management can be controlled separately from new sales.
-- A public production host must also use a live Stripe key; test-mode public checkout is refused unless the emergency/test-only `ALLOW_PUBLIC_TEST_BILLING=true` override is deliberately set.
-- Existing `ALLOW_LIVE_BILLING=true` remains a separate lock before any `sk_live_*` key can be used.
-- Preview/non-public hosts can continue Stripe test-mode QA without opening public commerce.
-- `env.example` defaults every public/live billing control to `false`, and the production security validator now fails builds if these server-side gates are removed or bypassed.
-- A Vercel build containing these billing controls and the expanded security validation completed successfully earlier in the hardening sequence; the current Vercel integration is now reporting a later unrelated failure and must be reverified before launch.
+### College Board trademark/naming gate
+- Current College Board trademark guidance was reviewed on 2026-08-24 and documented in `docs/TRADEMARK_LAUNCH_GATE.md`.
+- The current product name/domain contains `SAT`, which College Board identifies as a registered mark. College Board's published guidance creates a material unresolved launch issue for third-party company/product/domain/advertising use of its marks.
+- This is recorded as a **launch gate, not a legal conclusion**. Before indexing, advertising, affiliate promotion, broad social/PR execution, or public billing, the intended naming/domain/mark use must be addressed through appropriate permission/legal review or a rebrand/domain transition.
+- The content boundary is also explicit: do not copy/reproduce official College Board test questions in the commercial bank, and do not use College Board copyrighted test content to train a generative authoring system.
 
-### Accessibility regression foundation
-- Added `npm run validate:accessibility` to every production build.
-- The validator scans public HTML and the application shell for document language, viewport/title/main landmarks, one primary H1, safe keyboard order, image alt text, safe new-window links, accessible tables, labeled static form controls, application skip navigation, visible focus treatment, and reduced-motion support.
-- Public educational/SEO pages now have consistent visible keyboard focus, minimum touch-target treatment for primary controls, screen-reader utility styles, and reduced-motion support.
-- The 2026–27 SAT dates table now has a screen-reader caption and scoped column headers.
-- Added `docs/ACCESSIBILITY_LAUNCH_CHECKLIST.md` covering keyboard-only, screen-reader, zoom/reflow, contrast, touch, motion/timing, math/content accessibility, and release-evidence testing. Automated checks are explicitly **not** treated as proof of legal compliance or a substitute for manual assistive-technology testing.
-- The first Vercel build with the accessibility validator enabled completed successfully.
+### Marketing-claims build gate
+- Added `validate:marketing-claims` to every production build.
+- Explicit affiliation/ownership representations such as College Board/SAT/PSAT “approved,” “authorized,” “certified,” or “official SATprep” are hard build failures.
+- Potential score guarantees/outcome language is surfaced for prelaunch copy review.
+- `docs/MARKETING_OPERATING_PLAN.md` now includes a Phase 0 naming/trademark decision before SEO submission, ad accounts, campaigns, affiliates, social-page creation, PR, or broad public marketing.
 
-### Youth-account privacy boundary
-- Added a database auth-trigger migration that requires a valid date of birth for **direct student signup** and rejects direct creation for students under 13, routing that age group to the existing parent/guardian workflow instead of relying only on browser JavaScript.
-- Parent/guardian-created student logins now carry a trusted `raw_app_meta_data` provenance marker set by the server admin-user path. The auth trigger recognizes that marker so a parent-created child account does not need to masquerade as a direct teen signup.
-- This intentionally uses `raw_app_meta_data`, not user-editable `raw_user_meta_data`, for the trusted authorization marker.
-- Added `validate:youth-privacy` to every production build so the under-13 UI route, parent setup endpoint, direct-signup DOB requirement, trusted parent activation metadata, parental-consent event, and database age gate cannot silently regress.
-- A Vercel build containing the youth privacy validator completed successfully.
-- These controls are technical defense in depth only; they do **not** substitute for final COPPA/state privacy/legal review, consent wording/verification, revocation, retention, and deletion procedures.
+### Build/deployment observability restored
+- The current main branch now reports a successful Vercel commit check.
+- The independent GitHub Actions validation workflow is also committed as a second build-validation path.
+- Direct Vercel project-log access through the connected Vercel scope is still unavailable, so GitHub commit status remains the presently available deployment signal.
 
-### Private proprietary-content bridge
-- Added `.gitignore` protection for local environment files, build artifacts, private-content directories, and completed review CSVs so proprietary review material is less likely to be committed accidentally to the public repository.
-- Added `scripts/import-private-reviewed-content.mjs`, which accepts only an **absolute path** to a review file outside the repository, validates all five required independent approvals, recomputes the exact SHA-256 reviewed-content hash, and imports content through the server-only Supabase service credential without printing proprietary question text.
-- Private imports default to **inactive**. Activation additionally requires `--activate` plus `PRIVATE_CONTENT_IMPORT_CONFIRM=ACTIVATE_REVIEWED_CONTENT`.
-- Existing items are deactivated before replacement and are only reactivated after prompt, answer key, and review writes succeed.
-- Added `docs/PRIVATE_CONTENT_WORKFLOW.md`. This provides a safe bridge for fresh commercial content without placing new secure diagnostic/practice questions in public Git, while still identifying a dedicated private repository/editorial CMS as the mature long-term solution.
+## Product and content state
+- Official SAT/PSAT taxonomy and structure are mapped to current College Board public specifications.
+- The committed staged practice inventory contains **93 original items (3 per official skill point)** for development/review; newer items remain withheld behind independent review.
+- Secure commercial content is designed to require active `production_approved` status plus current exact-hash approvals for accuracy, SAT/PSAT alignment, editorial quality, bias/accessibility, and originality.
+- Current questions whose answer keys have existed in public Git history are **not** suitable as the secure commercial diagnostic bank.
+- Commercial depth target remains at least **8 practice items and 6 diagnostic items per official skill**, with multiple difficulty levels, independent review, and later pilot calibration.
+- Diagnostic behavior remains assessment-only: no right/wrong teaching during the baseline assessment.
+- Commercial practice is designed to give right/wrong feedback, the correct answer, and instructional explanations, with server-side scoring and durable resume.
 
-### Exact-content diagnostic approval integrity
-- Secure diagnostic content is typed as `diagnostic` in the server-only content system.
-- Runtime selection/delivery/scoring requires active `production_approved` MCQ content plus current approvals for **accuracy, SAT/PSAT alignment, editorial quality, bias/accessibility, and originality**.
-- Review approvals are SHA-256 hash-pinned to the exact current prompt, choices, answer key, explanation, taxonomy, difficulty, exam eligibility, and content type.
-- If content changes after review, the secure runtime fails closed even if the row still says `production_approved`.
-- Review history uses the latest decision for each required review type, so a later revise/reject overrides an older approval.
-
-### Secure diagnostic planning boundary
-- Added `diagnostic-plan-core.js`, a pure dependency-injected planner that receives only an already-approved bank.
-- The secure planning dependency graph no longer imports the committed development question bank merely to use the planning algorithm.
-- Diagnostic planning remains deterministic per seed and retains the 20-item blueprint with all eight official domains represented.
-
-### Commercial practice v3 foundation
-- Added server-only `practice_sessions`, `practice_session_items`, and `practice_responses` schema/migration.
-- Added authenticated `/api/practice-session-v3`, `/api/practice-item-v3`, and `/api/practice-answer-v3` routes with durable rate limiting and payload/UUID/answer validation.
-- Commercial practice uses only active `production_approved` content typed as `practice`, with the same five current hash-matching review approvals.
-- The browser receives one safe question at a time without answer/explanation material. After submission, the server returns correct/incorrect feedback, the correct answer, and the instructional explanation.
-- Practice sessions are durable and resume at the next unanswered item after refresh/new browser window.
-- Added service-role-only `finalize_practice_session(uuid)` RPC that row-locks the session and atomically updates trusted `skill_mastery`, `lesson_progress`, and session completion exactly once.
-- `learning-v2.js` now attempts server practice first. The old browser-scored flow is explicitly a **prelaunch-only QA fallback**. When commercial mode is enabled, it fails closed instead of silently using browser-scored mastery.
-- Added `docs/COMMERCIAL_PRACTICE_ARCHITECTURE.md` with activation/test requirements.
-
-### Build-time regression/security gates
-- Production builds now run content, approval, SEO, accessibility, youth-privacy, privacy-workflow, private-content, privilege-boundary, security, practice-security, adaptive-practice, launch, and deterministic regression validators before Vite.
-- Diagnostic regression tests preserve assessment-only behavior and deterministic all-domain coverage.
-- Practice security tests enforce authenticated/rate-limited APIs, server-only scoring content, exact hash approvals, durable resume, atomic mastery finalization, and prelaunch-only browser fallback.
-- Adaptive-practice regression tests now additionally preserve mastery-band behavior and difficulty targeting.
-- Continue requiring a verified green deployment/build check after every material launch commit; current Vercel status is not green and remains an open gate.
-
-## Content state
-- Official SAT/PSAT taxonomy/structure is mapped to current College Board source material.
-- Staged practice inventory: **93 original items (3 per official skill point)**; newer items remain withheld behind independent review.
-- Current committed/public diagnostic questions are suitable only for internal taxonomy/UI/blueprint QA. Because answer keys have existed in public Git history, they must **not** become the secure commercial diagnostic bank.
-- Commercial depth target remains at least **8 practice items and 6 diagnostic items per official skill**, with minimum independently approved depth and later empirical calibration.
-- The new adaptive practice selector increases the importance of having independently approved content at multiple difficulty levels for every skill; a five-item minimum is only the runtime floor, not the commercial depth target.
-- No automated validation substitutes for independent content review.
+## Security, privacy, accessibility, and billing state
+- Public checkout and checkout confirmation are server-gated and disabled on the public host unless explicit launch flags are enabled.
+- Live Stripe use has a separate server-side lock; public test billing is not treated as production billing.
+- Youth signup includes browser defense-in-depth plus a pending database age-gate migration; under-13 learners are routed through the parent/guardian workflow.
+- Durable API abuse controls, privacy-request workflow, profile-privilege restrictions, content-integrity controls, and commercial-practice session protections are implemented in code/migrations.
+- Production builds validate security, practice security, adaptive practice, youth privacy, privilege boundaries, private content workflow, SEO, marketing claims, accessibility, launch state, and deterministic regression behavior.
+- Automated accessibility checks are in place, but manual keyboard/screen-reader/zoom/contrast/device testing remains a launch requirement.
 
 ## Infrastructure state
 - Supabase project `nrjqykfrnfrgyuvprwob` remains **INACTIVE** and was not restored automatically because restoration can affect hosted infrastructure/billing.
-- Content-system/hash-review, practice-session, calibration, marketing-measurement, privacy-request, durable-rate-limit, profile-privilege, and student-signup-age-gate migrations are committed but **not claimed live**.
-- GitHub repository is currently **public**. The new private-file/import workflow reduces accidental exposure, but a dedicated private proprietary-content repository/CMS is still recommended before scaled commercial authoring.
-- Public search indexing remains disabled with prelaunch `X-Robots-Tag: noindex, nofollow, noarchive`.
-- Live Stripe, public purchase/trial terms, ads, email campaigns, affiliate/referral execution, Search Console submission, public analytics/retargeting, and final legal/privacy publication remain disabled.
-- Vercel commit checks are presently failing, including a pre-run baseline commit. Connected Vercel build-log access is unauthorized to the project scope, so the exact Vercel failure has not yet been isolated through that connector.
+- Pending migrations include the content/review system, practice sessions, calibration, marketing measurement, privacy requests, durable API rate limits, profile privilege locking, and student-signup age gate. They are committed but **not claimed live**.
+- GitHub repository is currently public. Fresh secure commercial question content should use the documented external private-review/import bridge and should ultimately live behind a dedicated private editorial/content boundary.
+- Public indexing, live Stripe, ads, public outbound email, affiliate/referral execution, Search Console submission, retargeting, social publishing, and final legal/privacy publication remain disabled.
 
 ## Highest-priority next actions
-1. Restore **green build/deployment observability**: inspect the failing Vercel build through an authorized project scope and/or use the new independent GitHub Actions build workflow to identify the first failing validator/build step.
-2. Establish a dedicated **private repository/editorial content boundary** for scaled fresh commercial question authoring; use the external-file import bridge meanwhile.
-3. Intentionally reactivate Supabase when approved; apply/reconcile pending migrations and test RLS/service-role/auth-trigger boundaries.
-4. Import fresh independently reviewed diagnostic/practice content with exact hash-matching approval rows and increase depth toward launch targets, including enough difficulty distribution for adaptive practice.
-5. End-to-end test secure diagnostic and commercial practice: adaptive band selection, resume, revoked-review behavior, correct/incorrect practice feedback, idempotent retries, atomic mastery, 429/503 failure modes, and cross-account isolation.
-6. End-to-end test teen direct signup versus parent-authorized under-13 account activation after the age-gate migration is applied.
-7. After server practice is proven live, remove/decommission browser-writable mastery/question-attempt authority from the commercial path and tighten legacy RLS without breaking prelaunch/legacy recovery.
-8. Complete full regression across student, parent, admin, onboarding, billing preview, prior uploads, journey/progress, privacy requests, and support recovery.
-9. Execute the manual accessibility checklist with keyboard, desktop/mobile screen readers, zoom/reflow, contrast, and representative devices; remediate all critical findings.
-10. Reconcile live data inventory, processor register, retention schedule, legal/privacy notices, consent verification, live billing terms, analytics consent/attribution, and lifecycle email before public launch.
-11. Only after explicit approval: enable public billing/indexing/analytics and begin outbound marketing execution.
+1. Resolve the **brand/domain/trademark launch gate** through documented permission/legal review or a rebrand/domain transition before indexing or outbound marketing.
+2. Intentionally reactivate Supabase when approved; apply/reconcile pending migrations and test RLS, service-role, auth-trigger, rate-limit, privacy, content, diagnostic, and practice boundaries end to end.
+3. Establish a dedicated private proprietary-content repository/editorial system and import fresh independently reviewed diagnostic/practice content with exact hash approvals.
+4. Increase approved content depth/rotation/difficulty distribution toward the commercial targets.
+5. End-to-end test secure diagnostic and commercial practice: resume, adaptive bands, revoked approvals, right/wrong practice feedback, idempotency, atomic mastery updates, 429/503 behavior, and cross-account isolation.
+6. Test direct teen signup versus parent-authorized under-13 activation after the age-gate migration is live.
+7. Remove/decommission browser-writable mastery/question-attempt authority from the commercial path after server practice is proven live.
+8. Complete full functional regression across student, parent, admin, onboarding, billing preview, prior uploads, progress/journey, privacy requests, and support recovery.
+9. Complete manual accessibility and privacy/legal/data-retention/processor reviews.
+10. Only after explicit approval and all applicable gates: enable public indexing/billing/analytics and begin outbound marketing execution.
 
 ## Launch gates still open
-- Green, inspectable build/deployment pipeline.
-- Dedicated private proprietary-content boundary + fresh secure diagnostic bank.
-- Active verified production database with migrations applied.
-- Independent review and sufficient content depth/rotation/difficulty distribution.
-- Server-practice end-to-end verification and legacy/browser-authority retirement.
-- Youth-account/parental-consent end-to-end verification plus legal/privacy approval.
+- College Board trademark/naming/domain resolution.
+- Active verified production database with pending migrations applied.
+- Dedicated private proprietary-content boundary and fresh secure diagnostic bank.
+- Independent review plus sufficient content depth/rotation/difficulty distribution.
+- Commercial diagnostic/practice end-to-end verification and legacy browser-authority retirement.
+- Youth-account/parental-consent end-to-end verification and final legal/privacy approval.
+- Manual accessibility regression.
 - Pilot calibration after adequate usage data.
-- Full functional/security/privacy/accessibility regression.
+- Full functional/security/privacy regression.
 - Final legal/privacy/data-retention/processor review.
 - Live billing/pricing/trial approval.
 - Approved analytics/attribution and outbound marketing activation.
