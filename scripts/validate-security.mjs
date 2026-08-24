@@ -7,6 +7,7 @@ const fail=m=>errors.push(m);
 
 const index=read('index.html');
 if(/diagnostic-feedback\.js/i.test(index))fail('Diagnostic feedback must not be loaded during assessment.');
+if(fs.existsSync(path.join(root,'diagnostic-feedback.js')))fail('Obsolete client-side diagnostic feedback/answer-key artifact must not ship.');
 if(/marketing-events\.js/i.test(index))fail('Marketing measurement is gated until its migration/privacy review are complete.');
 if(fs.existsSync(path.join(root,'api/billing-status.js')))fail('Public billing/environment configuration diagnostic endpoint must not ship.');
 
