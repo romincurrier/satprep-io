@@ -1,4 +1,4 @@
--- Durable fixed-window rate limiting for privileged server APIs.
+-- Durable fixed-window rate limiting for privileged and abuse-sensitive server APIs.
 -- This table/function is intentionally service-role only. Browser clients must never
 -- be able to inspect or manipulate rate-limit counters.
 
@@ -59,6 +59,14 @@ begin
     updated_at = excluded.updated_at
   returning request_count into v_count;
 
+  -- Keep abuse-prevention data short-lived without requiring a separate scheduler.
+  -- Approximately one percent of legitimate limiter calls opportunistically clear
+  -- stale hashed counters older than 48 hours. No raw network/user identifier is stored.
+  if random() < 0.01 then
+    delete from public.api_rate_limits
+    where updated_at < v_now - interval '48 hours';
+  end if;
+
   return jsonb_build_object(
     'allowed', v_count <= p_limit,
     'count', v_count,
@@ -71,5 +79,5 @@ $$;
 revoke all on function public.consume_api_rate_limit(text,text,integer,integer) from public, anon, authenticated;
 grant execute on function public.consume_api_rate_limit(text,text,integer,integer) to service_role;
 
-comment on table public.api_rate_limits is 'Service-only fixed-window counters for privileged API abuse controls; stores hashed subjects, not raw user identifiers.';
-comment on function public.consume_api_rate_limit(text,text,integer,integer) is 'Atomically consumes one request from a service-only fixed-window rate limit and returns allowed/count/limit/reset_at.';
+comment on table public.api_rate_limits is 'Service-only fixed-window counters for API abuse controls; stores hashed subjects, not raw user or network identifiers, with opportunistic 48-hour pruning.';
+comment on function public.consume_api_rate_limit(text,text,integer,integer) is 'Atomically consumes one request from a service-only fixed-window rate limit, opportunistically prunes stale counters, and returns allowed/count/limit/reset_at.';
