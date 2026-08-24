@@ -1,6 +1,6 @@
 # SATprep.io Marketing Operating Plan
 
-Status: implementation blueprint only. No spend, outbound campaigns, or public-account actions should be activated without explicit approval.
+Status: implementation blueprint only. No spend, outbound campaigns, public indexing, or public-account actions should be activated without explicit approval and completion of the launch gates in `launch-gates.json`.
 
 ## 1. Commercial positioning
 SATprep.io should be positioned as an adaptive SAT/PSAT learning system that decides what a student should study next from evidence: prior testing when available, an assessment-only diagnostic, and ongoing skill performance. The core promise is focus and visibility, not a guaranteed score increase.
@@ -14,6 +14,8 @@ Primary differentiators to communicate consistently:
 - A learning model that changes as mastery changes.
 
 Claims guardrail: do not publish guaranteed score increases, scholarship outcomes, admission outcomes, or unsupported comparative superiority claims. Any future quantified performance claim must be backed by documented methodology and sufficient outcome data.
+
+Brand/trademark gate: the current product/domain includes the SAT mark. College Board's current published trademark guidance must be reviewed and the naming/domain/advertising use must be cleared or changed before search indexing, advertising, affiliate promotion, social-page creation, or broad public marketing begins. See `docs/TRADEMARK_LAUNCH_GATE.md`.
 
 ## 2. Audience matrix
 | Audience | Primary problem | Message | Primary CTA | Best early channels |
@@ -59,15 +61,15 @@ Primary metrics: referral invites, referred signup rate, referred activation rat
 ## 4. Channel operating matrix
 | Channel | Role | Initial assets | Cadence after launch | Primary KPI | Launch gate |
 | --- | --- | --- | --- | --- | --- |
-| Organic search | Durable demand capture | Core landing pages + topic clusters | 2–4 substantive pieces/month | Qualified organic activations | Technical SEO + content QA |
-| Educational content / social | Demonstrate teaching quality | Short skill lessons, worked examples, study tips | 3–5 posts/week once approved | Engaged visits / assisted signups | Brand/content review; youth-marketing rules |
+| Organic search | Durable demand capture | Core landing pages + topic clusters | 2–4 substantive pieces/month | Qualified organic activations | Trademark/brand clearance + technical SEO + content QA |
+| Educational content / social | Demonstrate teaching quality | Short skill lessons, worked examples, study tips | 3–5 posts/week once approved | Engaged visits / assisted signups | Trademark/brand clearance + content review + youth-marketing rules |
 | Email lifecycle | Activation and retention | Welcome, diagnostic reminder, first-session nudge, weekly progress, parent summary | Event-triggered | Activation/retention uplift | Consent, unsubscribe, privacy review, provider setup |
 | Referral | Low-cost trusted acquisition | Share link, parent referral, counselor resource | Always-on after approval | Referred activations | Abuse prevention + minor/privacy review |
 | School/counselor partnerships | Credibility/distribution | One-page methodology, counselor guide, family handout | Targeted outreach | Qualified partner conversations | Outreach approval and materials review |
-| Paid search | Capture high-intent demand | Brand/nonbrand search campaigns to dedicated landing pages | Controlled tests | Cost per activated trial | Approved budget + conversion tracking |
-| Paid social | Creative testing / retargeting if lawful | Parent-oriented creatives first | Controlled tests | Cost per activated trial | Privacy/legal review; no behavioral targeting to under-13 users |
-| Affiliates / creators | Trusted reach | Parent/education partners, clear disclosure terms | Selective | Activated users per partner | Contract/disclosure/fraud review |
-| PR / earned media | Trust | Product story, adaptive-learning methodology, founder narrative | Milestone-based | Qualified coverage/referral traffic | Public-launch readiness |
+| Paid search | Capture high-intent demand | Brand/nonbrand search campaigns to dedicated landing pages | Controlled tests | Cost per activated trial | Trademark/brand clearance + approved budget + conversion tracking |
+| Paid social | Creative testing / retargeting if lawful | Parent-oriented creatives first | Controlled tests | Cost per activated trial | Trademark/brand clearance + privacy/legal review; no behavioral targeting to under-13 users |
+| Affiliates / creators | Trusted reach | Parent/education partners, clear disclosure terms | Selective | Activated users per partner | Trademark/brand clearance + contract/disclosure/fraud review |
+| PR / earned media | Trust | Product story, adaptive-learning methodology, founder narrative | Milestone-based | Qualified coverage/referral traffic | Public-launch readiness + trademark/brand clearance |
 
 ## 5. Measurement taxonomy
 All marketing measurement should use stable names and avoid collecting unnecessary learner data.
@@ -114,6 +116,8 @@ Commercial funnel KPIs:
 Do not optimize paid media to account creation alone; optimize toward an activation event once volume is sufficient.
 
 ## 7. Initial campaign concepts
+These concepts are drafts only while the brand/trademark gate is unresolved. Final campaign names, ad copy, landing-page metadata, account names, and creative must be reviewed after the naming/domain decision.
+
 ### Campaign A: Stop Guessing What to Study
 Audience: parents and SAT-focused students.
 Landing page: homepage or `/sat-study-plan/`.
@@ -143,6 +147,11 @@ Landing page: `/parents/`.
 Message: understand whether preparation is happening and which skills need attention without micromanaging every question.
 
 ## 8. 90-day launch sequence after approval
+### Phase 0: Naming/trademark clearance
+- Resolve `college_board_trademark_review` in `launch-gates.json` through documented permission/legal review or a rebrand/domain transition.
+- Apply all required changes to product name, domain, marks, symbols, disclaimers, metadata, account names, and campaign creative before indexing or outreach.
+- Re-run the marketing-claims, SEO, accessibility, security, privacy, and launch validators after any rebrand.
+
 ### Phase 1: Measurement and message validation
 - Complete privacy/legal/content launch gates.
 - Enable anonymous aggregate public-site analytics.
@@ -170,7 +179,7 @@ Message: understand whether preparation is happening and which skills need atten
 
 ## 9. Required pre-launch assets
 - Product homepage and pricing.
-- SAT, PSAT, Math, Reading & Writing, study-plan, comparison, and parent landing pages.
+- SAT, PSAT, Math, Reading & Writing, study-plan, comparison, and parent landing pages, subject to the final naming/trademark decision.
 - Methodology / how personalization works.
 - Content-quality and editorial-review standards.
 - FAQ.
@@ -178,11 +187,11 @@ Message: understand whether preparation is happening and which skills need atten
 - Terms of service and subscription/cancellation terms.
 - Contact/support route.
 - Parent-facing billing and cancellation flow.
-- Brand asset kit.
+- Brand asset kit created only after naming/trademark clearance.
 - Screenshot/demo library using synthetic data only.
 - Campaign UTM convention and dashboard specification.
 - Email lifecycle copy and provider configuration after legal/privacy approval.
-- Paid-search keyword/negative-keyword sheet and creative matrix after budget approval.
+- Paid-search keyword/negative-keyword sheet and creative matrix after naming/trademark and budget approval.
 
 ## 10. Marketing safeguards for a youth education product
 - Do not behavioral-target children under 13.
@@ -194,6 +203,8 @@ Message: understand whether preparation is happening and which skills need atten
 - Obtain legal review before launching referral incentives, testimonials involving minors, school partnerships, or cross-platform advertising audiences.
 
 ## 11. Decision gates requiring explicit approval
+- Resolution of the College Board trademark/naming/domain gate and any required permission or rebrand.
+- Public indexing/Search Console submission.
 - Live Stripe activation or pricing changes.
 - Any ad spend.
 - Creation/connection of Google Ads, Meta, TikTok, Microsoft Ads, email-provider, affiliate, or social publishing accounts.
