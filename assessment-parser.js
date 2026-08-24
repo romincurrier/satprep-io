@@ -1,4 +1,4 @@
-export const ASSESSMENT_PARSER_VERSION='ctp-2.1';
+export const ASSESSMENT_PARSER_VERSION='assessment-3.0';
 
 export async function extractPdfLayout(pdfjsLib,blob){
   const data=new Uint8Array(await blob.arrayBuffer());
@@ -17,92 +17,37 @@ export async function extractPdfLayout(pdfjsLib,blob){
   return {text:lines.join('\n'),lines,pages};
 }
 
-const CTP_NORMS=[
-  {key:'national',label:'National Norm Group'},
-  {key:'suburban_public',label:'Suburban Public Schools'},
-  {key:'independent',label:'Independent Schools'},
-  {key:'fcis',label:'FCIS'}
-];
-
+const CTP_NORMS=[{key:'national',label:'National Norm Group'},{key:'suburban_public',label:'Suburban Public Schools'},{key:'independent',label:'Independent Schools'},{key:'fcis',label:'FCIS'}];
 const CTP_MAJOR=['Vocabulary','Reading Comprehension','Writing Mechanics','Writing Concepts & Skills','Mathematics 1&2'];
-
 const CTP_CONTENT=[
-  ['Vocabulary','Vocabulary'],['Word Meanings','Vocabulary'],['Precision','Precision'],['Application','Vocabulary'],
-  ['Reading Comprehension','Reading Comprehension'],['Explicit Information','Evidence'],['Inference','Inference'],['Analysis','Analysis'],
-  ['Writing Mechanics','Writing Mechanics'],['Spelling','Writing Mechanics'],['Capitalization','Writing Mechanics'],['Punctuation','Writing Mechanics'],['Usage','Writing Mechanics'],
-  ['Writing Concepts & Skills','Writing Concepts'],['Organization','Organization'],['Purpose, Audience, Focus','Purpose'],['Supporting Details','Evidence'],['Style and Craft','Style'],
-  ['Mathematics 1&2','Math'],['Num. Sense & Oper. w. Whole Num.','Number Sense'],['Num. Sense & Oper. w. Fractions & Dec.','Fractions & Decimals'],
-  ['Geometry and Spatial Sense','Geometry'],['Measurement','Measurement'],['Data Analysis, Statistics and Prob.','Data Analysis'],['Patterns, Functions, Pre-Algebra','Pre-Algebra'],
-  ['Conceptual Understanding','Math Concepts'],['Procedural Knowledge','Math Procedures'],['Problem Solving','Problem Solving']
+ ['Vocabulary','Vocabulary'],['Word Meanings','Vocabulary'],['Precision','Precision'],['Application','Vocabulary'],['Reading Comprehension','Reading Comprehension'],['Explicit Information','Evidence'],['Inference','Inference'],['Analysis','Analysis'],
+ ['Writing Mechanics','Writing Mechanics'],['Spelling','Writing Mechanics'],['Capitalization','Writing Mechanics'],['Punctuation','Writing Mechanics'],['Usage','Writing Mechanics'],['Writing Concepts & Skills','Writing Concepts'],['Organization','Organization'],['Purpose, Audience, Focus','Purpose'],['Supporting Details','Evidence'],['Style and Craft','Style'],
+ ['Mathematics 1&2','Math'],['Num. Sense & Oper. w. Whole Num.','Number Sense'],['Num. Sense & Oper. w. Fractions & Dec.','Fractions & Decimals'],['Geometry and Spatial Sense','Geometry'],['Measurement','Measurement'],['Data Analysis, Statistics and Prob.','Data Analysis'],['Patterns, Functions, Pre-Algebra','Pre-Algebra'],['Conceptual Understanding','Math Concepts'],['Procedural Knowledge','Math Procedures'],['Problem Solving','Problem Solving']
 ];
-
-const DOMAIN_GROUPS={
-  reading:new Set(['Vocabulary','Precision','Reading Comprehension','Evidence','Inference','Analysis']),
-  writing:new Set(['Writing Mechanics','Writing Concepts','Organization','Purpose','Style']),
-  math:new Set(['Math','Number Sense','Fractions & Decimals','Geometry','Measurement','Data Analysis','Pre-Algebra','Math Concepts','Math Procedures','Problem Solving'])
-};
-
+const CANONICAL=[
+ ['information and ideas','Evidence'],['craft and structure','Words in Context'],['expression of ideas','Rhetorical Synthesis'],['standard english conventions','Grammar'],['reading and writing','Reading & Writing'],['reading comprehension','Reading Comprehension'],['vocabulary','Vocabulary'],['english','Grammar'],['reading','Reading Comprehension'],
+ ['algebra','Linear Equations'],['advanced math','Quadratics'],['problem-solving and data analysis','Data Analysis'],['problem solving and data analysis','Data Analysis'],['geometry and trigonometry','Geometry'],['geometry','Geometry'],['mathematics','Math'],['math','Math'],['quantitative reasoning','Math Concepts'],['data analysis','Data Analysis'],['fractions','Fractions & Decimals'],['number sense','Number Sense'],['inference','Inference'],['analysis','Analysis'],['punctuation','Punctuation'],['grammar','Grammar'],['writing','Rhetorical Synthesis']
+];
+const DOMAIN_GROUPS={reading:new Set(['Vocabulary','Precision','Reading Comprehension','Evidence','Inference','Analysis']),writing:new Set(['Writing Mechanics','Writing Concepts','Organization','Purpose','Style']),math:new Set(['Math','Number Sense','Fractions & Decimals','Geometry','Measurement','Data Analysis','Pre-Algebra','Math Concepts','Math Procedures','Problem Solving'])};
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s*')}
-function detectType(text,fileName=''){const s=`${fileName} ${text}`.toLowerCase();if(/\bctp\b|educational records bureau|percent content mastery/.test(s))return'CTP';if(/\berb\b/.test(s))return'ERB';if(/map growth|nwea/.test(s))return'MAP Growth';if(/\bfast\b|florida assessment/.test(s))return'FAST';if(/psat\/nmsqt|nmsqt/.test(s))return'PSAT/NMSQT';if(/\bpsat\b/.test(s))return'PSAT';if(/\bsat\b/.test(s))return'SAT';return'Other'}
 function normalize(text){return String(text||'').replace(/\s*\|\s*/g,' ').replace(/\s+/g,' ').trim()}
+function detectType(text,fileName=''){const s=`${fileName} ${text}`.toLowerCase();if(/\bctp\b|educational records bureau|percent content mastery/.test(s))return'CTP';if(/\berb\b/.test(s))return'ERB';if(/\bpreact\b/.test(s))return'PreACT';if(/\bact\b/.test(s))return'ACT';if(/psat\/nmsqt|nmsqt/.test(s))return'PSAT/NMSQT';if(/\bpsat\b/.test(s))return'PSAT';if(/\bsat\b|college board/.test(s))return'SAT';if(/map growth|nwea/.test(s))return'MAP Growth';if(/\bfast\b|florida assessment|florida statewide assessment/.test(s))return'FAST';return'Other'}
 function yearFromText(text){const years=[...text.matchAll(/\b(20\d{2})\b/g)].map(m=>Number(m[1]));return years.length?Math.max(...years):null}
-function testDate(text){const year=yearFromText(text);let m=text.match(/Test Date\s*:\s*(\d{1,2})\/(\d{2})(?:\s*\([^)]*\))?/i);if(m&&year){const month=String(Number(m[1])).padStart(2,'0');return `${year}-${month}-01`}m=text.match(/Test Date\s*:\s*(\d{1,2})\/(\d{1,2})\/(20\d{2})/i);if(m)return `${m[3]}-${String(Number(m[1])).padStart(2,'0')}-${String(Number(m[2])).padStart(2,'0')}`;return null}
+function testDate(text){const year=yearFromText(text);let m=text.match(/Test Date\s*:\s*(\d{1,2})\/(\d{2})(?:\s*\([^)]*\))?/i);if(m&&year)return `${year}-${String(Number(m[1])).padStart(2,'0')}-01`;m=text.match(/(?:Test Date|Assessment Date|Date)\s*[:\-]?\s*(\d{1,2})\/(\d{1,2})\/(20\d{2})/i);if(m)return `${m[3]}-${String(Number(m[1])).padStart(2,'0')}-${String(Number(m[2])).padStart(2,'0')}`;return null}
+function canonicalSkill(label){const s=String(label||'').toLowerCase();for(const [needle,skill] of CANONICAL)if(s.includes(needle))return skill;return String(label||'').trim()}
+function classify(rows){const priorities=rows.filter(r=>r.mastery<70).sort((a,b)=>a.mastery-b.mastery),strengths=rows.filter(r=>r.mastery>=80).sort((a,b)=>b.mastery-a.mastery);return{priorities,strengths}}
+function domainCoverage(rows){const covered={reading:0,writing:0,math:0};for(const row of rows){for(const [domain,set] of Object.entries(DOMAIN_GROUPS))if(set.has(row.canonical_skill))covered[domain]++}return covered}
+function canonicalMajor(name){return ({Vocabulary:'Vocabulary','Reading Comprehension':'Reading Comprehension','Writing Mechanics':'Writing Mechanics','Writing Concepts & Skills':'Writing Concepts','Mathematics 1&2':'Math'})[name]||name}
 
-function parseCtpMajor(text){
-  const sections=[];
-  for(const name of CTP_MAJOR){
-    const re=new RegExp(`${escRe(name)}\\s+(\\d{3,4})\\s+(\\d{1,3})\\s+(\\d)\\s+(\\d{1,3})\\s+(\\d)\\s+(\\d{1,3})\\s+(\\d)\\s+(\\d{1,3})\\s+(\\d)`,'i');
-    const m=text.match(re); if(!m)continue;
-    const pairs=[[m[2],m[3]],[m[4],m[5]],[m[6],m[7]],[m[8],m[9]]];
-    const norm_results={}; CTP_NORMS.forEach((n,i)=>norm_results[n.key]={label:n.label,percentile:Number(pairs[i][0]),stanine:Number(pairs[i][1])});
-    sections.push({name,scale_score:Number(m[1]),norm_results,percentile:norm_results.independent.percentile,stanine:norm_results.independent.stanine,percentile_basis:'Independent Schools'});
-  }
-  return sections;
-}
+function parseCtpMajor(text){const sections=[];for(const name of CTP_MAJOR){const re=new RegExp(`${escRe(name)}\\s+(\\d{3,4})\\s+(\\d{1,3})\\s+(\\d)\\s+(\\d{1,3})\\s+(\\d)\\s+(\\d{1,3})\\s+(\\d)\\s+(\\d{1,3})\\s+(\\d)`,'i'),m=text.match(re);if(!m)continue;const pairs=[[m[2],m[3]],[m[4],m[5]],[m[6],m[7]],[m[8],m[9]]],norm_results={};CTP_NORMS.forEach((n,i)=>norm_results[n.key]={label:n.label,percentile:Number(pairs[i][0]),stanine:Number(pairs[i][1])});sections.push({name,scale_score:Number(m[1]),norm_results,percentile:norm_results.independent.percentile,stanine:norm_results.independent.stanine,percentile_basis:'Independent Schools'})}return sections}
+function masteryRegion(text){const start=text.search(/Tests\s+Content\s+Categories\s+Student\s+Percent\s+Mastery\s+of\s+Content/i);if(start<0)return text;const tail=text.slice(start),end=tail.search(/Copyright\s+©|All rights reserved/i);return end>0?tail.slice(0,end):tail}
+function parseCtpMastery(text){const region=masteryRegion(text),rows=[];for(const[source,canonical]of CTP_CONTENT){const m=region.match(new RegExp(`${escRe(source)}\\s+(\\d{1,3})(?=\\s|$)`,'i'));if(!m)continue;const score=Number(m[1]);if(score>=0&&score<=100&&!rows.some(r=>r.source_skill===source))rows.push({source_skill:source,canonical_skill:canonical,mastery:score})}return rows}
+function ctpSignals(data){const signals=[];for(const r of data.content_mastery||[])signals.push({source_skill:r.source_skill,canonical_skill:r.canonical_skill,score_kind:'content_mastery',score_value:r.mastery,norm_group:null,reliability:1});for(const s of data.sections||[])for(const[key,n]of Object.entries(s.norm_results||{}))if(n.percentile!=null)signals.push({source_skill:s.name,canonical_skill:canonicalMajor(s.name),score_kind:'percentile',score_value:n.percentile,norm_group:key,reliability:key==='independent'?.9:.75});return signals}
+function parseCtp(text){const clean=normalize(text),sections=parseCtpMajor(clean),content_mastery=parseCtpMastery(clean),{priorities,strengths}=classify(content_mastery),majorCoverage=CTP_MAJOR.filter(n=>sections.some(s=>s.name===n)).length,domains=domainCoverage(content_mastery),domainGroupsCovered=Object.values(domains).filter(n=>n>=2).length,verified=majorCoverage===CTP_MAJOR.length&&content_mastery.length>=15&&domainGroupsCovered===3,data={parser_version:ASSESSMENT_PARSER_VERSION,assessment_type:'CTP',assessment_date:testDate(clean),sections,content_mastery,priority_skills:priorities.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:'CTP'})),strength_skills:strengths.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:'CTP'})),verification:{verified,major_rows:majorCoverage,expected_major_rows:CTP_MAJOR.length,content_rows:content_mastery.length,domain_coverage:domains},confidence:verified?'verified':'needs_review'};data.evidence_signals=ctpSignals(data);return data}
 
-function masteryRegion(text){const start=text.search(/Tests\s+Content\s+Categories\s+Student\s+Percent\s+Mastery\s+of\s+Content/i);if(start<0)return text;const tail=text.slice(start);const end=tail.search(/Copyright\s+©|All rights reserved/i);return end>0?tail.slice(0,end):tail}
-function parseCtpMastery(text){
-  const region=masteryRegion(text),rows=[];
-  for(const [source,canonical] of CTP_CONTENT){
-    const re=new RegExp(`${escRe(source)}\\s+(\\d{1,3})(?=\\s|$)`,'i');
-    const m=region.match(re); if(!m)continue;
-    const score=Number(m[1]); if(score<0||score>100)continue;
-    if(!rows.some(r=>r.source_skill===source))rows.push({source_skill:source,canonical_skill:canonical,mastery:score});
-  }
-  return rows;
-}
-
-function ctpSignals(data){
-  const signals=[];
-  for(const row of data.content_mastery||[])signals.push({source_skill:row.source_skill,canonical_skill:row.canonical_skill,score_kind:'content_mastery',score_value:row.mastery,norm_group:null,reliability:1.0});
-  for(const s of data.sections||[]){for(const [key,n] of Object.entries(s.norm_results||{})){if(n.percentile!=null)signals.push({source_skill:s.name,canonical_skill:canonicalMajor(s.name),score_kind:'percentile',score_value:n.percentile,norm_group:key,reliability:key==='independent'?0.9:0.75})}}
-  return signals;
-}
-function canonicalMajor(name){return ({'Vocabulary':'Vocabulary','Reading Comprehension':'Reading Comprehension','Writing Mechanics':'Writing Mechanics','Writing Concepts & Skills':'Writing Concepts','Mathematics 1&2':'Math'})[name]||name}
-function classify(rows){
-  const priorities=rows.filter(r=>r.mastery<70).sort((a,b)=>a.mastery-b.mastery);
-  const strengths=rows.filter(r=>r.mastery>=80).sort((a,b)=>b.mastery-a.mastery);
-  return {priorities,strengths};
-}
-function domainCoverage(rows){
-  const covered={reading:0,writing:0,math:0};
-  for(const row of rows){for(const [domain,set] of Object.entries(DOMAIN_GROUPS)){if(set.has(row.canonical_skill))covered[domain]++}}
-  return covered;
-}
-
-function parseCtp(text){
-  const clean=normalize(text),sections=parseCtpMajor(clean),content_mastery=parseCtpMastery(clean),{priorities,strengths}=classify(content_mastery);
-  const majorCoverage=CTP_MAJOR.filter(n=>sections.some(s=>s.name===n)).length;
-  const domains=domainCoverage(content_mastery);
-  const domainGroupsCovered=Object.values(domains).filter(n=>n>=2).length;
-  const verified=majorCoverage===CTP_MAJOR.length&&content_mastery.length>=15&&domainGroupsCovered===3;
-  const data={parser_version:ASSESSMENT_PARSER_VERSION,assessment_type:'CTP',assessment_date:testDate(clean),sections,content_mastery,priority_skills:priorities.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:'CTP'})),strength_skills:strengths.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:'CTP'})),verification:{verified,major_rows:majorCoverage,expected_major_rows:CTP_MAJOR.length,content_rows:content_mastery.length,domain_coverage:domains,domain_groups_covered:domainGroupsCovered,required_domain_groups:3},confidence:verified?'verified':'needs_review'};
-  data.evidence_signals=ctpSignals(data); return data;
-}
-
-function parseGeneric(text,fileName){return {parser_version:ASSESSMENT_PARSER_VERSION,assessment_type:detectType(text,fileName),assessment_date:testDate(text),sections:[],content_mastery:[],priority_skills:[],strength_skills:[],evidence_signals:[],verification:{verified:false},confidence:'needs_review'}}
-
-export function parseAssessmentReport(layout,fileName=''){
-  const text=layout?.text||''; const type=detectType(text,fileName);
-  return type==='CTP'?parseCtp(text):parseGeneric(text,fileName);
-}
+function matchScore(text,label,min,max){const re=new RegExp(`${escRe(label)}[^\\d]{0,30}(\\d{1,4})`,'i'),m=text.match(re);if(!m)return null;const n=Number(m[1]);return n>=min&&n<=max?n:null}
+function parseCollegeBoard(text,type){const clean=normalize(text),isPsat=type.startsWith('PSAT'),max=isPsat?760:800,min=isPsat?160:200,totalMax=isPsat?1520:1600,totalMin=isPsat?320:400;const sections=[];const rw=matchScore(clean,'Reading and Writing',min,max),math=matchScore(clean,'Math',min,max),total=matchScore(clean,'Total Score',totalMin,totalMax);if(rw!=null)sections.push({name:'Reading and Writing',score:rw,scale:`${min}-${max}`,canonical_skill:'Reading & Writing'});if(math!=null)sections.push({name:'Math',score:math,scale:`${min}-${max}`,canonical_skill:'Math'});const domains=[];for(const label of ['Information and Ideas','Craft and Structure','Expression of Ideas','Standard English Conventions','Algebra','Advanced Math','Problem-Solving and Data Analysis','Geometry and Trigonometry']){const pct=matchScore(clean,label,0,100);if(pct!=null)domains.push({source_skill:label,canonical_skill:canonicalSkill(label),mastery:pct})}const evidence_signals=domains.map(r=>({source_skill:r.source_skill,canonical_skill:r.canonical_skill,score_kind:'content_mastery',score_value:r.mastery,norm_group:null,reliability:.85}));for(const s of sections)evidence_signals.push({source_skill:s.name,canonical_skill:s.canonical_skill,score_kind:'section_score',score_value:s.score,norm_group:null,reliability:.8});const{priorities,strengths}=classify(domains),verified=sections.length===2;return{parser_version:ASSESSMENT_PARSER_VERSION,assessment_type:type,assessment_date:testDate(clean),overall_score:total,sections,content_mastery:domains,priority_skills:priorities.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:type})),strength_skills:strengths.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:type})),evidence_signals,verification:{verified,section_rows:sections.length,domain_rows:domains.length},confidence:verified?'verified':'needs_review'}}
+function parseAct(text,type){const clean=normalize(text),sections=[];for(const label of ['English','Math','Reading','Science']){const score=matchScore(clean,label,1,36);if(score!=null)sections.push({name:label,score,scale:'1-36',canonical_skill:canonicalSkill(label)})}const composite=matchScore(clean,'Composite',1,36),evidence_signals=sections.map(s=>({source_skill:s.name,canonical_skill:s.canonical_skill,score_kind:'section_score',score_value:s.score,norm_group:null,reliability:.8})),verified=sections.length>=3;return{parser_version:ASSESSMENT_PARSER_VERSION,assessment_type:type,assessment_date:testDate(clean),overall_score:composite,sections,content_mastery:[],priority_skills:[],strength_skills:[],evidence_signals,verification:{verified,section_rows:sections.length},confidence:verified?'verified':'needs_review'}}
+function parseNamedRows(text,type){const rows=[];for(const line of String(text||'').split(/\n+/)){const vals=[...line.matchAll(/\b(\d{1,4})(?:\.\d+)?\b/g)].map(m=>Number(m[0]));if(!vals.length)continue;const label=line.replace(/[|,;:\t]+/g,' ').replace(/\b\d+(?:\.\d+)?\b/g,' ').replace(/\s+/g,' ').trim();if(label.length<3)continue;const pct=vals.find(v=>v>=0&&v<=100);if(pct!=null)rows.push({source_skill:label.slice(0,100),canonical_skill:canonicalSkill(label),mastery:pct})}const unique=[];for(const r of rows)if(!unique.some(x=>x.source_skill.toLowerCase()===r.source_skill.toLowerCase()))unique.push(r);const{priorities,strengths}=classify(unique),verified=unique.length>=4,evidence_signals=unique.map(r=>({source_skill:r.source_skill,canonical_skill:r.canonical_skill,score_kind:'content_mastery',score_value:r.mastery,norm_group:null,reliability:.65}));return{parser_version:ASSESSMENT_PARSER_VERSION,assessment_type:type,assessment_date:testDate(text),sections:[],content_mastery:unique,priority_skills:priorities.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:type})),strength_skills:strengths.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:type})),evidence_signals,verification:{verified,generic_rows:unique.length},confidence:verified?'verified':'needs_review'}}
+export function parseAssessmentReport(layout,fileName=''){const text=layout?.text||'',type=detectType(text,fileName);if(type==='CTP')return parseCtp(text);if(type==='SAT'||type==='PSAT'||type==='PSAT/NMSQT')return parseCollegeBoard(text,type);if(type==='ACT'||type==='PreACT')return parseAct(text,type);return parseNamedRows(text,type)}
+export function parseTabularAssessment(rows,fileName=''){const lines=(rows||[]).map(r=>Array.isArray(r)?r.map(v=>String(v??'').trim()).filter(Boolean).join(' | '):Object.values(r||{}).map(v=>String(v??'').trim()).filter(Boolean).join(' | ')).filter(Boolean),layout={text:lines.join('\n'),lines,pages:[lines]};return parseAssessmentReport(layout,fileName)}
