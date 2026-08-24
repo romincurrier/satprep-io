@@ -16,12 +16,26 @@ function chooseDomain(pool,count,priorities,random){
  return chosen.slice(0,count);
 }
 function examLabel(targetExam){const k=examKey(targetExam);return k==='SAT'?'SAT':k==='PSAT_10'?'PSAT 10':'PSAT/NMSQT'}
+function usableFormat(q){const format=q?.format||'mcq';return q?.section==='RW'?format==='mcq':q?.section==='MATH'&&['mcq','spr'].includes(format)}
+function enforceSprMix(selected,eligible,target,priorities,random){
+ let sprCount=selected.filter(x=>x.section==='MATH'&&(x.format||'mcq')==='spr').length;
+ if(sprCount>=target)return;
+ const candidates=shuffle(eligible.filter(x=>x.section==='MATH'&&(x.format||'mcq')==='spr'&&!selected.includes(x)),random).sort((a,b)=>priorityRank(a,priorities)-priorityRank(b,priorities)||a.difficulty-b.difficulty);
+ for(const candidate of candidates){
+  if(sprCount>=target)break;
+  const replace=selected.find(x=>x.section==='MATH'&&(x.format||'mcq')==='mcq'&&x.domain===candidate.domain&&x.skill===candidate.skill)
+    ||selected.find(x=>x.section==='MATH'&&(x.format||'mcq')==='mcq'&&x.domain===candidate.domain)
+    ||selected.find(x=>x.section==='MATH'&&(x.format||'mcq')==='mcq');
+  if(!replace)break;
+  const index=selected.indexOf(replace);selected[index]=candidate;sprCount++;
+ }
+}
 
 // Secure runtime planning is deliberately dependency-injected: callers must supply
 // an already approved bank. This file never imports an authored question bank or key.
 export function buildDiagnosticPlan({targetExam='SAT',priorities=[],seed='satprep',length=20,bank=[]}={}){
  const exam=examLabel(targetExam),source=Array.isArray(bank)?bank:[],random=rng(`${seed}:${exam}`),pri=normalizedPriorities(priorities);
- const eligible=source.filter(q=>(!q.exams||q.exams.includes(exam))&&q.format==='mcq');
+ const eligible=source.filter(q=>(!q.exams||q.exams.includes(exam))&&usableFormat(q));
  const selected=[];
  const addSection=(section,quota)=>{
   for(const [domain,count] of Object.entries(quota)){
@@ -33,13 +47,19 @@ export function buildDiagnosticPlan({targetExam='SAT',priorities=[],seed='satpre
  const desiredRW=Math.round(length*54/98),desiredMath=length-desiredRW;
  const fill=(section,target)=>{for(const q of shuffle(eligible.filter(x=>x.section===section&&!selected.includes(x)),random).sort((a,b)=>priorityRank(a,pri)-priorityRank(b,pri))){if(selected.filter(x=>x.section===section).length>=target)break;selected.push(q)}};
  fill('RW',desiredRW);fill('MATH',desiredMath);
- return selected.slice(0,length).map((q,position)=>({position,itemId:q.id,section:q.section,domain:q.domain,skill:q.skill,difficulty:q.difficulty,isTargeted:priorityRank(q,pri)<4}));
+ // The public digital SAT Math specification is approximately 25% student-produced
+ // responses. For a short diagnostic, target the nearest practical count when the
+ // independently approved bank has enough SPR content, without sacrificing domain coverage.
+ enforceSprMix(selected,eligible,Math.max(1,Math.round(desiredMath*.25)),pri,random);
+ return selected.slice(0,length).map((q,position)=>({position,itemId:q.id,section:q.section,domain:q.domain,skill:q.skill,difficulty:q.difficulty,format:q.format||'mcq',isTargeted:priorityRank(q,pri)<4}));
 }
 
-export function validateDiagnosticPlan(plan,{length=20}={}){
+export function validateDiagnosticPlan(plan,{length=20,requireSpr=false}={}){
  const errors=[];if(plan.length!==length)errors.push(`Expected ${length} items, received ${plan.length}`);
  if(new Set(plan.map(x=>x.itemId)).size!==plan.length)errors.push('Diagnostic plan contains duplicate items');
  for(const section of ['RW','MATH'])if(!plan.some(x=>x.section===section))errors.push(`Diagnostic plan is missing ${section}`);
  for(const domain of [...Object.keys(RW_QUOTA),...Object.keys(MATH_QUOTA)])if(!plan.some(x=>x.domain===domain))errors.push(`Diagnostic plan is missing domain ${domain}`);
+ if(plan.some(x=>x.section==='RW'&&x.format==='spr'))errors.push('Reading and Writing diagnostic items must be multiple choice');
+ if(requireSpr){const math=plan.filter(x=>x.section==='MATH'),spr=math.filter(x=>x.format==='spr').length,target=Math.max(1,Math.round(math.length*.25));if(spr<target)errors.push(`Diagnostic Math mix requires at least ${target} student-produced response items; received ${spr}`)}
  return errors;
 }
