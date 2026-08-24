@@ -1,11 +1,12 @@
 {
   "name": "satprep-io",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "validate:content": "node scripts/validate-content.mjs",
+    "build": "npm run validate:content && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
