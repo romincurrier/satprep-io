@@ -12,6 +12,15 @@ function warn(msg){warnings.push(msg)}
 function read(file){return fs.readFileSync(file,'utf8')}
 function match(html,re){return html.match(re)?.[1]?.trim()||''}
 function normalizeUrl(url){try{const u=new URL(url);return `${u.origin}${u.pathname.endsWith('/')?u.pathname:`${u.pathname}/`}`}catch{return url}}
+function internalTargetExists(href){
+ if(!href||!href.startsWith('/')||href.startsWith('//'))return true;
+ const pathname=href.split('#')[0].split('?')[0]||'/';
+ if(pathname==='/')return fs.existsSync(path.join(root,'index.html'));
+ const rel=pathname.replace(/^\//,'').replace(/\/$/,'');
+ if(!rel)return true;
+ const direct=path.join(publicDir,rel),index=path.join(direct,'index.html');
+ return fs.existsSync(direct)&&fs.statSync(direct).isFile()||fs.existsSync(index);
+}
 
 if(!fs.existsSync(sitemapPath))fail('public/sitemap.xml is missing');
 const sitemap=fs.existsSync(sitemapPath)?read(sitemapPath):'';
@@ -40,7 +49,11 @@ for(const url of urls){
  if(h1Count!==1)fail(`${u.pathname}: expected exactly one H1, found ${h1Count}`);
  if(!/<meta\s+property=["']og:title["']/i.test(html))warn(`${u.pathname}: missing og:title`);
  if(!/<meta\s+property=["']og:description["']/i.test(html))warn(`${u.pathname}: missing og:description`);
- if(!/application\/ld\+json/i.test(html))warn(`${u.pathname}: no structured data block`);
+ const jsonLd=[...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)].map(m=>m[1].trim());
+ if(!jsonLd.length)warn(`${u.pathname}: no structured data block`);
+ for(const [i,block] of jsonLd.entries()){try{const parsed=JSON.parse(block);if(!parsed?.['@context']||!parsed?.['@type'])warn(`${u.pathname}: JSON-LD block ${i+1} lacks @context or @type`)}catch{fail(`${u.pathname}: JSON-LD block ${i+1} is invalid JSON`)}}
+ const links=[...html.matchAll(/href=["']([^"']+)["']/gi)].map(m=>m[1]);
+ for(const href of links)if(!internalTargetExists(href))fail(`${u.pathname}: broken internal link ${href}`);
 }
 
 const robotsPath=path.join(publicDir,'robots.txt');
