@@ -2,6 +2,8 @@ import {createHash} from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
 import XLSX from 'xlsx';
+import {canonicalReviewContent} from '../content-integrity.js';
+import {sprSpecFrom} from '../server/response-scoring.js';
 
 const REVIEW_TYPES=['accuracy','alignment','editorial','bias_accessibility','originality'];
 const args=process.argv.slice(2),file=args.find(x=>!x.startsWith('--'));
@@ -21,17 +23,24 @@ const norm=v=>String(v??'').trim();
 const decision=v=>norm(v).toLowerCase();
 function stimulus(v){const s=norm(v);if(!s)return null;try{return JSON.parse(s)}catch{return s}}
 function answerIndex(v){const s=norm(v).toUpperCase();if(/^[A-D]$/.test(s))return s.charCodeAt(0)-65;const n=Number(s);return Number.isInteger(n)&&n>=0&&n<=3?n:null}
-function canonical(row){
- const choices=['choice_a','choice_b','choice_c','choice_d'].map(k=>norm(row[k]));
- const index=answerIndex(row.correct_answer),type=norm(row.content_type),id=norm(row.item_id),exams=norm(row.exam_eligibility).split('|').map(x=>x.trim()).filter(Boolean);
- return{type,id,section:norm(row.section),domain:norm(row.domain),skill:norm(row.skill_key),difficulty:Number(row.difficulty),exams,stimulus:stimulus(row.stimulus),stem:norm(row.stem),choices,answerIndex:index,explanation:norm(row.explanation)};
+function parsedRow(row){
+ const type=norm(row.content_type),id=norm(row.item_id),section=norm(row.section),format=(norm(row.response_format)||'mcq').toLowerCase(),exams=norm(row.exam_eligibility).split('|').map(x=>x.trim()).filter(Boolean),choices=['choice_a','choice_b','choice_c','choice_d'].map(k=>norm(row[k]));
+ const base={type,id,section,domain:norm(row.domain),skill:norm(row.skill_key),difficulty:Number(row.difficulty),format,exams,stimulus:stimulus(row.stimulus),stem:norm(row.stem),choices:format==='mcq'?choices:null,explanation:norm(row.explanation)};
+ if(format==='mcq')return{...base,answerIndex:answerIndex(row.correct_answer)};
+ const accepted=norm(row.accepted_answers).split('|').map(x=>x.trim()).filter(Boolean),display=norm(row.correct_answer)||accepted[0]||'';
+ return{...base,answer:{accepted,display}};
 }
-function hash(c){return createHash('sha256').update(JSON.stringify(c)).digest('hex')}
+function hash(c){return createHash('sha256').update(JSON.stringify(canonicalReviewContent(c.type,c))).digest('hex')}
 const prepared=[];
 for(const [i,row] of rows.entries()){
- const line=i+2,c=canonical(row),expected=norm(row.content_hash).toLowerCase();
+ const line=i+2,c=parsedRow(row),expected=norm(row.content_hash).toLowerCase();
  if(!['diagnostic','practice'].includes(c.type))throw new Error(`Row ${line}: invalid content_type.`);
- if(!c.id||!c.stem||!c.explanation||!['RW','MATH'].includes(c.section)||!c.domain||!c.skill||![1,2,3].includes(c.difficulty)||c.answerIndex===null||c.choices.some(x=>!x))throw new Error(`Row ${line}: incomplete or invalid content fields.`);
+ if(!c.id||!c.stem||!c.explanation||!['RW','MATH'].includes(c.section)||!c.domain||!c.skill||![1,2,3].includes(c.difficulty)||!['mcq','spr'].includes(c.format))throw new Error(`Row ${line}: incomplete or invalid content fields.`);
+ if(c.format==='mcq'&&(c.answerIndex===null||!Array.isArray(c.choices)||c.choices.length!==4||c.choices.some(x=>!x)))throw new Error(`Row ${line}: MCQ content requires four choices and a valid A-D correct answer.`);
+ if(c.format==='spr'){
+   if(c.section!=='MATH')throw new Error(`Row ${line}: student-produced response format is valid only for Math content.`);
+   if(!sprSpecFrom(c.answer))throw new Error(`Row ${line}: SPR content requires one or more valid accepted_answers and a display answer.`);
+ }
  const actual=hash(c);if(expected!==actual)throw new Error(`Row ${line}: content hash does not match the exact reviewed item.`);
  for(const type of REVIEW_TYPES)if(decision(row[`${type}_review`])!=='approve')throw new Error(`Row ${line}: ${type} review is not APPROVE.`);
  const reviewer=norm(row.reviewer),reviewedAt=norm(row.reviewed_at);if(!reviewer||!reviewedAt||Number.isNaN(Date.parse(reviewedAt)))throw new Error(`Row ${line}: reviewer and valid reviewed_at are required.`);
@@ -47,15 +56,14 @@ async function rest(route,{method='GET',body,prefer}={}){
 
 console.log(`Validated ${prepared.length} exact hash-pinned reviewed items. No proprietary question text will be printed.`);
 for(const {c,hash:contentHash,reviewer,reviewedAt,notes} of prepared){
- // Fail closed while replacing any existing version: deactivate first, then update prompt/key/reviews,
- // and only reactivate after every write has succeeded.
  await rest(`/rest/v1/content_items?id=eq.${encodeURIComponent(c.id)}`,{method:'PATCH',body:{active:false,updated_at:new Date().toISOString()},prefer:'return=minimal'});
- const item={id:c.id,content_type:c.type,section:c.section,domain_key:c.domain,skill_key:c.skill,difficulty:c.difficulty,format:'mcq',stimulus:c.stimulus,stem:c.stem,choices:c.choices,exams:c.exams.length?c.exams:['SAT','PSAT/NMSQT','PSAT 10'],origin:'satprep_original',qa_status:'production_approved',active:false,updated_at:new Date().toISOString()};
+ const item={id:c.id,content_type:c.type,section:c.section,domain_key:c.domain,skill_key:c.skill,difficulty:c.difficulty,format:c.format,stimulus:c.stimulus,stem:c.stem,choices:c.format==='mcq'?c.choices:null,exams:c.exams.length?c.exams:['SAT','PSAT/NMSQT','PSAT 10'],origin:'satprep_original',qa_status:'production_approved',active:false,updated_at:new Date().toISOString()};
  await rest('/rest/v1/content_items?on_conflict=id',{method:'POST',body:item,prefer:'resolution=merge-duplicates,return=minimal'});
- await rest('/rest/v1/content_answer_keys?on_conflict=item_id',{method:'POST',body:{item_id:c.id,answer:{answerIndex:c.answerIndex},explanation:c.explanation,updated_at:new Date().toISOString()},prefer:'resolution=merge-duplicates,return=minimal'});
+ const answer=c.format==='mcq'?{answerIndex:c.answerIndex}:c.answer;
+ await rest('/rest/v1/content_answer_keys?on_conflict=item_id',{method:'POST',body:{item_id:c.id,answer,explanation:c.explanation,updated_at:new Date().toISOString()},prefer:'resolution=merge-duplicates,return=minimal'});
  const reviews=REVIEW_TYPES.map(review_type=>({item_id:c.id,review_type,reviewer_label:reviewer,decision:'approve',content_hash:contentHash,notes:notes||null,created_at:new Date(reviewedAt).toISOString()}));
  await rest('/rest/v1/content_item_reviews',{method:'POST',body:reviews,prefer:'return=minimal'});
  if(activate)await rest(`/rest/v1/content_items?id=eq.${encodeURIComponent(c.id)}`,{method:'PATCH',body:{active:true,updated_at:new Date().toISOString()},prefer:'return=minimal'});
- console.log(`${c.id}: imported ${activate?'ACTIVE':'inactive'} with five hash-pinned approvals.`);
+ console.log(`${c.id}: imported ${activate?'ACTIVE':'inactive'} ${c.format.toUpperCase()} with five hash-pinned approvals.`);
 }
 console.log(`Import complete. ${activate?'Items were activated only after all writes succeeded.':'Items remain inactive; rerun with --activate and the explicit confirmation only after launch QA.'}`);
