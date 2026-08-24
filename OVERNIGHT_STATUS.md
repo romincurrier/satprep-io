@@ -2,67 +2,89 @@
 
 Last updated: 2026-08-24
 
-## Completed in current build cycle
-- Reverified the current public College Board Digital SAT Suite structure and skill taxonomy before continuing content work.
-- Added `sat-spec.js` with the four Reading & Writing domains, four Math domains, official skill points, SAT/PSAT eligibility differences, domain distributions, and test timing/question counts.
-- Added a proprietary diagnostic bank aligned to the official skill taxonomy, with development coverage across every official skill point. All development items remain `internal_review`, not production-approved.
-- Added automated content validation to the production build. A build fails for duplicate IDs, broken answer keys, invalid taxonomy, missing explanations, invalid exam eligibility, missing official-skill coverage, invalid diagnostic blueprints, or exact diagnostic/practice duplicates in the staged QA pool.
-- Added `diagnostic-blueprint.js`: deterministic, evidence-aware, exam-eligible 20-item diagnostic planning with coverage across all eight major domains and targeted emphasis from prior-assessment evidence.
-- Added a secure content-system migration that separates item prompts from answer keys and is designed for server-side diagnostic scoring so correct answers do not need to ship to the browser.
-- Added authenticated server-side diagnostic session, item-delivery, and scoring endpoints. The browser receives the prompt and answer choices but not the answer key or explanation during diagnostic assessment.
-- Added `diagnostic-router.js`. New diagnostic attempts use the secure v3 engine, while an already-open legacy attempt automatically falls back to the legacy engine so saved progress/question IDs are preserved.
-- The secure diagnostic remains assessment-only: no correct/incorrect feedback is returned during the initial diagnostic.
-- Hardened the pending content-system migration with a **restrictive RLS policy** for secure-v3 diagnostic responses. Once applied, existing broad browser policies cannot be used to read, forge, modify, or delete secure-v3 response rows; legacy in-progress attempts can still finish. Added a build-time security invariant that requires this restrictive policy to remain present.
-- Added strict request validation to the secure diagnostic answer endpoint: bounded payload size, UUID validation, question-position bounds, answer-choice bounds, and response-time bounds. The security build gate now requires these controls.
-- Added official-taxonomy instruction/practice architecture through `skill-guides.js`, `practice-bank.js`, and `learning-v2.js`. Practice sessions show the correct answer and instructional explanation after every answer, while the diagnostic remains assessment-only.
-- Authored 31 additional SATprep.io-original practice items in `practice-bank-extra.js`, bringing the staged development practice pool to 62 items and providing a second authored item for every official skill point.
-- Isolated the staged-bank validation failure to one exact overlap: staged item `p-m-118` duplicated the existing diagnostic triangle-angle item. Added an auditable staged override with different values/answer choices. Full staged-bank validation now passes with 62 original practice items and at least two items per official skill point.
-- Kept the new 31-item expansion behind the QA gate. The student-facing learning engine continues using the previously validated base practice bank until independent review is completed.
-- Added `scripts/content-readiness.mjs` / `npm run content:readiness` to report diagnostic depth, student-facing vs staged practice depth, difficulty coverage, and production-approval depth by official skill.
-- Added `scripts/export-content-review.mjs` / `npm run content:review-export` to generate an independent-review CSV covering question text, answers, explanations, taxonomy, difficulty, exam eligibility, and reviewer decision fields for accuracy, alignment, editorial, bias/accessibility, originality, and notes.
-- Added `content-approval-registry.json` plus `content:review-apply` and build-time `validate:approvals`. Human approvals are now pinned to the SHA-256 hash of the exact reviewed item; any later edit invalidates the approval and fails the build until the item is re-reviewed or the stale approval is removed.
-- Updated the readiness report to count only hash-valid human approvals instead of trusting a source-code status label.
-- Added `docs/CONTENT_REVIEW_RUNBOOK.md` with reviewer qualifications, five review dimensions, revision/rejection handling, hash-pinned release behavior, and launch sign-off requirements.
-- Expanded the indexable SEO architecture from broad pillars into skill clusters. Added dedicated original guides for SAT Algebra, Advanced Math, Problem-Solving/Data Analysis, Geometry/Trigonometry, Inferences, Command of Evidence, Words in Context, Transitions, Grammar/Punctuation, and Rhetorical Synthesis; linked them from the Math and Reading & Writing pillars and added them to the sitemap.
-- Strengthened automated SEO validation so sitemap pages must have valid JSON-LD and resolvable internal links in addition to title/meta/canonical/robots/H1 checks.
-- Added `docs/SEO_SOURCE_NOTES.md` so public SAT/PSAT facts are traceable to first-party College Board pages with a re-verification process; public content uses the official taxonomy without copying official questions.
-- Added `docs/MARKETING_ASSET_MATRIX.md` with launch-candidate campaign concepts, paid-search group structures, educational social/content series, lifecycle-email trigger matrix, partnership/referral controls, creative inventory, UTM standards, experimentation framework, and channel-specific activation gates. It is planning material only; no campaigns were activated.
-- Added `docs/MARKETING_DATA_DICTIONARY.md` defining privacy-minimized public acquisition events, funnel/KPI definitions, safe campaign dimensions, a future narrow attribution-bridge concept, retention principles, and data-quality checks. It explicitly keeps learner-performance data out of the public marketing event table.
-- Added `docs/COMMERCIAL_LAUNCH_RUNBOOK.md` covering content, database, auth, diagnostic, uploads, learning, parent, billing, privacy/legal, security, SEO, measurement, support, monitoring, release, and post-launch operating gates.
-- Added `docs/SUPPORT_OPERATIONS.md` and `docs/INCIDENT_RESPONSE.md` for support categories, progress-loss recovery, content-error handling, billing/privacy escalation, incident containment, secret rotation, diagnostic-integrity incidents, severity levels, evidence preservation, and post-incident review.
-- Added a pending `20260824_privacy_requests.sql` migration that can record authenticated access/correction/deletion/account-closure requests while deliberately keeping disposition server-controlled. It does not itself delete data or cancel billing and remains inactive until the database/legal workflow is approved.
-- Updated `README.md` so repository architecture, secure diagnostic design, content-review commands, migration procedure, commercial documentation, and explicit launch controls match the current system rather than the earlier prototype architecture.
-- Multiple Vercel builds including the expanded SEO sitemap/skill-cluster set and strengthened security/SEO validators have been confirmed green.
+## Current commercial-candidate state
+SATprep.io is a **pre-launch commercial candidate**, not yet approved for public paying customers. The architecture now includes student/parent/admin/billing flows, prior-assessment ingestion, an assessment-only adaptive diagnostic, learning/practice with explanations, mastery/progress tracking, proprietary content QA, SEO/trust pages, and pre-launch marketing/measurement planning.
+
+## Major foundations completed
+- Reverified the current College Board Digital SAT Suite taxonomy and structure against first-party sources.
+- Added `sat-spec.js` with Reading & Writing and Math domains, official skill points, SAT/PSAT eligibility differences, section structure, and distributions.
+- Added an original proprietary diagnostic bank and deterministic evidence-aware diagnostic blueprint covering all eight major domains.
+- Added secure-v3 diagnostic delivery/scoring endpoints so the browser receives prompts/choices but not answer keys or explanations during the baseline assessment.
+- Existing legacy diagnostic attempts remain resumable on their saved plan; new secure attempts are assessment-only.
+- Added original learning/practice architecture with immediate correct-answer and process explanations after practice responses.
+- Expanded the staged practice pool to 62 original items, at least two authored items per official skill point; the additional 31 remain behind the independent-review gate.
+- Added automated content validation for IDs, answer keys, taxonomy, exam eligibility, explanations, official-skill coverage, blueprints, and exact diagnostic/practice duplicates.
+- Added hash-pinned independent content review workflow: export, reviewer decisions, validation, approval registry, and build-time approval verification.
+- Added content-review, commercial-launch, privacy, support, incident-response, marketing, and SEO governance documentation.
+- Added prior-assessment PDF/spreadsheet ingestion with native score-type preservation and a generic validation gate for unsupported reports.
+- Added SEO/trust architecture with canonical metadata, structured data, internal-link validation, sitemap validation, and current-source governance.
+- Added privacy-minimized marketing measurement and privacy-request migrations, both still gated from live use pending database/privacy review.
+
+## Progress in the latest build run
+### Secure diagnostic integrity
+- Secure diagnostic responses are now explicitly written with `content_item_id` and `scored_by_server=true`.
+- Secure progress and finalization now count only server-scored rows.
+- Finalization verifies that `content_item_id` matches the server-authored question ID before a row contributes to the diagnostic result.
+- New secure attempts now check that the content-system migration is actually present before creation/scoring. If the database is restored before required migrations are applied, the system fails closed instead of creating partially compatible secure attempts.
+- Build-time security validation now requires the migration-readiness check, response provenance fields, server-scored filtering, item-identity check, and restrictive secure-v3 RLS policy.
+- A Vercel build containing these security/integrity changes has been confirmed green.
+
+### Content calibration foundation
+- Added pending `20260824_content_calibration.sql` with server-only aggregate item and skill calibration views.
+- Aggregate metrics include response count, facility, mean/median response time, section-score correlation, option-selection counts, and observation dates without student identifiers.
+- Added `npm run content:calibration` for a server-only operational QA report.
+- Added `docs/CONTENT_CALIBRATION_RUNBOOK.md` defining screening thresholds, review workflow, psychometric guardrails, privacy limits, and a clear rule that operational statistics do not replace independent review or justify SAT-score predictions.
+
+### PSAT organic-search/content cluster
+- Added dedicated pages for:
+  - `/psat-score-guide/`
+  - `/psat-math-prep/`
+  - `/psat-reading-writing-prep/`
+  - `/psat-study-plan/`
+- Linked the PSAT pillar page to the new cluster and added the pages to the sitemap.
+- Reverified current PSAT/NMSQT/PSAT 10 structure and score facts against College Board first-party sources and expanded `docs/SEO_SOURCE_NOTES.md` accordingly.
+- Public copy preserves exam-specific skill eligibility rather than treating every SAT Math skill as a PSAT requirement.
+
+### Conversion/trust content
+- Added `/practice-explanations/`, a public, clearly labeled illustrative demo showing the intended learning-mode feedback: correct answer, reasoning steps, and reusable process.
+- The demo explicitly distinguishes learning/practice from the assessment-only diagnostic and uses SATprep.io-created examples rather than official College Board questions.
+- Linked the methodology page to the demo and added it to the sitemap.
 
 ## Current infrastructure finding
-- The connected Supabase project `nrjqykfrnfrgyuvprwob` currently reports status `INACTIVE`. This explains the recent database-management timeouts and prevents reliable live end-to-end database verification.
-- The project was **not** restored automatically because restoring a hosted database can affect billing/operational state and the autonomous build is not authorized to incur cost or make that external decision.
-- Repository/database migrations remain prepared and can be verified/applied once the project is intentionally active again.
+- Supabase project `nrjqykfrnfrgyuvprwob` still reports `INACTIVE` as of this run.
+- The project was not restored automatically because restoring hosted infrastructure can change billing/operational state and is an explicit approval gate.
+- Content-system, calibration, marketing-measurement, and privacy-request migrations are therefore committed but not claimed as live.
 
-## Deliberately not changed yet
-- An already active legacy diagnostic remains on its saved legacy question plan until it is completed. New attempts route to the secure official-taxonomy engine.
-- No question or practice item has been promoted through the new human-approval registry. Commercial launch requires independent accuracy, answer-key, alignment, originality, accessibility/bias, and editorial review.
-- The additional 31 practice items pass automated structural/cross-bank validation but remain staged, not student-facing, until independent human content review is complete.
-- The secure content-system, marketing-measurement, and privacy-request SQL are committed but live application remains unconfirmed while Supabase is inactive.
-- Legal/privacy pages have not been published as final policies; minor-data/COPPA and broader privacy terms still require deliberate launch review.
-- Anonymous first-party marketing tracking remains disabled in the public application until the marketing migration and privacy review are complete.
-- No live payments, public campaigns, paid media, prospect emails, public-account creation, Search Console/ad-platform activation, or irreversible marketing actions have been enabled.
+## Content readiness rules still in force
+- No staged question is considered commercially approved merely because automated validation passes.
+- The 31-item practice expansion remains non-student-facing until independent accuracy, alignment, editorial, originality, and accessibility/bias review is completed and hash-valid approvals are applied.
+- Authored difficulty labels are development expectations, not empirical SAT difficulty claims.
+- Diagnostic mastery values are learning signals, not official SAT/PSAT scaled-score predictions.
+- No score-gain, admission, scholarship, or superiority claims may be published without supporting validation.
+
+## Explicitly not activated
+- No live Stripe payments or public pricing activation.
+- No paid media, ad spend, prospect email, affiliate/referral activation, social publishing, Search Console submission, or public campaign launch.
+- No behavioral advertising or learner-performance marketing audiences.
+- No final legal/privacy policy publication.
+- No use of real student reports, identifiable dashboards, or student outcomes in marketing assets.
 
 ## Highest-priority next actions
-1. Once Supabase is intentionally active, run live end-to-end tests of the secure v3 diagnostic with a fresh test student and confirm resume behavior across windows/devices.
-2. Apply/verify the content-system and marketing-measurement migrations, then rerun Supabase security/performance advisors.
-3. After the migration is live, mark secure response writes explicitly as server-scored/content-item-linked and make secure finalization count only server-scored rows.
-4. Obtain independent human review on the exported content sheet and apply only hash-valid approvals through the registry workflow.
-5. Continue expanding diagnostic and practice depth toward launch targets with multiple difficulties, contexts, and distractor patterns per skill.
-6. Add a durable production rate-limit/abuse strategy and verify that answer keys and service-role access cannot be reached from the browser.
-7. Complete regression testing across student, parent, admin, onboarding, billing, assessment, learning, progress, uploads, privacy-request, and support paths.
-8. Continue the planning/parent/PSAT SEO clusters and synthetic marketing-demo asset preparation while keeping outbound/paid activation gated.
+1. Once Supabase is intentionally active, reconcile and apply pending migrations in order, including content-system and secure response provenance before allowing new secure-v3 diagnostics.
+2. Run end-to-end secure-v3 testing with a fresh test student: start, save, refresh, new window/device resume, completion, finalization, and learning-path update.
+3. Verify secure rows are `content_item_id` linked and `scored_by_server=true`, then run calibration views and Supabase security/performance advisors.
+4. Obtain independent human content review and apply only hash-valid approvals.
+5. Continue expanding question depth/rotation across difficulty levels, contexts, answer formats, and distractor patterns.
+6. Add and verify a durable production rate-limit/abuse-control strategy for privileged APIs and proprietary question delivery.
+7. Complete regression testing across student, parent, admin, onboarding, billing, uploads, learning, mastery, progress, privacy requests, and support recovery paths.
+8. Continue parent/PSAT/learning-demo SEO clusters and synthetic marketing assets while all outbound/paid activation remains gated.
 
-## Commercial launch gates that remain open
-- Independent content review and calibration.
-- Adequate question-bank depth and rotation to prevent memorization/reuse.
-- Full end-to-end regression across student/parent/admin/billing flows.
-- Active/verified production database and applied migrations.
-- Minor-data/privacy/legal review and production data-retention policy.
-- Final RLS/API authorization/rate-limit review and production smoke test.
-- Full SEO, analytics, marketing attribution, lifecycle email, and paid/organic campaign implementation after approval.
+## Commercial launch gates still open
+- Active, verified production database with migrations applied.
+- Independent content review and sufficient question-bank depth/rotation.
+- Empirical/psychometric calibration process after adequate pilot data exists.
+- Full end-to-end regression and production smoke testing.
+- Minor-data/privacy/legal and data-retention review.
+- Final RLS/API authorization/rate-limit review.
+- Live billing verification and approved public pricing.
+- Approved analytics/attribution, lifecycle email, paid/organic campaign activation, and support monitoring.
