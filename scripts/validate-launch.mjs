@@ -18,9 +18,8 @@ forbid(index,/"price"\s*:/,'Pre-launch structured data must not publish a price 
 requireText(guard,'const PUBLIC_BILLING_ENABLED = false','Prelaunch commercial gate must remain disabled until an explicit launch change.');
 requireText(guard,"PUBLIC_HOSTS = new Set(['satprep.io','www.satprep.io'])",'Public billing gate must explicitly cover the production hosts.');
 requireText(guard,'const BILLING_UI_ALLOWED = PUBLIC_BILLING_ENABLED || !IS_PUBLIC_HOST','Preview QA may remain available while public-host billing is gated.');
-requireText(guard,"fetch('/api/parent-setup-request'",'Under-13 setup requests must use the protected server endpoint.');
-requireText(guard,"event.stopImmediatePropagation()",'Youth/billing guards must stop legacy handlers when required.');
-requireText(guard,"form.id === 'teenForm'",'Teen signup must be guarded by date-of-birth validation.');
+requireText(marketing,"fetch('/api/parent-setup-request'",'Under-13 setup requests must use the protected server endpoint natively.');
+requireText(guard,"form.id !== 'teenForm'",'Teen signup must retain a defense-in-depth date-of-birth guard.');
 requireText(guard,'age < 13','Teen signup must reject an entered date of birth indicating the learner is under 13.');
 requireText(guard,"#billingBtn,.billing-checkout,#manageSubscription",'Public-host billing controls must be blocked during prelaunch.');
 requireText(guard,"Public pricing and trial terms will be posted only after those launch checks are complete.",'Prelaunch pricing section must not imply unverified public billing terms.');
@@ -43,12 +42,12 @@ requireText(accessibility,'min-height:44px','Primary interactive controls must h
 requireText(accessibility,'prefers-reduced-motion:reduce','The UI must respect reduced-motion preferences.');
 requireText(accessibility,'prefers-contrast:more','The UI must include a higher-contrast preference treatment.');
 
-// The old direct browser insert may remain temporarily for backwards compatibility, but the capture-phase
-// guard above must intercept it. Treat any new direct writes to other youth setup tables as a build failure.
-const directYouthWrites = [...marketing.matchAll(/supabase\.from\(["']([^"']+)["']\)\.insert/g)].map(m=>m[1]);
-for(const table of directYouthWrites){
-  if(table !== 'parent_setup_requests') errors.push(`Unexpected direct browser insert into ${table} from marketing.js.`);
-}
+// Youth setup data must never be inserted directly from public browser code.
+// Parent setup now goes through a rate-limited server endpoint; future youth-data
+// collection must follow the same server-side authorization pattern.
+const directBrowserInserts = [...marketing.matchAll(/supabase\.from\(["']([^"']+)["']\)\.insert/g)].map(m=>m[1]);
+for(const table of directBrowserInserts) errors.push(`Direct browser insert into ${table} from marketing.js is prohibited.`);
+forbid(marketing,/parent_setup_requests/,'marketing.js must not reference the parent_setup_requests table directly.');
 
 if(errors.length){
   console.error('Launch validation failed:');
