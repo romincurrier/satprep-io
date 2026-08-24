@@ -25,6 +25,21 @@ SATprep.io is a **pre-launch commercial candidate**, not approved for public pay
 - Added `docs/ACCESSIBILITY_LAUNCH_CHECKLIST.md` covering keyboard-only, screen-reader, zoom/reflow, contrast, touch, motion/timing, math/content accessibility, and release-evidence testing. Automated checks are explicitly **not** treated as proof of legal compliance or a substitute for manual assistive-technology testing.
 - The first Vercel build with the accessibility validator enabled completed successfully.
 
+### Youth-account privacy boundary
+- Added a database auth-trigger migration that requires a valid date of birth for **direct student signup** and rejects direct creation for students under 13, routing that age group to the existing parent/guardian workflow instead of relying only on browser JavaScript.
+- Parent/guardian-created student logins now carry a trusted `raw_app_meta_data` provenance marker set by the server admin-user path. The auth trigger recognizes that marker so a parent-created child account does not need to masquerade as a direct teen signup.
+- This intentionally uses `raw_app_meta_data`, not user-editable `raw_user_meta_data`, for the trusted authorization marker.
+- Added `validate:youth-privacy` to every production build so the under-13 UI route, parent setup endpoint, direct-signup DOB requirement, trusted parent activation metadata, parental-consent event, and database age gate cannot silently regress.
+- A Vercel build containing the youth privacy validator completed successfully.
+- These controls are technical defense in depth only; they do **not** substitute for final COPPA/state privacy/legal review, consent wording/verification, revocation, retention, and deletion procedures.
+
+### Private proprietary-content bridge
+- Added `.gitignore` protection for local environment files, build artifacts, private-content directories, and completed review CSVs so proprietary review material is less likely to be committed accidentally to the public repository.
+- Added `scripts/import-private-reviewed-content.mjs`, which accepts only an **absolute path** to a review file outside the repository, validates all five required independent approvals, recomputes the exact SHA-256 reviewed-content hash, and imports content through the server-only Supabase service credential without printing proprietary question text.
+- Private imports default to **inactive**. Activation additionally requires `--activate` plus `PRIVATE_CONTENT_IMPORT_CONFIRM=ACTIVATE_REVIEWED_CONTENT`.
+- Existing items are deactivated before replacement and are only reactivated after prompt, answer key, and review writes succeed.
+- Added `docs/PRIVATE_CONTENT_WORKFLOW.md`. This provides a safe bridge for fresh commercial content without placing new secure diagnostic/practice questions in public Git, while still identifying a dedicated private repository/editorial CMS as the mature long-term solution.
+
 ### Exact-content diagnostic approval integrity
 - Secure diagnostic content is typed as `diagnostic` in the server-only content system.
 - Runtime selection/delivery/scoring requires active `production_approved` MCQ content plus current approvals for **accuracy, SAT/PSAT alignment, editorial quality, bias/accessibility, and originality**.
@@ -48,7 +63,7 @@ SATprep.io is a **pre-launch commercial candidate**, not approved for public pay
 - Added `docs/COMMERCIAL_PRACTICE_ARCHITECTURE.md` with activation/test requirements.
 
 ### Build-time regression/security gates
-- Production builds now run content, approval, SEO, accessibility, security, practice-security, launch, and deterministic regression validators before Vite.
+- Production builds now run content, approval, SEO, accessibility, youth-privacy, security, practice-security, launch, and deterministic regression validators before Vite.
 - Diagnostic regression tests preserve assessment-only behavior and deterministic all-domain coverage.
 - Practice security tests enforce authenticated/rate-limited APIs, server-only scoring content, exact hash approvals, durable resume, atomic mastery finalization, and prelaunch-only browser fallback.
 - Continue requiring a green deployment check after every material commit.
@@ -62,27 +77,29 @@ SATprep.io is a **pre-launch commercial candidate**, not approved for public pay
 
 ## Infrastructure state
 - Supabase project `nrjqykfrnfrgyuvprwob` remains **INACTIVE** and was not restored automatically because restoration can affect hosted infrastructure/billing.
-- Content-system/hash-review, practice-session, calibration, marketing-measurement, privacy-request, and durable-rate-limit migrations are committed but **not claimed live**.
-- GitHub repository is currently **public**. `docs/REPOSITORY_EXPOSURE.md` records the required private proprietary-content boundary before fresh secure commercial diagnostic content is authored/imported.
+- Content-system/hash-review, practice-session, calibration, marketing-measurement, privacy-request, durable-rate-limit, and student-signup-age-gate migrations are committed but **not claimed live**.
+- GitHub repository is currently **public**. The new private-file/import workflow reduces accidental exposure, but a dedicated private proprietary-content repository/CMS is still recommended before scaled commercial authoring.
 - Public search indexing remains disabled with prelaunch `X-Robots-Tag: noindex, nofollow, noarchive`.
 - Live Stripe, public purchase/trial terms, ads, email campaigns, affiliate/referral execution, Search Console submission, public analytics/retargeting, and final legal/privacy publication remain disabled.
 
 ## Highest-priority next actions
-1. Establish a **private repository/content boundary** for fresh secure commercial question content.
-2. Intentionally reactivate Supabase when approved; apply/reconcile pending migrations and test RLS/service-role boundaries.
+1. Establish a dedicated **private repository/editorial content boundary** for scaled fresh commercial question authoring; use the new external-file import bridge meanwhile.
+2. Intentionally reactivate Supabase when approved; apply/reconcile pending migrations and test RLS/service-role/auth-trigger boundaries.
 3. Import fresh independently reviewed diagnostic/practice content with exact hash-matching approval rows and increase depth toward launch targets.
 4. End-to-end test secure diagnostic and commercial practice: resume, revoked-review behavior, correct/incorrect practice feedback, idempotent retries, atomic mastery, 429/503 failure modes, and cross-account isolation.
-5. After server practice is proven live, remove/decommission browser-writable mastery/question-attempt authority from the commercial path and tighten legacy RLS without breaking prelaunch/legacy recovery.
-6. Complete full regression across student, parent, admin, onboarding, billing preview, prior uploads, journey/progress, privacy requests, and support recovery.
-7. Execute the manual accessibility checklist with keyboard, desktop/mobile screen readers, zoom/reflow, contrast, and representative devices; remediate all critical findings.
-8. Reconcile live data inventory, processor register, retention schedule, legal/privacy notices, live billing terms, analytics consent/attribution, and lifecycle email before public launch.
-9. Only after explicit approval: enable public billing/indexing/analytics and begin outbound marketing execution.
+5. End-to-end test teen direct signup versus parent-authorized under-13 account activation after the age-gate migration is applied.
+6. After server practice is proven live, remove/decommission browser-writable mastery/question-attempt authority from the commercial path and tighten legacy RLS without breaking prelaunch/legacy recovery.
+7. Complete full regression across student, parent, admin, onboarding, billing preview, prior uploads, journey/progress, privacy requests, and support recovery.
+8. Execute the manual accessibility checklist with keyboard, desktop/mobile screen readers, zoom/reflow, contrast, and representative devices; remediate all critical findings.
+9. Reconcile live data inventory, processor register, retention schedule, legal/privacy notices, consent verification, live billing terms, analytics consent/attribution, and lifecycle email before public launch.
+10. Only after explicit approval: enable public billing/indexing/analytics and begin outbound marketing execution.
 
 ## Launch gates still open
-- Private proprietary-content boundary + fresh secure diagnostic bank.
+- Dedicated private proprietary-content boundary + fresh secure diagnostic bank.
 - Active verified production database with migrations applied.
 - Independent review and sufficient content depth/rotation.
 - Server-practice end-to-end verification and legacy/browser-authority retirement.
+- Youth-account/parental-consent end-to-end verification plus legal/privacy approval.
 - Pilot calibration after adequate usage data.
 - Full functional/security/privacy/accessibility regression.
 - Final legal/privacy/data-retention/processor review.
