@@ -8,6 +8,7 @@ const fail=m=>errors.push(m);
 const index=read('index.html');
 if(/diagnostic-feedback\.js/i.test(index))fail('Diagnostic feedback must not be loaded during assessment.');
 if(/marketing-events\.js/i.test(index))fail('Marketing measurement is gated until its migration/privacy review are complete.');
+if(fs.existsSync(path.join(root,'api/billing-status.js')))fail('Public billing/environment configuration diagnostic endpoint must not ship.');
 
 const router=read('diagnostic-router.js');
 if(/question-bank-production|question-bank\.js|answerIndex|correct_answer/i.test(router))fail('Secure diagnostic client must not import or reference diagnostic answer keys.');
@@ -30,6 +31,7 @@ function walk(dir='.'){
   if(!/\.(js|mjs|html)$/.test(entry.name))continue;
   const txt=fs.readFileSync(path.join(root,rel),'utf8');
   if(txt.includes('SUPABASE_SERVICE_ROLE_KEY')&&!serverAllowedPrefixes.some(p=>rel.startsWith(p)))fail(`${rel}: service-role environment variable referenced outside server/build tooling.`);
+  if(rel.startsWith('api/')&&/process\.env\.[A-Z0-9_]+/.test(txt)&&/configured\s*[:=]|secret_mode|environment\s*[:=]/i.test(txt)&&!/authenticatedUser\(|studentContext\(/.test(txt))fail(`${rel}: unauthenticated environment/configuration diagnostics may disclose deployment state.`);
  }
 }
 walk();
