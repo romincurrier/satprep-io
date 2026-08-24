@@ -1,12 +1,13 @@
-import {authenticatedUser,json,service} from '../server/supabase-server.js';
+import {authenticatedUser,json,service,enforceRateLimit} from '../server/supabase-server.js';
 
 async function parentContext(user){const rows=await service(`/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=id,email,role,household_id,billing_owner`),p=rows?.[0];if(!p||p.role!=='parent')return null;return p}
 async function pendingFor(p){const email=String(p.email||'').trim().toLowerCase();if(!email)return[];const rows=await service(`/rest/v1/parent_invitations?parent_email=ilike.${encodeURIComponent(email)}&status=eq.pending&expires_at=gt.${encodeURIComponent(new Date().toISOString())}&select=id,student_profile_id,parent_email,expires_at,created_at&order=created_at.desc`);const out=[];for(const inv of rows||[]){const s=await service(`/rest/v1/students?profile_id=eq.${encodeURIComponent(inv.student_profile_id)}&select=id,first_name,last_name,display_name,household_id`),student=s?.[0];if(student)out.push({...inv,student:{id:student.id,name:student.display_name||[student.first_name,student.last_name].filter(Boolean).join(' ')||'Student'}})}return out}
 export default async function handler(req,res){
  try{
   const auth=await authenticatedUser(req),user=auth?.user;if(!user)return json(res,401,{error:'Sign in required.'});const p=await parentContext(user);if(!p)return json(res,403,{error:'A parent or guardian account is required.'});
-  if(req.method==='GET')return json(res,200,{invitations:await pendingFor(p)});
+  if(req.method==='GET'){await enforceRateLimit(user.id,'parent/invitations/read',{limit:60,windowSeconds:60});return json(res,200,{invitations:await pendingFor(p)})}
   if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
+  await enforceRateLimit(user.id,'parent/invitations/accept',{limit:10,windowSeconds:3600});
   const invitation_id=String(req.body?.invitation_id||'').trim();if(!invitation_id||invitation_id.length>100)return json(res,400,{error:'Invitation is required.'});
   const invites=await service(`/rest/v1/parent_invitations?id=eq.${encodeURIComponent(invitation_id)}&status=eq.pending&select=*`),inv=invites?.[0];if(!inv||String(inv.parent_email||'').trim().toLowerCase()!==String(p.email||'').trim().toLowerCase())return json(res,404,{error:'That invitation is no longer available.'});if(new Date(inv.expires_at)<=new Date())return json(res,410,{error:'That invitation has expired.'});
   let householdId=p.household_id;if(!householdId){const h=await service('/rest/v1/households',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({name:`${p.email||'Family'} household`,student_limit:1})});householdId=h?.[0]?.id;if(!householdId)throw new Error('Could not create household.');await service(`/rest/v1/profiles?id=eq.${encodeURIComponent(p.id)}`,{method:'PATCH',body:JSON.stringify({household_id:householdId,billing_owner:true})})}
@@ -17,5 +18,5 @@ export default async function handler(req,res){
   // the consent mechanism/version must be reviewed against the actual parental notice/VPC flow.
   await service('/rest/v1/parental_consents',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({student_profile_id:inv.student_profile_id,parent_profile_id:p.id,consent_type:'account_and_data',consent_version:'2026-08'})});
   return json(res,200,{ok:true,student_id:student.id,household_id:householdId});
- }catch(e){console.error('parent-invitations',e);return json(res,500,{error:'Unable to process this invitation right now.'})}
+ }catch(e){console.error('parent-invitations',e);if(e.retryAfter)res.setHeader('Retry-After',String(e.retryAfter));return json(res,e.status||500,{error:e.status&&e.status<500?e.message:'Unable to process this invitation right now.'})}
 }
