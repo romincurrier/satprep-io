@@ -15,6 +15,7 @@
     "validate:privileges": "node scripts/validate-privilege-boundaries.mjs",
     "validate:security": "node scripts/validate-security.mjs",
     "validate:practice-security": "node scripts/validate-practice-security.mjs",
+    "validate:adaptive-practice": "node scripts/validate-adaptive-practice.mjs",
     "validate:launch": "node scripts/validate-launch.mjs",
     "validate:regression": "node scripts/validate-regression.mjs",
     "content:readiness": "node scripts/content-readiness.mjs",
@@ -23,7 +24,7 @@
     "content:review-apply": "node scripts/apply-content-review.mjs",
     "content:private-import": "node scripts/import-private-reviewed-content.mjs",
     "content:calibration": "node scripts/content-calibration-report.mjs",
-    "build": "npm run validate:content && npm run validate:approvals && npm run validate:seo && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:security && npm run validate:practice-security && npm run validate:launch && npm run validate:regression && vite build",
+    "build": "npm run validate:content && npm run validate:approvals && npm run validate:seo && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:security && npm run validate:practice-security && npm run validate:adaptive-practice && npm run validate:launch && npm run validate:regression && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
