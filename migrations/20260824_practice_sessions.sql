@@ -10,12 +10,24 @@ create table if not exists public.practice_sessions (
   target_exam text not null check (target_exam in ('SAT','PSAT/NMSQT','PSAT 10')),
   status text not null default 'in_progress' check (status in ('in_progress','completed','abandoned')),
   content_version text not null default 'server-practice-v3',
+  mastery_before numeric check (mastery_before between 0 and 1),
+  adaptive_band text check (adaptive_band in ('foundation','balanced','challenge')),
   score numeric check (score between 0 and 1),
   mastery_after numeric check (mastery_after between 0 and 1),
   started_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   completed_at timestamptz
 );
+
+-- Keep the migration safe if an earlier draft of the table has already been applied.
+alter table public.practice_sessions add column if not exists mastery_before numeric;
+alter table public.practice_sessions add column if not exists adaptive_band text;
+do $$ begin
+  alter table public.practice_sessions add constraint practice_sessions_mastery_before_check check (mastery_before between 0 and 1);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.practice_sessions add constraint practice_sessions_adaptive_band_check check (adaptive_band in ('foundation','balanced','challenge'));
+exception when duplicate_object then null; end $$;
 
 create table if not exists public.practice_session_items (
   session_id uuid not null references public.practice_sessions(id) on delete cascade,
@@ -146,7 +158,7 @@ $$;
 revoke all on function public.finalize_practice_session(uuid) from public, anon, authenticated;
 grant execute on function public.finalize_practice_session(uuid) to service_role;
 
-comment on table public.practice_sessions is 'Server-only commercial practice sessions. Enables durable resume, idempotent completion, and trusted mastery updates.';
+comment on table public.practice_sessions is 'Server-only commercial practice sessions. Stores mastery/adaptive planning provenance and enables durable resume, idempotent completion, and trusted mastery updates.';
 comment on table public.practice_session_items is 'Server-only immutable practice item plan; browser clients receive one safe item at a time.';
 comment on table public.practice_responses is 'Server-scored practice responses. Correct answers/explanations are returned after submission but are not persisted in browser-writable tables.';
 comment on function public.finalize_practice_session(uuid) is 'Atomically finalizes one server-scored practice session and updates trusted mastery/lesson progress exactly once.';
