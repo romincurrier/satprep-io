@@ -3,8 +3,6 @@ const PUBLIC_HOSTS = new Set(['satprep.io','www.satprep.io']);
 const IS_PUBLIC_HOST = PUBLIC_HOSTS.has(location.hostname.toLowerCase());
 const BILLING_UI_ALLOWED = PUBLIC_BILLING_ENABLED || !IS_PUBLIC_HOST;
 
-const esc = value => String(value ?? '').replace(/[&<>\"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));
-
 if(!BILLING_UI_ALLOWED){
   const params = new URLSearchParams(location.search);
   let changed = false;
@@ -28,55 +26,21 @@ function ageFromDob(value){
   return age;
 }
 
-async function submitParentSetup(form){
-  const input = form.querySelector('#guardianEmail');
-  const msg = form.parentElement?.querySelector('#msg') || document.querySelector('#msg');
-  const email = String(input?.value || '').trim();
-  if(!email){
-    if(msg) msg.innerHTML = '<div class="error">Enter a parent or guardian email.</div>';
-    return;
-  }
-  const button = form.querySelector('button[type="submit"],button.btn');
-  if(button) button.disabled = true;
-  try{
-    const response = await fetch('/api/parent-setup-request',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({parent_email:email})
-    });
-    const body = await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(body.error || 'Unable to save the setup request right now.');
-    if(msg) msg.innerHTML = '<div class="success"><strong>You’re all set for now.</strong><br>Your parent or guardian can complete the family setup.</div>';
-    form.reset();
-  }catch(error){
-    if(msg) msg.innerHTML = `<div class="error">${esc(error.message)}</div>`;
-  }finally{
-    if(button) button.disabled = false;
-  }
-}
-
+// Defense in depth: the marketing flow performs this validation natively before
+// account creation. Keep a capture-phase guard so a future UI regression cannot
+// accidentally create an under-13 account through the teen path.
 function guardYouthSignup(event){
   const form = event.target;
-  if(!(form instanceof HTMLFormElement)) return;
-
-  if(form.id === 'guardianForm'){
+  if(!(form instanceof HTMLFormElement) || form.id !== 'teenForm') return;
+  const dob = form.querySelector('#sDob')?.value;
+  const age = ageFromDob(dob);
+  if(age == null || age < 13 || age > 20){
     event.preventDefault();
     event.stopImmediatePropagation();
-    submitParentSetup(form);
-    return;
-  }
-
-  if(form.id === 'teenForm'){
-    const dob = form.querySelector('#sDob')?.value;
-    const age = ageFromDob(dob);
-    if(age == null || age < 13 || age > 20){
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      const msg = form.parentElement?.querySelector('#msg') || document.querySelector('#msg');
-      if(msg) msg.innerHTML = age != null && age < 13
-        ? '<div class="notice"><strong>A parent or guardian needs to complete setup.</strong><br>Use Back and choose your actual age so SATprep.io can use the appropriate account flow.</div>'
-        : '<div class="error">Enter a valid date of birth before creating the account.</div>';
-    }
+    const msg = form.parentElement?.querySelector('#msg') || document.querySelector('#msg');
+    if(msg) msg.innerHTML = age != null && age < 13
+      ? '<div class="notice"><strong>A parent or guardian needs to complete setup.</strong><br>Use Back and choose your actual age so SATprep.io can use the appropriate account flow.</div>'
+      : '<div class="error">Enter a valid date of birth before creating the account.</div>';
   }
 }
 
