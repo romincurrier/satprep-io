@@ -1,0 +1,45 @@
+import {eligibleQuestions} from './question-bank.js';
+import {examKey} from './sat-spec.js';
+
+const RW_QUOTA={'information-and-ideas':3,'craft-and-structure':3,'expression-of-ideas':2,'standard-english-conventions':3};
+const MATH_QUOTA={algebra:3,'advanced-math':3,'problem-solving-data-analysis':2,'geometry-trigonometry':1};
+
+function hashSeed(value){let h=2166136261;for(const ch of String(value||'satprep')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let x=hashSeed(seed)||1;return()=>{x^=x<<13;x^=x>>>17;x^=x<<5;return(x>>>0)/4294967296}}
+function shuffle(items,random){const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function normalizedPriorities(priorities){return (priorities||[]).map((p,i)=>({skill:String(p.skill||p.skill_key||''),mastery:Number(p.mastery??p.score??1),rank:i})).filter(p=>p.skill).sort((a,b)=>a.mastery-b.mastery||a.rank-b.rank)}
+function priorityRank(item,priorities){const i=priorities.findIndex(p=>p.skill===item.skill);return i<0?999:i}
+function chooseDomain(pool,count,priorities,random){
+ const ordered=shuffle(pool,random).sort((a,b)=>priorityRank(a,priorities)-priorityRank(b,priorities)||a.difficulty-b.difficulty);
+ const chosen=[];
+ // Avoid a diagnostic composed entirely of one difficulty level.
+ for(const target of [1,2,3]){const q=ordered.find(x=>x.difficulty===target&&!chosen.includes(x));if(q&&chosen.length<count)chosen.push(q)}
+ for(const q of ordered)if(chosen.length<count&&!chosen.includes(q))chosen.push(q);
+ return chosen.slice(0,count);
+}
+function examLabel(targetExam){const k=examKey(targetExam);return k==='SAT'?'SAT':k==='PSAT_10'?'PSAT 10':'PSAT/NMSQT'}
+
+export function buildDiagnosticPlan({targetExam='SAT',priorities=[],seed='satprep',length=20}={}){
+ const exam=examLabel(targetExam),bank=eligibleQuestions(exam),random=rng(`${seed}:${exam}`),pri=normalizedPriorities(priorities);
+ const selected=[];
+ const addSection=(section,quota)=>{
+  for(const [domain,count] of Object.entries(quota)){
+   const pool=bank.filter(q=>q.section===section&&q.domain===domain&&!selected.includes(q));
+   selected.push(...chooseDomain(pool,count,pri,random));
+  }
+ };
+ addSection('RW',RW_QUOTA);addSection('MATH',MATH_QUOTA);
+ // If a future bank/eligibility rule leaves a quota short, fill from unused exam-eligible items while retaining section balance as closely as possible.
+ const desiredRW=Math.round(length*54/98),desiredMath=length-desiredRW;
+ const fill=(section,target)=>{for(const q of shuffle(bank.filter(x=>x.section===section&&!selected.includes(x)),random).sort((a,b)=>priorityRank(a,pri)-priorityRank(b,pri))){if(selected.filter(x=>x.section===section).length>=target)break;selected.push(q)}};
+ fill('RW',desiredRW);fill('MATH',desiredMath);
+ return selected.slice(0,length).map((q,position)=>({position,itemId:q.id,section:q.section,domain:q.domain,skill:q.skill,difficulty:q.difficulty,isTargeted:priorityRank(q,pri)<4}));
+}
+
+export function validateDiagnosticPlan(plan,{length=20}={}){
+ const errors=[];if(plan.length!==length)errors.push(`Expected ${length} items, received ${plan.length}`);
+ if(new Set(plan.map(x=>x.itemId)).size!==plan.length)errors.push('Diagnostic plan contains duplicate items');
+ for(const section of ['RW','MATH'])if(!plan.some(x=>x.section===section))errors.push(`Diagnostic plan is missing ${section}`);
+ for(const domain of [...Object.keys(RW_QUOTA),...Object.keys(MATH_QUOTA)])if(!plan.some(x=>x.domain===domain))errors.push(`Diagnostic plan is missing domain ${domain}`);
+ return errors;
+}
