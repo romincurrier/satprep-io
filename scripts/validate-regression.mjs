@@ -37,7 +37,7 @@ assert.match(learning,/Correct answer:/,'Practice mode must display the correct 
 assert.match(learning,/How to solve it:/,'Practice mode must display an instructional explanation after submission.');
 assert.match(learning,/result\.correct\?'✓ Correct':'Not quite — review the process'/,'Practice mode must give feedback for both correct and incorrect responses.');
 const diagnostic=fs.readFileSync(new URL('../diagnostic-router.js',import.meta.url),'utf8');
-assert.match(diagnostic,/answers are intentionally withheld until learning\/practice sessions/i,'Diagnostic UI must state that answer feedback is withheld during assessment.');
+assert.match(diagnostic,/answers and explanations are intentionally withheld until learning\/practice sessions/i,'Diagnostic UI must state that answer feedback is withheld during assessment.');
 assert.ok(!/diagnostic-feedback\.js/.test(fs.readFileSync(new URL('../index.html',import.meta.url),'utf8')),'Diagnostic feedback module must not be loaded.');
 
 console.log('Core diagnostic, content, and learning regression checks passed.');
