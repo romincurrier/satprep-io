@@ -9,10 +9,13 @@ const diagnosticCounts={},practiceCounts={};
 for(const q of QUESTION_BANK)diagnosticCounts[q.skill]=(diagnosticCounts[q.skill]||0)+1;
 for(const q of PRACTICE_BANK)practiceCounts[q.skill]=(practiceCounts[q.skill]||0)+1;
 const diagnosticIds=new Set(QUESTION_BANK.map(q=>q.id));
-const diagnosticStems=new Set(QUESTION_BANK.map(q=>String(q.stem||'').trim().toLowerCase()));
+const norm=v=>String(v??'').trim().toLowerCase().replace(/\s+/g,' ');
+const stimulusFingerprint=s=>typeof s==='string'?norm(s):norm(JSON.stringify(s||null));
+const fingerprint=q=>`${stimulusFingerprint(q.stimulus)}|${norm(q.stem)}|${(q.choices||[]).map(norm).join('|')}`;
+const diagnosticFingerprints=new Set(QUESTION_BANK.map(fingerprint));
 for(const q of PRACTICE_BANK){
  if(diagnosticIds.has(q.id))errors.push(`Practice item duplicates diagnostic id: ${q.id}`);
- if(diagnosticStems.has(String(q.stem||'').trim().toLowerCase()))errors.push(`Practice item duplicates a diagnostic stem: ${q.id}`);
+ if(diagnosticFingerprints.has(fingerprint(q)))errors.push(`Practice item duplicates a complete diagnostic item: ${q.id}`);
  if(q.origin!=='satprep_original_practice')errors.push(`${q.id}: practice origin must be satprep_original_practice`);
 }
 for(const skill of Object.keys(SKILL_INDEX)){
