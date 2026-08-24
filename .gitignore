@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+artifacts/
+private-content/
+*.private.csv
+content-review*.csv
+.DS_Store
