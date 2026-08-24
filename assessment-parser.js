@@ -1,4 +1,4 @@
-export const ASSESSMENT_PARSER_VERSION='ctp-2.0';
+export const ASSESSMENT_PARSER_VERSION='ctp-2.1';
 
 export async function extractPdfLayout(pdfjsLib,blob){
   const data=new Uint8Array(await blob.arrayBuffer());
@@ -24,9 +24,7 @@ const CTP_NORMS=[
   {key:'fcis',label:'FCIS'}
 ];
 
-const CTP_MAJOR=[
-  'Vocabulary','Reading Comprehension','Writing Mechanics','Writing Concepts & Skills','Mathematics 1&2'
-];
+const CTP_MAJOR=['Vocabulary','Reading Comprehension','Writing Mechanics','Writing Concepts & Skills','Mathematics 1&2'];
 
 const CTP_CONTENT=[
   ['Vocabulary','Vocabulary'],['Word Meanings','Vocabulary'],['Precision','Precision'],['Application','Vocabulary'],
@@ -37,6 +35,12 @@ const CTP_CONTENT=[
   ['Geometry and Spatial Sense','Geometry'],['Measurement','Measurement'],['Data Analysis, Statistics and Prob.','Data Analysis'],['Patterns, Functions, Pre-Algebra','Pre-Algebra'],
   ['Conceptual Understanding','Math Concepts'],['Procedural Knowledge','Math Procedures'],['Problem Solving','Problem Solving']
 ];
+
+const DOMAIN_GROUPS={
+  reading:new Set(['Vocabulary','Precision','Reading Comprehension','Evidence','Inference','Analysis']),
+  writing:new Set(['Writing Mechanics','Writing Concepts','Organization','Purpose','Style']),
+  math:new Set(['Math','Number Sense','Fractions & Decimals','Geometry','Measurement','Data Analysis','Pre-Algebra','Math Concepts','Math Procedures','Problem Solving'])
+};
 
 function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s*')}
 function detectType(text,fileName=''){const s=`${fileName} ${text}`.toLowerCase();if(/\bctp\b|educational records bureau|percent content mastery/.test(s))return'CTP';if(/\berb\b/.test(s))return'ERB';if(/map growth|nwea/.test(s))return'MAP Growth';if(/\bfast\b|florida assessment/.test(s))return'FAST';if(/psat\/nmsqt|nmsqt/.test(s))return'PSAT/NMSQT';if(/\bpsat\b/.test(s))return'PSAT';if(/\bsat\b/.test(s))return'SAT';return'Other'}
@@ -80,15 +84,19 @@ function classify(rows){
   const strengths=rows.filter(r=>r.mastery>=80).sort((a,b)=>b.mastery-a.mastery);
   return {priorities,strengths};
 }
+function domainCoverage(rows){
+  const covered={reading:0,writing:0,math:0};
+  for(const row of rows){for(const [domain,set] of Object.entries(DOMAIN_GROUPS)){if(set.has(row.canonical_skill))covered[domain]++}}
+  return covered;
+}
 
 function parseCtp(text){
   const clean=normalize(text),sections=parseCtpMajor(clean),content_mastery=parseCtpMastery(clean),{priorities,strengths}=classify(content_mastery);
-  const requiredMajor=['Vocabulary','Reading Comprehension','Writing Mechanics','Writing Concepts & Skills','Mathematics 1&2'];
-  const majorCoverage=requiredMajor.filter(n=>sections.some(s=>s.name===n)).length;
-  const criticalContent=['Inference','Analysis','Writing Mechanics','Mathematics 1&2'];
-  const contentCoverage=criticalContent.filter(n=>content_mastery.some(s=>s.source_skill===n)).length;
-  const verified=majorCoverage===requiredMajor.length&&contentCoverage===criticalContent.length&&content_mastery.length>=15;
-  const data={parser_version:ASSESSMENT_PARSER_VERSION,assessment_type:'CTP',assessment_date:testDate(clean),sections,content_mastery,priority_skills:priorities.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:'CTP'})),strength_skills:strengths.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:'CTP'})),verification:{verified,major_rows:majorCoverage,expected_major_rows:requiredMajor.length,content_rows:content_mastery.length,critical_content_rows:contentCoverage},confidence:verified?'verified':'needs_review'};
+  const majorCoverage=CTP_MAJOR.filter(n=>sections.some(s=>s.name===n)).length;
+  const domains=domainCoverage(content_mastery);
+  const domainGroupsCovered=Object.values(domains).filter(n=>n>=2).length;
+  const verified=majorCoverage===CTP_MAJOR.length&&content_mastery.length>=15&&domainGroupsCovered===3;
+  const data={parser_version:ASSESSMENT_PARSER_VERSION,assessment_type:'CTP',assessment_date:testDate(clean),sections,content_mastery,priority_skills:priorities.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:'CTP'})),strength_skills:strengths.map(r=>({skill:r.canonical_skill,source_skill:r.source_skill,mastery:r.mastery,source:'CTP'})),verification:{verified,major_rows:majorCoverage,expected_major_rows:CTP_MAJOR.length,content_rows:content_mastery.length,domain_coverage:domains,domain_groups_covered:domainGroupsCovered,required_domain_groups:3},confidence:verified?'verified':'needs_review'};
   data.evidence_signals=ctpSignals(data); return data;
 }
 
