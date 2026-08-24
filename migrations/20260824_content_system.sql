@@ -64,29 +64,18 @@ alter table public.content_item_reviews enable row level security;
 alter table public.diagnostic_attempt_items enable row level security;
 alter table public.diagnostic_responses enable row level security;
 
--- Deliberately no browser SELECT policy on content_items or answer keys.
--- Production question delivery/scoring must go through authenticated server endpoints.
--- This reduces answer-key leakage and makes it harder to scrape the proprietary bank.
+-- Proprietary production content, answer keys, review records, and the complete
+-- diagnostic item plan are server-only. The authenticated browser receives only
+-- the current safe question projection through /api/diagnostic-item-v3.
+-- Explicit revokes complement RLS so a future broad browser policy cannot turn
+-- these tables into an accidental content-export endpoint.
+revoke all on table public.content_items from public, anon, authenticated;
+revoke all on table public.content_answer_keys from public, anon, authenticated;
+revoke all on table public.content_item_reviews from public, anon, authenticated;
+revoke all on table public.diagnostic_attempt_items from public, anon, authenticated;
 
-create policy "diagnostic_plan_student_read" on public.diagnostic_attempt_items
-for select using (
-  exists (
-    select 1 from public.diagnostic_attempts da
-    join public.students s on s.id=da.student_id
-    where da.id=diagnostic_attempt_items.attempt_id
-      and s.profile_id=auth.uid()
-  )
-);
-
-create policy "diagnostic_plan_parent_read" on public.diagnostic_attempt_items
-for select using (
-  exists (
-    select 1 from public.diagnostic_attempts da
-    join public.parent_students ps on ps.student_id=da.student_id
-    where da.id=diagnostic_attempt_items.attempt_id
-      and ps.parent_profile_id=auth.uid()
-  )
-);
+drop policy if exists "diagnostic_plan_student_read" on public.diagnostic_attempt_items;
+drop policy if exists "diagnostic_plan_parent_read" on public.diagnostic_attempt_items;
 
 -- Secure-v3 responses are server-only. Legacy attempts still need the browser policies
 -- that already exist in the MVP schema so an in-progress legacy diagnostic can finish.
@@ -114,6 +103,7 @@ with check (
   )
 );
 
-comment on table public.content_items is 'SATprep.io proprietary item prompts and metadata. Answer keys are stored separately and are server-only.';
+comment on table public.content_items is 'SATprep.io proprietary item prompts and metadata. Browser roles are denied; safe question delivery is server-mediated.';
 comment on table public.content_answer_keys is 'Server-only scoring keys and instructional explanations. Do not expose through browser RLS.';
-comment on table public.content_item_reviews is 'Item QA audit trail. Production approval requires independent review before public launch.';
+comment on table public.content_item_reviews is 'Server-only item QA audit trail. Production use requires recorded independent review.';
+comment on table public.diagnostic_attempt_items is 'Server-only immutable-per-attempt diagnostic plan used to verify question order and provenance.';
