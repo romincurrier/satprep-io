@@ -25,8 +25,14 @@ if(/correct_answer\s*:\s*item\.answerIndex/.test(core))fail('Secure diagnostic m
 const safeQuestion=core.match(/export function safeQuestion\([^)]*\)\{([^}]+)\}/s)?.[1]||'';
 if(!safeQuestion)fail('Could not verify safeQuestion projection.');
 else if(/answerIndex|explanation|distractor/i.test(safeQuestion))fail('safeQuestion must not expose answer/explanation fields.');
+if(!/contentSystemReady\(\)/.test(core)||!/content_items\?select=id&limit=1/.test(core))fail('Secure diagnostic must verify that the content-system migration is ready before creating/scoring secure attempts.');
+if(!/content_item_id\s*:\s*item\.id/.test(core))fail('Secure diagnostic responses must be linked to the server-selected content item.');
+if(!/scored_by_server\s*:\s*true/.test(core))fail('Secure diagnostic response writes must be explicitly marked as server-scored.');
+if(!/scored_by_server=eq\.true/.test(core))fail('Secure diagnostic progress/finalization must filter to server-scored rows.');
+if(!/r\.content_item_id===r\.question_key/.test(core))fail('Secure diagnostic finalization must verify response/content-item identity.');
 
 const contentMigration=read('migrations/20260824_content_system.sql');
+if(!/add column if not exists content_item_id/i.test(contentMigration)||!/add column if not exists scored_by_server/i.test(contentMigration))fail('Content migration must add secure response provenance columns.');
 if(!/secure_v3_responses_server_only/i.test(contentMigration)||!/as\s+restrictive/i.test(contentMigration))fail('Content migration must contain the restrictive secure-v3 diagnostic response policy.');
 if(!/coalesce\s*\(\s*da\.summary\s*->>\s*'engine'\s*,\s*'legacy'\s*\)\s*=\s*'secure-v3'/i.test(contentMigration))fail('Secure-v3 response policy must identify secure-v3 attempts from the server-authored attempt summary.');
 
