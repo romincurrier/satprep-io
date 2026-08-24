@@ -24,7 +24,7 @@ if(!/authedPost\(['"]\/api\/student-parent-invitation['"]/.test(onboarding))fail
 if(/\.from\(["']students["']\)\.insert|\.from\(["']parent_students["']\)\.(?:insert|upsert)|\.from\(["']parent_invitations["']\)\.insert/.test(onboarding))fail('Family setup browser code must not directly create student/link/invitation rows.');
 
 const parentStudent=read('api/parent-student.js');
-if(!/authenticatedUser\(req\)/.test(parentStudent)||!/profile\.role===['"]parent['"]/.test(parentStudent))fail('Parent student-creation API must authenticate and require the parent role.');
+if(!/authenticatedUser\(req\)/.test(parentStudent)||!/profile\?\.role===['"]parent['"]/.test(parentStudent))fail('Parent student-creation API must authenticate and require the parent role.');
 if(!/enforceRateLimit\(ctx\.user\.id,['"]parent\/student-create['"]/.test(parentStudent)||!/Retry-After/.test(parentStudent))fail('Parent student-creation API must use durable rate limiting with Retry-After.');
 if(!/parent_students\?on_conflict=parent_profile_id,student_id/.test(parentStudent))fail('Parent student-creation API must establish the explicit parent-student link server-side.');
 if(!/count>=3/.test(parentStudent))fail('Parent student-creation API must enforce the current household student ceiling.');
