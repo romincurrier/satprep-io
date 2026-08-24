@@ -47,13 +47,19 @@ if(!/revoke all on table public\.api_rate_limits from public, anon, authenticate
 if(!/revoke all on function public\.consume_api_rate_limit\(text,text,integer,integer\) from public, anon, authenticated/i.test(rateMigration)||!/grant execute on function public\.consume_api_rate_limit\(text,text,integer,integer\) to service_role/i.test(rateMigration))fail('Rate-limit RPC must be executable only by the service role.');
 
 const core=read('server/diagnostic-core.js');
+if(/question-bank-production|question-bank\.js|answerIndex\s*\}/i.test(core))fail('Secure diagnostic runtime must not source scoring content from the committed JavaScript question bank.');
 if(/correct_answer\s*:\s*item\.answerIndex/.test(core))fail('Secure diagnostic must not persist the real answer key in browser-readable legacy response fields.');
 const safeQuestion=core.match(/export function safeQuestion\([^)]*\)\{([^}]+)\}/s)?.[1]||'';
 if(!safeQuestion)fail('Could not verify safeQuestion projection.');
 else if(/answerIndex|explanation|distractor/i.test(safeQuestion))fail('safeQuestion must not expose answer/explanation fields.');
-if(!/contentSystemReady\(\)/.test(core)||!/content_items\?select=id&limit=1/.test(core))fail('Secure diagnostic must verify that the content-system migration is ready before creating/scoring secure attempts.');
-if(!/content_item_id\s*:\s*item\.id/.test(core))fail('Secure diagnostic responses must be linked to the server-selected content item.');
-if(!/scored_by_server\s*:\s*true/.test(core))fail('Secure diagnostic response writes must be explicitly marked as server-scored.');
+if(!/contentSystemReady\(\)/.test(core)||!/content_items\?select=id,qa_status,active&limit=1/.test(core))fail('Secure diagnostic must verify that the server-only content system is ready before creating/scoring secure attempts.');
+if(!/qa_status=eq\.production_approved&active=eq\.true&format=eq\.mcq/.test(core))fail('Secure diagnostic selection must be limited to active production-approved MCQ content.');
+for(const review of ['accuracy','alignment','editorial','bias_accessibility'])if(!core.includes(`'${review}'`))fail(`Secure diagnostic approval gate must require ${review} review.`);
+if(!/content_answer_keys\?select=item_id/.test(core)||!/content_item_reviews\?decision=eq\.approve/.test(core))fail('Secure diagnostic plan creation must require answer keys and recorded approving reviews.');
+if(!/diagnostic_attempt_items/.test(core)||!/assertPersistedPlanItem/.test(core))fail('Secure diagnostic must persist and verify the server-selected item plan.');
+if(!/content_answer_keys\?item_id=eq\./.test(core)||!/scoringKey/.test(core))fail('Secure diagnostic scoring must retrieve the answer key through the server-only answer-key table.');
+if(!/content_item_id:item\.id/.test(core))fail('Secure diagnostic responses must be linked to the server-selected content item.');
+if(!/scored_by_server:true/.test(core))fail('Secure diagnostic response writes must be explicitly marked as server-scored.');
 if(!/scored_by_server=eq\.true/.test(core))fail('Secure diagnostic progress/finalization must filter to server-scored rows.');
 if(!/r\.content_item_id===r\.question_key/.test(core))fail('Secure diagnostic finalization must verify response/content-item identity.');
 
@@ -79,7 +85,7 @@ walk();
 const vercel=JSON.parse(read('vercel.json'));
 const headerRows=vercel.headers?.flatMap(x=>x.headers||[])||[];
 const headerKeys=new Set(headerRows.map(x=>String(x.key).toLowerCase()));
-for(const key of ['strict-transport-security','x-content-type-options','x-frame-options','referrer-policy','permissions-policy'])if(!headerKeys.has(key))fail(`vercel.json missing baseline security header: ${key}`);
+for(const key of ['strict-transport-security','x-content-type-options','x-frame-options','referrer-policy','permissions-policy','x-robots-tag'])if(!headerKeys.has(key))fail(`vercel.json missing baseline security/prelaunch header: ${key}`);
 
 if(errors.length){for(const e of errors)console.error(`Security validation error: ${e}`);process.exit(1)}
 console.log('Security invariant validation passed.');
