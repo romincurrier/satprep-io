@@ -1,4 +1,4 @@
-import {QUESTION_BANK,validateQuestionBank,eligibleQuestions} from '../question-bank.js';
+import {QUESTION_BANK,validateQuestionBank,eligibleQuestions} from '../question-bank-production.js';
 import {SKILL_INDEX} from '../sat-spec.js';
 import {buildDiagnosticPlan,validateDiagnosticPlan} from '../diagnostic-blueprint.js';
 import {OFFICIAL_LESSONS,SKILL_GUIDES} from '../learning-catalog.js';
@@ -6,7 +6,10 @@ import {OFFICIAL_LESSONS,SKILL_GUIDES} from '../learning-catalog.js';
 const errors=[...validateQuestionBank()];
 const counts={};
 for(const q of QUESTION_BANK)counts[q.skill]=(counts[q.skill]||0)+1;
-for(const skill of Object.keys(SKILL_INDEX))if(!counts[skill])errors.push(`No proprietary item covers required skill: ${skill}`);
+for(const skill of Object.keys(SKILL_INDEX)){
+ if(!counts[skill])errors.push(`No proprietary item covers required skill: ${skill}`);
+ else if(counts[skill]<2)errors.push(`Development bank requires at least 2 original items for ${skill}; found ${counts[skill]}`);
+}
 for(const exam of ['SAT','PSAT/NMSQT','PSAT 10']){
  const eligible=eligibleQuestions(exam),sections=new Set(eligible.map(q=>q.section));
  if(!sections.has('RW')||!sections.has('MATH'))errors.push(`${exam}: bank must contain both sections`);
@@ -31,7 +34,7 @@ if(errors.length){
 }
 
 const bySection=QUESTION_BANK.reduce((m,q)=>{m[q.section]=(m[q.section]||0)+1;return m},{});
-console.log(`Content validation passed: ${QUESTION_BANK.length} original items (${bySection.RW||0} RW, ${bySection.MATH||0} Math), covering ${Object.keys(SKILL_INDEX).length} official skill points.`);
+console.log(`Content validation passed: ${QUESTION_BANK.length} original items (${bySection.RW||0} RW, ${bySection.MATH||0} Math), with at least two items for every official skill point.`);
 console.log(`Instructional coverage passed: ${OFFICIAL_LESSONS.length} official-skill lesson guides with explicit correct-answer practice feedback.`);
 console.log('Diagnostic blueprint validation passed for SAT, PSAT/NMSQT, and PSAT 10.');
 console.log('QA note: internal_review items are development content. Production launch requires independent item review and a substantially deeper pool per skill.');
