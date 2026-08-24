@@ -11,6 +11,8 @@ const apis=[
  ['api/practice-answer-v3.js','practice/answer']
 ];
 for(const [file,route] of apis){const txt=read(file);if(!/studentContext\(/.test(txt))fail(`${file}: practice API must require authenticated student context.`);if(!/enforceRateLimit\(/.test(txt)||!txt.includes(`'${route}'`))fail(`${file}: practice API must enforce durable rate limit ${route}.`);if(!/Retry-After/.test(txt))fail(`${file}: rate-limited responses must emit Retry-After.`)}
+const sessionApi=read('api/practice-session-v3.js');
+if(!/adaptive_level:state\.adaptiveBand/.test(sessionApi))fail('Practice-session API must surface the server-selected instructional adaptive level.');
 const itemApi=read('api/practice-item-v3.js');
 if(!/UUID\.test\(sessionId\)/.test(itemApi)||!/enforceCurrent\s*:\s*true/.test(itemApi))fail('Practice item delivery must validate the session UUID and enforce the current unanswered position.');
 const answerApi=read('api/practice-answer-v3.js');
@@ -20,6 +22,9 @@ if(!/Number\.isInteger\(selected\)/.test(answerApi)||!/selected>3/.test(answerAp
 
 const core=read('server/practice-core.js');
 if(/practice-bank|question-bank/i.test(core))fail('Commercial practice runtime must not import committed authored question banks.');
+if(!/practice-selection-core\.js/.test(core)||!/selectAdaptiveItems/.test(core)||!/adaptiveBand/.test(core))fail('Commercial practice runtime must use the pure mastery-adaptive selection core.');
+if(!/masteryForSkill\(student\.id,skill\)/.test(core))fail('Commercial practice must read the current trusted skill mastery before planning a new session.');
+if(!/selectAdaptiveItems\(source,\{length,mastery,randomIntFn:randomInt\}\)/.test(core))fail('Commercial practice must apply mastery-adaptive difficulty selection to the approved fresh item pool.');
 if(!/content_type=eq\.practice&skill_key=eq\./.test(core)||!/qa_status=eq\.production_approved&active=eq\.true&format=eq\.mcq/.test(core))fail('Commercial practice selection must use active production-approved server practice MCQs for the requested skill.');
 for(const review of ['accuracy','alignment','editorial','bias_accessibility','originality'])if(!core.includes(`'${review}'`))fail(`Commercial practice approval gate must require ${review} review.`);
 if(!/type:'practice'/.test(core)||!/createHash\('sha256'\)/.test(core)||!/r\.content_hash===hash/.test(core))fail('Commercial practice runtime must enforce exact SHA-256 hash-pinned review approval.');
@@ -32,6 +37,11 @@ if(!/scored_by_server:true/.test(core)||!/scored_by_server=eq\.true/.test(core))
 if(!/finalize_practice_session/.test(core))fail('Commercial practice completion must use the atomic server-side finalization RPC.');
 if(!/latestOpen\(/.test(core)||!/practice_session_items/.test(core)||!/resumed:true/.test(core))fail('Commercial practice engine must support durable server-side resume from a persisted item plan.');
 if(!/correct_answer_index/.test(core)||!/correct_answer:/.test(core)||!/explanation/.test(core))fail('Practice submission feedback must return correctness, the correct answer, and an explanation after scoring.');
+
+const selection=read('practice-selection-core.js');
+for(const band of ['foundation','balanced','challenge'])if(!selection.includes(`'${band}'`))fail(`Adaptive practice selector must retain the ${band} instructional band.`);
+if(!/foundation:\[1,1,2,2,2\]/.test(selection)||!/balanced:\[1,2,2,2,3\]/.test(selection)||!/challenge:\[2,2,2,3,3\]/.test(selection))fail('Adaptive practice selector must retain the reviewed five-item difficulty mixes.');
+if(!/value===null\|\|value===undefined\|\|value===''/i.test(selection))fail('Missing mastery must remain distinct from 0% mastery so new learners receive balanced rather than foundation-by-coercion practice.');
 
 const learning=read('learning-v2.js'),guard=read('prelaunch-guard.js');
 for(const route of ['/api/practice-session-v3','/api/practice-item-v3','/api/practice-answer-v3'])if(!learning.includes(route))fail(`Student learning UI must use ${route} for commercial practice.`);
@@ -53,4 +63,4 @@ if(!/security definer/i.test(migration)||!/grant execute on function public\.fin
 if(!/on conflict\(student_id,skill_key\) do update/i.test(migration)||!/on conflict\(student_id,lesson_key\) do update/i.test(migration))fail('Practice finalization must update trusted mastery and lesson progress atomically.');
 
 if(errors.length){for(const e of errors)console.error(`Practice security validation error: ${e}`);process.exit(1)}
-console.log('Commercial practice security and resume invariants passed.');
+console.log('Commercial practice security, adaptive selection, and resume invariants passed.');
