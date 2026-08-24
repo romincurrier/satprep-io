@@ -32,12 +32,12 @@ async function approvedRuntimeBank(targetExam){
  const [items,keys,reviews]=await Promise.all([
   service('/rest/v1/content_items?qa_status=eq.production_approved&active=eq.true&format=eq.mcq&select=id,section,domain_key,skill_key,difficulty,format,stimulus,stem,choices,exams,estimated_seconds&order=id.asc'),
   service('/rest/v1/content_answer_keys?select=item_id'),
-  service('/rest/v1/content_item_reviews?decision=eq.approve&select=item_id,review_type,reviewer_label')
+  service('/rest/v1/content_item_reviews?select=item_id,review_type,reviewer_label,decision,created_at&order=created_at.asc')
  ]);
- const keyed=new Set((keys||[]).map(x=>x.item_id));
- const reviewMap=new Map();
- for(const r of reviews||[]){if(!r.item_id||!r.reviewer_label||!REQUIRED_REVIEWS.includes(r.review_type))continue;reviewMap.set(r.item_id,(reviewMap.get(r.item_id)||new Set()).add(r.review_type))}
- return (items||[]).filter(row=>keyed.has(row.id)&&REQUIRED_REVIEWS.every(t=>reviewMap.get(row.id)?.has(t))&&Array.isArray(row.exams)&&row.exams.includes(exam)&&SKILL_INDEX[row.skill_key]).map(normalizeContentItem);
+ const keyed=new Set((keys||[]).map(x=>x.item_id)),reviewMap=new Map();
+ for(const r of reviews||[]){if(!r.item_id||!REQUIRED_REVIEWS.includes(r.review_type))continue;const byType=reviewMap.get(r.item_id)||new Map();byType.set(r.review_type,r);reviewMap.set(r.item_id,byType)}
+ const reviewsApproved=itemId=>REQUIRED_REVIEWS.every(type=>{const r=reviewMap.get(itemId)?.get(type);return r?.decision==='approve'&&!!String(r.reviewer_label||'').trim()});
+ return (items||[]).filter(row=>keyed.has(row.id)&&reviewsApproved(row.id)&&Array.isArray(row.exams)&&row.exams.includes(exam)&&SKILL_INDEX[row.skill_key]).map(normalizeContentItem);
 }
 async function approvedItem(itemId){const rows=await service(`/rest/v1/content_items?id=eq.${encodeURIComponent(itemId)}&qa_status=eq.production_approved&active=eq.true&format=eq.mcq&select=id,section,domain_key,skill_key,difficulty,format,stimulus,stem,choices,exams,estimated_seconds&limit=1`),item=rows?.[0];if(!item)throw Object.assign(new Error('This assessment item is not currently approved for use.'),{status:503});return normalizeContentItem(item)}
 async function scoringKey(itemId){const rows=await service(`/rest/v1/content_answer_keys?item_id=eq.${encodeURIComponent(itemId)}&select=answer&limit=1`),raw=rows?.[0]?.answer;const n=typeof raw==='number'?raw:Number(raw?.answerIndex??raw?.index);if(!Number.isInteger(n)||n<0||n>3)throw Object.assign(new Error('The approved scoring key is not ready.'),{status:503});return n}
