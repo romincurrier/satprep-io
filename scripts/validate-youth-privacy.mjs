@@ -18,6 +18,23 @@ if(!/app_metadata\s*:\s*\{satprep_parent_authorized:true,account_origin:['"]pare
 if(!/p\.role!==['"]parent['"]/.test(activation)||!/parent_students/.test(activation))fail('Parent student-login activation must verify the authenticated parent and linked student.');
 if(!/parental_consents/.test(activation))fail('Parent-created student login must record the existing parental consent event for later legal/privacy reconciliation.');
 
+const onboarding=read('onboarding.js');
+if(!/authedPost\(['"]\/api\/parent-student['"]/.test(onboarding))fail('Parent-created learner records must go through the protected server API.');
+if(!/authedPost\(['"]\/api\/student-parent-invitation['"]/.test(onboarding))fail('Student-created parent invitations must go through the protected server API.');
+if(/\.from\(["']students["']\)\.insert|\.from\(["']parent_students["']\)\.(?:insert|upsert)|\.from\(["']parent_invitations["']\)\.insert/.test(onboarding))fail('Family setup browser code must not directly create student/link/invitation rows.');
+
+const parentStudent=read('api/parent-student.js');
+if(!/authenticatedUser\(req\)/.test(parentStudent)||!/profile\.role===['"]parent['"]/.test(parentStudent))fail('Parent student-creation API must authenticate and require the parent role.');
+if(!/enforceRateLimit\(ctx\.user\.id,['"]parent\/student-create['"]/.test(parentStudent)||!/Retry-After/.test(parentStudent))fail('Parent student-creation API must use durable rate limiting with Retry-After.');
+if(!/parent_students\?on_conflict=parent_profile_id,student_id/.test(parentStudent))fail('Parent student-creation API must establish the explicit parent-student link server-side.');
+if(!/count>=3/.test(parentStudent))fail('Parent student-creation API must enforce the current household student ceiling.');
+
+const studentInvite=read('api/student-parent-invitation.js');
+if(!/profile\.role!==['"]student['"]/.test(studentInvite)||!/student\.household_id/.test(studentInvite))fail('Student parent-invitation API must require an unlinked student account.');
+if(!/enforceRateLimit\(ctx\.user\.id,['"]student\/parent-invitation-create['"]/.test(studentInvite)||!/Retry-After/.test(studentInvite))fail('Student parent-invitation API must use durable rate limiting with Retry-After.');
+if(!/parentEmail===String\(ctx\.profile\.email/.test(studentInvite))fail('Student invitation route must reject inviting the student login address as its own parent.');
+if(!/status:['"]pending['"]/.test(studentInvite)||!/expires_at:expiresAt/.test(studentInvite))fail('Student invitation route must create bounded pending invitations with expiry.');
+
 const migration=read('migrations/20260824_student_signup_age_gate.sql');
 if(!/new\.raw_app_meta_data->>['"]satprep_parent_authorized['"]/.test(migration))fail('Database age gate must rely on admin-controlled app metadata for parent-authorized account provenance.');
 if(!/new\.raw_user_meta_data->>['"]date_of_birth['"]/.test(migration))fail('Database age gate must require direct student date of birth.');
