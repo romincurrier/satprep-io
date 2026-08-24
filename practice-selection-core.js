@@ -37,10 +37,24 @@ function shuffled(items,randomIntFn){
  return out;
 }
 
-export function selectAdaptiveItems(bank,{length=5,mastery=null,randomIntFn=max=>Math.floor(Math.random()*max)}={}){
+function enforceSprTarget(chosen,pool,target){
+ let need=Math.max(0,Math.min(chosen.length,Number(target)||0))-chosen.filter(x=>x.format==='spr').length;
+ if(need<=0)return chosen;
+ const candidates=pool.filter(x=>x.format==='spr'&&!chosen.includes(x));
+ while(need>0&&candidates.length){
+  const candidate=candidates.shift();
+  const mcqIndexes=chosen.map((x,i)=>({x,i})).filter(({x})=>x.format!=='spr');
+  if(!mcqIndexes.length)break;
+  mcqIndexes.sort((a,b)=>Math.abs(Number(a.x.difficulty)-Number(candidate.difficulty))-Math.abs(Number(b.x.difficulty)-Number(candidate.difficulty)));
+  chosen[mcqIndexes[0].i]=candidate;need--;
+ }
+ return chosen;
+}
+
+export function selectAdaptiveItems(bank,{length=5,mastery=null,sprTarget=0,randomIntFn=max=>Math.floor(Math.random()*max)}={}){
  const desired=Math.max(1,Math.min(20,Number(length)||5));
  const pool=shuffled((bank||[]).filter(x=>[1,2,3].includes(Number(x?.difficulty))),randomIntFn);
- if(pool.length<desired)return pool;
+ if(pool.length<desired)return enforceSprTarget(pool,pool,sprTarget);
  const chosen=[],targets=difficultyTargets(mastery,desired);
  for(const target of targets){
   const exact=pool.find(x=>Number(x.difficulty)===target&&!chosen.includes(x));
@@ -49,5 +63,5 @@ export function selectAdaptiveItems(bank,{length=5,mastery=null,randomIntFn=max=
   if(remaining[0])chosen.push(remaining[0]);
  }
  for(const item of pool)if(chosen.length<desired&&!chosen.includes(item))chosen.push(item);
- return chosen.slice(0,desired);
+ return enforceSprTarget(chosen.slice(0,desired),pool,sprTarget);
 }
