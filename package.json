@@ -1,17 +1,19 @@
 {
   "name": "satprep-io",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "validate:content": "node scripts/validate-content.mjs",
+    "validate:approvals": "node scripts/validate-content-approvals.mjs",
     "validate:seo": "node scripts/validate-seo.mjs",
     "validate:security": "node scripts/validate-security.mjs",
     "content:readiness": "node scripts/content-readiness.mjs",
     "content:review-export": "node scripts/export-content-review.mjs",
     "content:review-validate": "node scripts/validate-content-review.mjs",
-    "build": "npm run validate:content && npm run validate:seo && npm run validate:security && vite build",
+    "content:review-apply": "node scripts/apply-content-review.mjs",
+    "build": "npm run validate:content && npm run validate:approvals && npm run validate:seo && npm run validate:security && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
