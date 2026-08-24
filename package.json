@@ -19,6 +19,7 @@
     "validate:adaptive-practice": "node scripts/validate-adaptive-practice.mjs",
     "validate:launch": "node scripts/validate-launch.mjs",
     "validate:regression": "node scripts/validate-regression.mjs",
+    "brand:inventory": "node scripts/brand-inventory.mjs",
     "content:readiness": "node scripts/content-readiness.mjs",
     "content:review-export": "node scripts/export-content-review.mjs",
     "content:review-validate": "node scripts/validate-content-review.mjs",
