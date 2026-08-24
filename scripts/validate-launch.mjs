@@ -44,13 +44,17 @@ if(gates.first_party_measurement!=='disabled') errors.push('First-party marketin
 requireText(envExample,'MARKETING_MEASUREMENT_ENABLED=false','env.example must keep first-party marketing measurement disabled by default.');
 requireText(marketingEventApi,"process.env.MARKETING_MEASUREMENT_ENABLED",'Marketing measurement API must require an explicit server-side enable flag.');
 requireText(marketingEventApi,"if(!MEASUREMENT_ENABLED)return json(res,404",'Marketing measurement API must fail closed while measurement is disabled.');
+requireText(marketingEventApi,"if(!origin)return false",'Marketing measurement API must require an approved browser Origin rather than accepting originless submissions.');
 requireText(marketingEventApi,"enforceRateLimit(networkSubject(req),'marketing/event'",'Marketing measurement API must use durable abuse controls before accepting anonymous events.');
 requireText(marketingEventApi,'const EMAIL_LIKE=','Marketing measurement API must retain an email-like data filter.');
 requireText(marketingEventApi,'const PHONE_LIKE=','Marketing measurement API must retain a phone-like data filter.');
 requireText(marketingEventApi,'const noContactData=','Marketing measurement API must discard contact-like campaign values instead of persisting them.');
 requireText(marketingEventApi,'utm_term:cleanFree','Free-form paid-keyword attribution must pass through the contact-data filter.');
-requireText(marketingEvents,"window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__!==true",'Marketing tracking client must refuse to send while the client launch gate is disabled.');
-requireText(marketingEvents,"if(window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__===true)installMarketingTracking()",'Marketing tracking client may self-install only after explicit client-gate enablement.');
+requireText(marketingEvents,'function isPublicMarketingSurface()','Marketing tracking client must distinguish public acquisition surfaces from authenticated/billing application routes.');
+requireText(marketingEvents,"p.get('app')!=='1'",'Marketing tracking client must not measure authenticated application mode.');
+requireText(marketingEvents,"!p.has('openBilling')",'Marketing tracking client must not measure billing UI mode.');
+requireText(marketingEvents,"window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__!==true||!isPublicMarketingSurface()",'Marketing tracking client must refuse to send when either the launch gate is disabled or the current surface is not public marketing.');
+requireText(marketingEvents,"if(window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__===true&&isPublicMarketingSurface())installMarketingTracking()",'Marketing tracking client may self-install only after explicit client-gate enablement on a public marketing surface.');
 
 requireText(vercel,'Content-Security-Policy','Production headers must include a Content-Security-Policy.');
 requireText(vercel,"default-src 'self'",'Content-Security-Policy must default to same-origin resources.');
@@ -84,4 +88,4 @@ if(errors.length){
   for(const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-console.log('Launch validation passed: public billing/indexing/outbound marketing/measurement remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, first-party measurement is inert until explicitly enabled, contact-like attribution values are discarded, anonymous measurement is rate-limited server-side, browser security headers are present, and baseline accessibility safeguards are loaded.');
+console.log('Launch validation passed: public billing/indexing/outbound marketing/measurement remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, first-party measurement is inert until explicitly enabled, public-surface only, origin-restricted, contact-like attribution values are discarded, anonymous measurement is rate-limited server-side, browser security headers are present, and baseline accessibility safeguards are loaded.');
