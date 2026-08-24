@@ -52,15 +52,12 @@ create policy "privacy_request_self_read" on public.privacy_requests
 for select to authenticated
 using (requester_profile_id=auth.uid());
 
--- Administrative handling is allowed only for authenticated profiles whose stored role is admin.
+-- Admin browser sessions may inspect the queue for support triage, but disposition and
+-- state changes are deliberately server-controlled so a broad browser update policy cannot
+-- alter requester identity, target learner, verification timestamps, or completion state.
 create policy "privacy_request_admin_read" on public.privacy_requests
 for select to authenticated
 using (exists (select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'));
-
-create policy "privacy_request_admin_update" on public.privacy_requests
-for update to authenticated
-using (exists (select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'))
-with check (exists (select 1 from public.profiles p where p.id=auth.uid() and p.role='admin'));
 
 comment on table public.privacy_requests is 'Authenticated queue for access/correction/deletion/account-closure/privacy requests. Does not itself perform deletion or legal verification.';
 comment on column public.privacy_requests.resolution_code is 'Controlled internal outcome code only; do not store sensitive free-text case notes here.';
