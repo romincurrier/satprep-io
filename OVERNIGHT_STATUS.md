@@ -6,6 +6,25 @@ Last updated: 2026-08-24
 SATprep.io is a **pre-launch commercial candidate**, not approved for public paying customers. The repository now contains substantial student/parent/admin/billing/onboarding functionality, prior-assessment ingestion, an assessment-only adaptive diagnostic, guided learning/practice with explanations, mastery/progress tracking, content QA/review tooling, SEO/trust content, marketing plans, privacy/security operating materials, durable API abuse controls, and baseline accessibility/security hardening.
 
 ## Latest completed engineering
+
+### Server-enforced public billing launch locks
+- Public checkout is no longer protected only by browser UI/prelaunch code. The Stripe server layer now identifies `satprep.io` and `www.satprep.io` as public hosts and fails closed unless an explicit server-side public billing flag is enabled.
+- Checkout creation **and checkout confirmation** both require `PUBLIC_BILLING_ENABLED=true` on the public host.
+- Billing-portal access is independently gated by `PUBLIC_BILLING_PORTAL_ENABLED=true`, so post-purchase account management can be controlled separately from new sales.
+- A public production host must also use a live Stripe key; test-mode public checkout is refused unless the emergency/test-only `ALLOW_PUBLIC_TEST_BILLING=true` override is deliberately set.
+- Existing `ALLOW_LIVE_BILLING=true` remains a separate lock before any `sk_live_*` key can be used.
+- Preview/non-public hosts can continue Stripe test-mode QA without opening public commerce.
+- `env.example` defaults every public/live billing control to `false`, and the production security validator now fails builds if these server-side gates are removed or bypassed.
+- A Vercel build containing these billing controls and the expanded security validation completed successfully.
+
+### Accessibility regression foundation
+- Added `npm run validate:accessibility` to every production build.
+- The validator scans public HTML and the application shell for document language, viewport/title/main landmarks, one primary H1, safe keyboard order, image alt text, safe new-window links, accessible tables, labeled static form controls, application skip navigation, visible focus treatment, and reduced-motion support.
+- Public educational/SEO pages now have consistent visible keyboard focus, minimum touch-target treatment for primary controls, screen-reader utility styles, and reduced-motion support.
+- The 2026–27 SAT dates table now has a screen-reader caption and scoped column headers.
+- Added `docs/ACCESSIBILITY_LAUNCH_CHECKLIST.md` covering keyboard-only, screen-reader, zoom/reflow, contrast, touch, motion/timing, math/content accessibility, and release-evidence testing. Automated checks are explicitly **not** treated as proof of legal compliance or a substitute for manual assistive-technology testing.
+- The first Vercel build with the accessibility validator enabled completed successfully.
+
 ### Exact-content diagnostic approval integrity
 - Secure diagnostic content is typed as `diagnostic` in the server-only content system.
 - Runtime selection/delivery/scoring requires active `production_approved` MCQ content plus current approvals for **accuracy, SAT/PSAT alignment, editorial quality, bias/accessibility, and originality**.
@@ -29,10 +48,10 @@ SATprep.io is a **pre-launch commercial candidate**, not approved for public pay
 - Added `docs/COMMERCIAL_PRACTICE_ARCHITECTURE.md` with activation/test requirements.
 
 ### Build-time regression/security gates
-- Added `npm run validate:regression` to production builds: deterministic diagnostic planning, 11 RW/9 Math distribution, all-domain coverage, unique items, safe diagnostic projection, staged practice structure, practice feedback, and diagnostic assessment-only behavior.
-- Added `npm run validate:practice-security`: authenticated/rate-limited practice APIs, server-only content/key separation, exact hash approval, durable resume, atomic mastery finalization, and prelaunch-only browser fallback.
-- Existing builds also run content, approval, SEO, security, and launch validators before Vite.
-- Vercel builds following the diagnostic hash/originality hardening, pure planner refactor, regression gate, and commercial-practice integration have been green. Continue requiring a green check after every new commit.
+- Production builds now run content, approval, SEO, accessibility, security, practice-security, launch, and deterministic regression validators before Vite.
+- Diagnostic regression tests preserve assessment-only behavior and deterministic all-domain coverage.
+- Practice security tests enforce authenticated/rate-limited APIs, server-only scoring content, exact hash approvals, durable resume, atomic mastery finalization, and prelaunch-only browser fallback.
+- Continue requiring a green deployment check after every material commit.
 
 ## Content state
 - Official SAT/PSAT taxonomy/structure is mapped to current College Board source material.
@@ -52,10 +71,10 @@ SATprep.io is a **pre-launch commercial candidate**, not approved for public pay
 1. Establish a **private repository/content boundary** for fresh secure commercial question content.
 2. Intentionally reactivate Supabase when approved; apply/reconcile pending migrations and test RLS/service-role boundaries.
 3. Import fresh independently reviewed diagnostic/practice content with exact hash-matching approval rows and increase depth toward launch targets.
-4. End-to-end test secure diagnostic and commercial practice: resume, revoked-review behavior, correct/incorrect feedback, idempotent retries, atomic mastery, 429/503 failure modes, and cross-account isolation.
+4. End-to-end test secure diagnostic and commercial practice: resume, revoked-review behavior, correct/incorrect practice feedback, idempotent retries, atomic mastery, 429/503 failure modes, and cross-account isolation.
 5. After server practice is proven live, remove/decommission browser-writable mastery/question-attempt authority from the commercial path and tighten legacy RLS without breaking prelaunch/legacy recovery.
 6. Complete full regression across student, parent, admin, onboarding, billing preview, prior uploads, journey/progress, privacy requests, and support recovery.
-7. Complete manual keyboard/screen-reader/zoom/reflow/contrast/mobile accessibility testing.
+7. Execute the manual accessibility checklist with keyboard, desktop/mobile screen readers, zoom/reflow, contrast, and representative devices; remediate all critical findings.
 8. Reconcile live data inventory, processor register, retention schedule, legal/privacy notices, live billing terms, analytics consent/attribution, and lifecycle email before public launch.
 9. Only after explicit approval: enable public billing/indexing/analytics and begin outbound marketing execution.
 
