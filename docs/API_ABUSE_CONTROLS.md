@@ -3,19 +3,20 @@
 Status: pre-launch operating standard
 
 ## Purpose
-SATprep.io handles proprietary assessment content, household/account changes, and billing actions. Authentication and authorization are necessary but are not sufficient protections against automation, scraping, accidental request loops, stolen-session abuse, or repeated privileged actions. Production APIs therefore require layered abuse controls.
+SATprep.io handles proprietary assessment content, household/account changes, billing actions, and eventually privacy-minimized public-site measurement. Authentication and authorization are necessary but are not sufficient protections against automation, scraping, accidental request loops, stolen-session abuse, repeated privileged actions, or anonymous event flooding. Production APIs therefore require layered abuse controls.
 
 ## Current durable application-layer control
 The pending `migrations/20260824_api_rate_limits.sql` migration adds a database-backed fixed-window limiter that is safe across Vercel serverless instances.
 
 Design properties:
 - counters are stored in Supabase rather than function memory, so limits survive cold starts and parallel instances;
-- raw user IDs and email addresses are not stored in the limiter table; the server writes SHA-256 subject hashes;
+- raw user IDs, email addresses, and network addresses are not stored in the limiter table; the server writes SHA-256 subject hashes;
 - the counter table is not readable or writable by `anon` or `authenticated` browser roles;
 - the consumption RPC is executable only by `service_role`;
 - counter increments are atomic through an upsert;
 - rejected requests return HTTP 429 plus `Retry-After`;
-- if the durable limiter is unavailable, protected privileged endpoints fail closed with HTTP 503 rather than silently running without the control.
+- if the durable limiter is unavailable, protected endpoints fail closed with HTTP 503 rather than silently running without the control;
+- limiter calls opportunistically delete hashed counters older than 48 hours, keeping operational abuse-control data short-lived without requiring a separate scheduled cleanup job.
 
 ## Protected routes and initial limits
 These limits are launch defaults and should be tuned using support and security data. They are not product promises.
@@ -32,6 +33,7 @@ These limits are launch defaults and should be tuned using support and security 
 | `billing/checkout-create` | Create Stripe checkout session | 10 | 1 hour |
 | `billing/checkout-confirm` | Confirm Stripe checkout session | 30 | 1 hour |
 | `billing/portal-create` | Create Stripe billing portal session | 20 | 1 hour |
+| `marketing/event` | Submit privacy-minimized first-party public-site event when explicitly enabled | 60 | 60 seconds |
 
 ## Why the diagnostic limits matter
 The secure-v3 diagnostic endpoint is intentionally sequential: the browser may request only the current unanswered question. Rate limiting adds a second control against scripted polling and repeated scoring requests. It does not replace server-only answer keys, attempt ownership checks, sequential-position enforcement, restrictive RLS, or content approval gates.
@@ -45,8 +47,20 @@ Rate limiting reduces repeated creation of provider sessions and privileged acco
 - unique constraints and idempotent persistence;
 - parental-consent/privacy review.
 
-## Public unauthenticated traffic
-Marketing measurement remains intentionally gated and is not loaded by the production client while the privacy/measurement migration is pending. Before public marketing measurement is activated, add a separately reviewed public-ingress strategy that combines platform firewall controls with privacy-minimized application throttling. Do not persist raw client IP addresses solely for marketing attribution.
+## Public unauthenticated measurement
+First-party marketing measurement has independent browser and server launch locks and remains disabled during prelaunch. The tracking module may be present in the built application, but it is inert unless the client launch gate is explicitly enabled; the receiving API independently returns 404 unless `MARKETING_MEASUREMENT_ENABLED=true` is configured server-side.
+
+If measurement is approved later:
+- requests are accepted only from approved same-origin hosts;
+- event names are allowlisted;
+- payload size and field lengths are bounded;
+- no cookie, localStorage identifier, account ID, learner ID, age/DOB, school, test score, diagnostic response, skill mastery, or uploaded assessment data is part of the event schema;
+- email-like and phone-like campaign/referral values are discarded server-side rather than stored;
+- Vercel's edge-provided `x-forwarded-for` value may be used transiently only as an abuse-control subject; the raw address is not inserted into `marketing_events` or `api_rate_limits`;
+- `enforceRateLimit` SHA-256 hashes the route/subject before persistence, and stale hashed counters are pruned after approximately 48 hours;
+- the event table remains service-role-write-only with no browser read/write policy.
+
+Application throttling is still only one layer. Before broad public measurement or acquisition traffic is activated, configure and test platform firewall controls for volumetric attacks and obvious automated abuse. Do not turn public IP addresses into marketing attribution identifiers.
 
 ## Platform-layer launch gate
 Before broad public launch, configure and test Vercel firewall/traffic controls for obvious automated abuse, volumetric spikes, and emergency blocking. Platform controls are an additional layer, not a substitute for route-specific authorization and durable application limits.
@@ -58,7 +72,8 @@ After launch or a controlled pilot:
 3. Review false-positive support cases, especially accessibility/assistive-technology and household setup flows.
 4. Keep diagnostic item/answer limits comfortably above realistic human use while below useful scraping throughput.
 5. Alert on repeated 503 failures from the rate-limit backend because protected routes intentionally fail closed.
-6. Purge old fixed-window counter rows under an approved retention job; counters are operational security data, not learner records.
+6. Confirm stale limiter rows remain bounded by the opportunistic 48-hour cleanup behavior; if traffic is too low for reliable cleanup, add a separately approved maintenance job.
+7. Review anonymous marketing-event volumes by route/event class rather than by network identity.
 
 ## Required pre-launch verification
 - Apply `20260824_api_rate_limits.sql` after the Supabase project is intentionally active.
@@ -67,5 +82,7 @@ After launch or a controlled pilot:
 - Exercise each protected route below and above its limit in a non-production test account.
 - Confirm 429 responses include `Retry-After` and contain no configuration details.
 - Confirm limiter/backend failure produces 503 for protected routes.
-- Run `npm run validate:security` and a complete Vercel build.
+- With first-party measurement still disabled, confirm the browser does not send marketing events and `/api/marketing-event` returns 404.
+- In a controlled non-public QA environment only, enable both measurement gates and verify allowlisted events work, contact-like campaign values are dropped, abusive traffic reaches 429, and no raw client address is stored.
+- Run `npm run validate:security`, `npm run validate:launch`, and a complete production build.
 - Re-run Supabase security and performance advisors after applying the migration.
