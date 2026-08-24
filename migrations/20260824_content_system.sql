@@ -62,6 +62,7 @@ alter table public.content_items enable row level security;
 alter table public.content_answer_keys enable row level security;
 alter table public.content_item_reviews enable row level security;
 alter table public.diagnostic_attempt_items enable row level security;
+alter table public.diagnostic_responses enable row level security;
 
 -- Deliberately no browser SELECT policy on content_items or answer keys.
 -- Production question delivery/scoring must go through authenticated server endpoints.
@@ -84,6 +85,32 @@ for select using (
     join public.parent_students ps on ps.student_id=da.student_id
     where da.id=diagnostic_attempt_items.attempt_id
       and ps.parent_profile_id=auth.uid()
+  )
+);
+
+-- Secure-v3 responses are server-only. Legacy attempts still need the browser policies
+-- that already exist in the MVP schema so an in-progress legacy diagnostic can finish.
+-- RESTRICTIVE means this condition is ANDed with any existing permissive student/parent
+-- policies: even a broad old policy cannot expose, modify, forge, or delete secure-v3
+-- question responses through the browser. The service role bypasses RLS for scoring.
+drop policy if exists "secure_v3_responses_server_only" on public.diagnostic_responses;
+create policy "secure_v3_responses_server_only"
+on public.diagnostic_responses
+as restrictive
+for all
+to authenticated
+using (
+  not exists (
+    select 1 from public.diagnostic_attempts da
+    where da.id=diagnostic_responses.attempt_id
+      and coalesce(da.summary->>'engine','legacy')='secure-v3'
+  )
+)
+with check (
+  not exists (
+    select 1 from public.diagnostic_attempts da
+    where da.id=diagnostic_responses.attempt_id
+      and coalesce(da.summary->>'engine','legacy')='secure-v3'
   )
 );
 
