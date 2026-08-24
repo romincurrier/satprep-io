@@ -18,23 +18,28 @@ if(!/UUID\.test\(sessionId\)/.test(itemApi)||!/enforceCurrent\s*:\s*true/.test(i
 const answerApi=read('api/practice-answer-v3.js');
 if(!/JSON\.stringify\(raw\)\.length>1000/.test(answerApi))fail('Practice answer API must reject oversized payloads.');
 if(!/UUID\.test\(sessionId\)/.test(answerApi))fail('Practice answer API must validate session UUIDs.');
-if(!/Number\.isInteger\(selected\)/.test(answerApi)||!/selected>3/.test(answerApi))fail('Practice answer API must validate answer choice bounds.');
+if(!/hasChoice===hasText/.test(answerApi))fail('Practice answer API must require exactly one MCQ or SPR response shape.');
+if(!/Number\.isInteger\(submitted\)/.test(answerApi)||!/submitted>3/.test(answerApi))fail('Practice answer API must validate MCQ answer choice bounds.');
+if(!/String\(raw\.response_text\)/.test(answerApi))fail('Practice answer API must accept an SPR response for server-side validation.');
 
 const core=read('server/practice-core.js');
 if(/practice-bank|question-bank/i.test(core))fail('Commercial practice runtime must not import committed authored question banks.');
 if(!/practice-selection-core\.js/.test(core)||!/selectAdaptiveItems/.test(core)||!/adaptiveBand/.test(core))fail('Commercial practice runtime must use the pure mastery-adaptive selection core.');
+if(!/response-scoring\.js/.test(core)||!/scoreResponse\(/.test(core))fail('Commercial practice runtime must use shared server-side MCQ/SPR response scoring.');
 if(!/masteryForSkill\(student\.id,skill\)/.test(core))fail('Commercial practice must read the current trusted skill mastery before planning a new session.');
 if(!/selectAdaptiveItems\(source,\{length,mastery,randomIntFn:randomInt\}\)/.test(core))fail('Commercial practice must apply mastery-adaptive difficulty selection to the approved fresh item pool.');
 if(!/mastery_before:mastery,adaptive_band:band/.test(core))fail('New commercial practice sessions must persist the mastery baseline and adaptive band used to plan the immutable item set.');
 if(!/existing\.adaptive_band\|\|band/.test(core))fail('Resumed practice must report the adaptive band stored with the saved item plan rather than silently regenerating its planning provenance.');
-if(!/content_type=eq\.practice&skill_key=eq\./.test(core)||!/qa_status=eq\.production_approved&active=eq\.true&format=eq\.mcq/.test(core))fail('Commercial practice selection must use active production-approved server practice MCQs for the requested skill.');
+if(!/content_type=eq\.practice&skill_key=eq\./.test(core)||!/qa_status=eq\.production_approved&active=eq\.true/.test(core))fail('Commercial practice selection must use active production-approved server practice content for the requested skill.');
+if(!/row\?\.format==='spr'&&row\?\.section==='MATH'/.test(core))fail('Student-produced response content must be restricted to Math in commercial practice.');
 for(const review of ['accuracy','alignment','editorial','bias_accessibility','originality'])if(!core.includes(`'${review}'`))fail(`Commercial practice approval gate must require ${review} review.`);
-if(!/type:'practice'/.test(core)||!/createHash\('sha256'\)/.test(core)||!/r\.content_hash===hash/.test(core))fail('Commercial practice runtime must enforce exact SHA-256 hash-pinned review approval.');
+if(!/databaseReviewContent\('practice'/.test(core)||!/createHash\('sha256'\)/.test(core)||!/r\.content_hash===hash/.test(core))fail('Commercial practice runtime must enforce exact SHA-256 hash-pinned review approval.');
 if(!/changed after review/.test(core))fail('Commercial practice must fail closed if content changes after review.');
 const safe=core.match(/function safeQuestion\([^)]*\)\{([^}]+)\}/s)?.[1]||'';
 if(!safe)fail('Could not verify safe commercial practice question projection.');
 else if(/answerIndex|correctIndex|explanation|distractor/i.test(safe))fail('Practice item delivery must not expose the scoring key or explanation before submission.');
-if(!/content_answer_keys\?item_id=eq\./.test(core)||!/correctIndex/.test(core)||!/explanation:key\.explanation/.test(core))fail('Commercial practice scoring must retrieve scoring material from the server-only answer-key store.');
+if(!/content_answer_keys\?item_id=eq\./.test(core)||!/answer:key\.answer/.test(core)||!/explanation:key\.explanation/.test(core))fail('Commercial practice scoring must retrieve scoring material from the server-only answer-key store.');
+if(!/response_text:scored\.responseText/.test(core)||!/selected_answer:scored\.selectedAnswer/.test(core))fail('Commercial practice must persist mutually exclusive MCQ/SPR response fields after server validation.');
 if(!/scored_by_server:true/.test(core)||!/scored_by_server=eq\.true/.test(core))fail('Commercial practice responses must be explicitly server-scored and progress must count only trusted rows.');
 if(!/finalize_practice_session/.test(core))fail('Commercial practice completion must use the atomic server-side finalization RPC.');
 if(!/latestOpen\(/.test(core)||!/practice_session_items/.test(core)||!/resumed:true/.test(core))fail('Commercial practice engine must support durable server-side resume from a persisted item plan.');
@@ -47,6 +52,7 @@ if(!/value===null\|\|value===undefined\|\|value===''/i.test(selection))fail('Mis
 
 const learning=read('learning-v2.js'),guard=read('prelaunch-guard.js');
 for(const route of ['/api/practice-session-v3','/api/practice-item-v3','/api/practice-answer-v3'])if(!learning.includes(route))fail(`Student learning UI must use ${route} for commercial practice.`);
+if(!/q\.format==='spr'/.test(learning)||!/id="serverPracticeSpr"/.test(learning)||!/response_text:serverResponseText\.trim\(\)/.test(learning))fail('Student commercial-practice UI must render and submit Math student-produced responses.');
 if(!/window\.__SATPREP_PRELAUNCH__===true/.test(learning))fail('Browser-scored practice fallback must be explicitly limited to prelaunch mode.');
 if(!/Commercial practice will not fall back to browser-scored questions/.test(learning))fail('Public/commercial practice must fail closed rather than silently falling back to browser-scored content.');
 if(!/This practice session is saved after every answer and can be resumed/.test(learning))fail('Student practice UX must communicate durable resume behavior.');
@@ -54,12 +60,15 @@ if(!/serverFeedback=await authFetch\('\/api\/practice-answer-v3'/.test(learning)
 if(!/window\.__SATPREP_PRELAUNCH__\s*=\s*!PUBLIC_BILLING_ENABLED/.test(guard))fail('Prelaunch guard must expose an explicit state used to gate QA-only browser scoring.');
 
 const contentMigration=read('migrations/20260824_content_system.sql');
-if(!/content_type text not null check \(content_type in \('diagnostic','practice'\)\)/i.test(contentMigration))fail('Content system must distinguish diagnostic and practice items.');
+if(!/format text not null check \(format in \('mcq','spr'\)\)/i.test(contentMigration))fail('Content system must distinguish MCQ and student-produced response items.');
 const migration=read('migrations/20260824_practice_sessions.sql');
 for(const table of ['practice_sessions','practice_session_items','practice_responses']){
  if(!new RegExp(`create table if not exists public\\.${table}`,'i').test(migration))fail(`Practice migration must create ${table}.`);
  if(!migration.includes(`revoke all on table public.${table} from public, anon, authenticated;`))fail(`${table} must be inaccessible to browser roles.`);
 }
+const sprMigration=read('migrations/20260824_spr_responses.sql');
+if(!/practice_responses[\s\S]*response_text text/i.test(sprMigration)||!/diagnostic_responses[\s\S]*response_text text/i.test(sprMigration))fail('SPR migration must add durable text responses to practice and diagnostic response storage.');
+if(!/selected_answer drop not null/i.test(sprMigration)||!/one_answer_shape/i.test(sprMigration))fail('SPR response storage must allow one mutually exclusive MCQ or SPR answer shape.');
 if(!/mastery_before numeric/.test(migration)||!/adaptive_band text/.test(migration))fail('Practice-session schema must persist the trusted pre-session mastery and adaptive planning band.');
 if(!/adaptive_band in \('foundation','balanced','challenge'\)/.test(migration))fail('Practice-session schema must constrain adaptive planning provenance to supported bands.');
 if(!/create or replace function public\.finalize_practice_session\(p_session_id uuid\)/i.test(migration)||!/for update/i.test(migration))fail('Practice finalization must lock and finalize the session atomically.');
@@ -67,4 +76,4 @@ if(!/security definer/i.test(migration)||!/grant execute on function public\.fin
 if(!/on conflict\(student_id,skill_key\) do update/i.test(migration)||!/on conflict\(student_id,lesson_key\) do update/i.test(migration))fail('Practice finalization must update trusted mastery and lesson progress atomically.');
 
 if(errors.length){for(const e of errors)console.error(`Practice security validation error: ${e}`);process.exit(1)}
-console.log('Commercial practice security, adaptive selection, provenance, and resume invariants passed.');
+console.log('Commercial MCQ/SPR practice security, adaptive selection, provenance, and resume invariants passed.');
