@@ -35,6 +35,7 @@ create table if not exists public.content_item_reviews (
   review_type text not null check (review_type in ('accuracy','alignment','editorial','bias_accessibility','psychometric')),
   reviewer_label text,
   decision text not null check (decision in ('approve','revise','reject')),
+  content_hash text not null check (content_hash ~ '^[0-9a-f]{64}$'),
   notes text,
   created_at timestamptz not null default now()
 );
@@ -55,7 +56,7 @@ alter table public.diagnostic_responses add column if not exists scored_by_serve
 
 create index if not exists content_items_skill_idx on public.content_items(section,domain_key,skill_key,difficulty) where active;
 create index if not exists content_items_qa_idx on public.content_items(qa_status,active);
-create index if not exists content_reviews_item_idx on public.content_item_reviews(item_id,review_type);
+create index if not exists content_reviews_item_idx on public.content_item_reviews(item_id,review_type,created_at);
 create index if not exists diagnostic_attempt_items_attempt_idx on public.diagnostic_attempt_items(attempt_id,position);
 
 alter table public.content_items enable row level security;
@@ -105,5 +106,5 @@ with check (
 
 comment on table public.content_items is 'SATprep.io proprietary item prompts and metadata. Browser roles are denied; safe question delivery is server-mediated.';
 comment on table public.content_answer_keys is 'Server-only scoring keys and instructional explanations. Do not expose through browser RLS.';
-comment on table public.content_item_reviews is 'Server-only item QA audit trail. Production use requires recorded independent review.';
+comment on table public.content_item_reviews is 'Server-only item QA audit trail. Every review is pinned to the SHA-256 hash of the exact prompt, key, explanation, taxonomy, difficulty, and exam eligibility reviewed.';
 comment on table public.diagnostic_attempt_items is 'Server-only immutable-per-attempt diagnostic plan used to verify question order and provenance.';
