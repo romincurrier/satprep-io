@@ -33,7 +33,7 @@ for(const skill of Object.keys(SKILL_INDEX)){
 for(const exam of ['SAT','PSAT/NMSQT','PSAT 10']){
  const eligible=eligibleQuestions(exam),sections=new Set(eligible.map(q=>q.section));
  if(!sections.has('RW')||!sections.has('MATH'))errors.push(`${exam}: diagnostic bank must contain both sections`);
- const plan=buildDiagnosticPlan({targetExam:exam,seed:'build-validation',priorities:[{skill:'inferences',mastery:.25},{skill:'linear-equations-one-variable',mastery:.35}]});
+ const plan=buildDiagnosticPlan({targetExam:exam,seed:'build-validation',priorities:[{skill:'inferences',mastery:.25},{skill:'linear-equations-one-variable',mastery:.35}],bank:eligible});
  for(const e of validateDiagnosticPlan(plan))errors.push(`${exam}: ${e}`);
  for(const p of plan)if(!eligible.some(q=>q.id===p.itemId))errors.push(`${exam}: plan selected ineligible item ${p.itemId}`);
 }
@@ -50,4 +50,4 @@ console.log(`Diagnostic content validation passed: ${QUESTION_BANK.length} origi
 console.log(`Staged practice validation passed: ${PRACTICE_BANK.length} original practice items (${practiceBySection.RW||0} RW, ${practiceBySection.MATH||0} Math), with at least three items for every official skill point.`);
 console.log(`Instructional coverage passed: ${Object.keys(SKILL_GUIDES).length} official-skill teaching guides.`);
 console.log('Diagnostic blueprint validation passed for SAT, PSAT/NMSQT, and PSAT 10.');
-console.log('QA note: staged/internal_review content remains non-student-facing until independent accuracy/alignment/editorial review is complete.');
+console.log('QA note: staged/internal_review content remains non-student-facing until independent accuracy/alignment/editorial/originality review is complete.');
