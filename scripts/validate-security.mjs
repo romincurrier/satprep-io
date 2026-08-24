@@ -67,6 +67,8 @@ const contentMigration=read('migrations/20260824_content_system.sql');
 if(!/add column if not exists content_item_id/i.test(contentMigration)||!/add column if not exists scored_by_server/i.test(contentMigration))fail('Content migration must add secure response provenance columns.');
 if(!/secure_v3_responses_server_only/i.test(contentMigration)||!/as\s+restrictive/i.test(contentMigration))fail('Content migration must contain the restrictive secure-v3 diagnostic response policy.');
 if(!/coalesce\s*\(\s*da\.summary\s*->>\s*'engine'\s*,\s*'legacy'\s*\)\s*=\s*'secure-v3'/i.test(contentMigration))fail('Secure-v3 response policy must identify secure-v3 attempts from the server-authored attempt summary.');
+for(const table of ['content_items','content_answer_keys','content_item_reviews','diagnostic_attempt_items'])if(!contentMigration.includes(`revoke all on table public.${table} from public, anon, authenticated;`))fail(`${table} must be explicitly revoked from browser roles.`);
+if(/create policy\s+"diagnostic_plan_(student|parent)_read"/i.test(contentMigration))fail('The complete secure diagnostic plan must not have a browser SELECT policy.');
 
 const serverAllowedPrefixes=['api/','server/','scripts/'];
 function walk(dir='.'){
