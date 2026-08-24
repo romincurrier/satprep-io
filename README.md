@@ -10,6 +10,7 @@ Adaptive SAT/PSAT preparation platform with student, parent, billing, prior-asse
 - Stripe test-mode subscription and customer-portal integration.
 - Evidence-aware diagnostic and learning model.
 - Secure-v3 diagnostic: proprietary answer keys remain server-side and diagnostic questions do not reveal correctness/explanations while the baseline assessment is in progress.
+- Secure-v3 responses are designed to carry server-scoring provenance and content-item identity so finalization does not trust browser-authored rows.
 - Learning/practice sessions use a separate practice bank and show correctness, correct answer, and instructional explanation after submission.
 - Prior-assessment ingestion for PDF and spreadsheet reports, with native score types preserved.
 - Student, parent, admin, onboarding, learning, mastery, roadmap, and billing experiences.
@@ -53,11 +54,14 @@ npm run content:readiness
 npm run content:review-export
 npm run content:review-validate -- <completed-review-file>
 npm run content:review-apply
+npm run content:calibration
 ```
+
+`content:calibration` requires server-side Supabase credentials and reads only the server-restricted aggregate calibration views after the calibration migration is applied.
 
 Use `npm run content:readiness -- --strict` for a launch-depth gate. A strict pass is still not a substitute for psychometric calibration, legal/privacy review, or end-to-end production testing.
 
-## Content review workflow
+## Content review and calibration workflow
 
 The source content bank remains original SATprep.io material. Do not copy or scrape protected College Board questions into the proprietary bank.
 
@@ -69,6 +73,8 @@ The independent review workflow is documented in `docs/CONTENT_REVIEW_RUNBOOK.md
 4. Revise/reject problem items and re-review changed content.
 5. Apply approved items to `content-approval-registry.json`.
 6. Build validation verifies the SHA-256 hash of every approved item; a later content edit invalidates its approval.
+
+Operational item behavior is documented separately in `docs/CONTENT_CALIBRATION_RUNBOOK.md`. Once sufficient pilot data exists, server-only aggregate metrics can flag unusual facility, response-time, discrimination/correlation, or option-selection patterns for review. Operational statistics supplement independent content/psychometric review; they do not automatically promote/retire content and do not justify SAT-score predictions.
 
 ## Supabase setup and migrations
 
@@ -83,6 +89,8 @@ Repository migrations are under `migrations/`. Before applying migrations to a p
 5. Re-run Supabase security and performance advisors.
 6. Run the production smoke/regression checklist in `docs/COMMERCIAL_LAUNCH_RUNBOOK.md`.
 
+The current content-system migration must be present before new secure-v3 diagnostics are allowed to create/score attempts. The secure engine performs a migration-readiness check and fails closed if the required response provenance columns/content table are missing.
+
 Do not activate/restore hosted infrastructure merely to make a test pass if doing so may change billing or operating state without approval.
 
 ## Secure diagnostic design
@@ -95,6 +103,9 @@ New diagnostic attempts use the secure-v3 route. The server owns the question pl
 - is idempotent against duplicate submission;
 - does not return correctness or explanations during the baseline assessment;
 - uses server-side scoring;
+- records `content_item_id` and `scored_by_server=true` for secure response provenance;
+- counts only server-scored rows for secure progress/finalization;
+- verifies response/content-item identity before finalization;
 - is designed so secure-v3 response records are blocked from direct authenticated-browser access by a restrictive RLS migration.
 
 Existing legacy attempts are allowed to finish on their saved question plan to preserve user progress.
@@ -111,6 +122,7 @@ Public browser environment variables include the Supabase URL and publishable/an
 - `docs/COMMERCIAL_LAUNCH_RUNBOOK.md` — full release, regression, billing, privacy, security, support, and monitoring checklist.
 - `docs/CONTENT_AUTHORING_STANDARD.md` — content construction requirements.
 - `docs/CONTENT_REVIEW_RUNBOOK.md` — independent content QA and hash-pinned approval workflow.
+- `docs/CONTENT_CALIBRATION_RUNBOOK.md` — operational item-behavior monitoring and psychometric guardrails.
 - `docs/PRIVACY_LAUNCH_CHECKLIST.md` — privacy/youth-data engineering and legal-review checklist.
 - `docs/SEO_CONTENT_MATRIX.md` — organic search architecture and content backlog.
 - `docs/MARKETING_OPERATING_PLAN.md` — funnel/channel/measurement strategy.
@@ -134,10 +146,10 @@ The repository may prepare infrastructure and assets, but the following remain e
 ## Current highest priorities
 
 1. Intentionally activate/verify the production database and apply pending migrations.
-2. Run secure-v3 end-to-end diagnostic and cross-device resume tests against the live schema.
+2. Run secure-v3 end-to-end diagnostic and cross-device resume tests against the live schema, including server-scored/content-item provenance.
 3. Complete independent human content review and apply hash-valid approvals.
 4. Expand diagnostic/practice depth and question rotation toward strict launch targets.
 5. Finish API abuse/rate-limit and production RLS review.
 6. Complete full student/parent/admin/billing/onboarding regression.
 7. Complete privacy/legal/data-retention/support launch gates.
-8. Finish SEO content cluster and approved measurement implementation before public acquisition.
+8. Continue SEO content clusters, synthetic conversion assets, and approved measurement implementation before public acquisition.
