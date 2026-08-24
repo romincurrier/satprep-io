@@ -20,6 +20,24 @@ if(!/JSON\.stringify\(raw\)\.length\s*>\s*1000/.test(answerApi))fail('Secure dia
 if(!/UUID\.test\(attemptId\)/.test(answerApi))fail('Secure diagnostic answer API must validate attempt UUIDs before server scoring.');
 if(!/Number\.isInteger\(selected\)/.test(answerApi)||!/selected\s*>\s*3/.test(answerApi))fail('Secure diagnostic answer API must validate answer choice bounds.');
 
+const secureApis=[
+ ['api/diagnostic-session-v3.js','diagnostic/session'],
+ ['api/diagnostic-item-v3.js','diagnostic/item'],
+ ['api/diagnostic-answer-v3.js','diagnostic/answer']
+];
+for(const [file,route] of secureApis){const txt=read(file);if(!/enforceRateLimit\(/.test(txt)||!txt.includes(`'${route}'`))fail(`${file}: secure diagnostic endpoint must enforce its durable per-user rate limit.`);if(!/Retry-After/.test(txt))fail(`${file}: rate-limited responses must emit Retry-After.`)}
+
+const serverAccess=read('server/supabase-server.js');
+if(!/export async function enforceRateLimit/.test(serverAccess)||!/consume_api_rate_limit/.test(serverAccess))fail('Server data layer must expose the durable rate-limit helper.');
+if(!/createHash\('sha256'\)/.test(serverAccess))fail('Rate-limit subjects must be hashed before persistence.');
+if(!/status\s*:\s*429/.test(serverAccess)||!/retryAfter/.test(serverAccess))fail('Rate-limit helper must fail with 429 and a retry interval when the limit is exceeded.');
+if(!/Request protection is not ready/.test(serverAccess)||!/status\s*:\s*503/.test(serverAccess))fail('Rate-limit backend failure must fail closed for privileged endpoints.');
+
+const rateMigration=read('migrations/20260824_api_rate_limits.sql');
+if(!/create table if not exists public\.api_rate_limits/i.test(rateMigration)||!/create or replace function public\.consume_api_rate_limit/i.test(rateMigration))fail('Rate-limit migration must define the durable counter table and atomic consumption function.');
+if(!/revoke all on table public\.api_rate_limits from public, anon, authenticated/i.test(rateMigration))fail('Rate-limit counters must not be readable or writable by browser roles.');
+if(!/revoke all on function public\.consume_api_rate_limit\(text,text,integer,integer\) from public, anon, authenticated/i.test(rateMigration)||!/grant execute on function public\.consume_api_rate_limit\(text,text,integer,integer\) to service_role/i.test(rateMigration))fail('Rate-limit RPC must be executable only by the service role.');
+
 const core=read('server/diagnostic-core.js');
 if(/correct_answer\s*:\s*item\.answerIndex/.test(core))fail('Secure diagnostic must not persist the real answer key in browser-readable legacy response fields.');
 const safeQuestion=core.match(/export function safeQuestion\([^)]*\)\{([^}]+)\}/s)?.[1]||'';
