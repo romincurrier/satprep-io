@@ -1,79 +1,79 @@
-# SATprep.io Autonomous Build Status
+# SATprep.io Commercial Launch Status
 
 Last updated: 2026-08-24
 
-## Current commercial-candidate state
-SATprep.io is a **pre-launch commercial candidate**, not yet approved for public paying customers. The architecture now includes student/parent/admin/billing flows, prior-assessment ingestion, an assessment-only adaptive diagnostic, learning/practice with explanations, mastery/progress tracking, proprietary content QA, SEO/trust pages, pre-launch marketing/measurement planning, and a durable application-layer abuse-control design.
+## Current state
+SATprep.io is a **pre-launch commercial candidate**, not yet approved for public paying customers. The product now includes student/parent/admin/billing flows, prior-assessment ingestion, an assessment-only adaptive diagnostic, learning/practice with explanations, mastery/progress tracking, proprietary content QA, SEO/trust content, marketing planning/measurement architecture, durable API abuse controls, and baseline browser/accessibility hardening.
 
 ## Major foundations completed
-- Reverified the current College Board Digital SAT Suite taxonomy and structure against first-party sources.
-- Added `sat-spec.js` with Reading & Writing and Math domains, official skill points, SAT/PSAT eligibility differences, section structure, and distributions.
-- Added an original proprietary diagnostic bank and deterministic evidence-aware diagnostic blueprint covering all eight major domains.
-- Added secure-v3 diagnostic delivery/scoring endpoints so the browser receives prompts/choices but not answer keys or explanations during the baseline assessment.
-- Existing legacy diagnostic attempts remain resumable on their saved plan; new secure attempts are assessment-only.
-- Added original learning/practice architecture with immediate correct-answer and process explanations after practice responses.
-- Expanded the staged practice pool to 62 original items, at least two authored items per official skill point; the additional 31 remain behind the independent-review gate.
-- Added automated content validation for IDs, answer keys, taxonomy, exam eligibility, explanations, official-skill coverage, blueprints, and exact diagnostic/practice duplicates.
-- Added hash-pinned independent content review workflow: export, reviewer decisions, validation, approval registry, and build-time approval verification.
-- Added server-only content calibration views/reporting design for pilot QA once adequate response data exists.
-- Added content-review, commercial-launch, privacy, support, incident-response, marketing, SEO, calibration, and API-abuse-control governance documentation.
-- Added prior-assessment PDF/spreadsheet ingestion with native score-type preservation and a generic validation gate for unsupported reports.
-- Added SEO/trust architecture with canonical metadata, structured data, internal-link validation, sitemap validation, SAT/PSAT content clusters, and current-source governance.
-- Added privacy-minimized marketing measurement and privacy-request migrations, both still gated from live use pending database/privacy review.
+- Current SAT/PSAT taxonomy and structure have been mapped to first-party College Board source material.
+- Proprietary diagnostic and practice architecture covers all eight major SAT domains; staged practice depth is 62 original items, with the second 31-item tranche remaining behind independent review.
+- Secure-v3 diagnostic delivery keeps answer keys/explanations server-side during baseline assessment and preserves resume state.
+- Practice/learning mode gives immediate correct-answer and process explanations.
+- Automated content checks cover IDs, answer keys, taxonomy, exam eligibility, explanations, official-skill coverage, blueprints, exact duplicates, and hash-pinned independent approvals.
+- Content-calibration reporting is prepared for pilot data; authored difficulty remains a development label until empirically calibrated.
+- PDF/spreadsheet prior-assessment ingestion preserves native score types and gates unsupported extraction behind validation.
+- Public SEO architecture includes SAT/PSAT pillar pages, skill clusters, study-plan/use-case pages, metadata, canonical URLs, JSON-LD, sitemap, and internal-link validation.
+- Marketing asset, data, operating, support, privacy, incident-response, content-review, calibration, and commercial-launch runbooks are in the repository.
+- Durable service-role API rate limiting is designed for diagnostics, youth/parent setup, account activation, and Stripe routes; pending database migration remains gated while Supabase is inactive.
 
-## Progress in the latest build run
-### Durable API abuse controls
-- Added pending `migrations/20260824_api_rate_limits.sql` with a service-role-only fixed-window limiter designed to work across parallel/cold Vercel serverless instances.
-- Rate-limit subjects are SHA-256 hashed before persistence; raw user IDs/emails are not stored in the counter table.
-- Browser roles are explicitly denied table access and RPC execution; only `service_role` may consume counters.
-- Protected routes fail with HTTP 429 plus `Retry-After` when a limit is exceeded.
-- If the durable limiter is unavailable, protected privileged routes fail closed with HTTP 503 rather than silently bypassing the control.
-- Added route-specific limits for secure diagnostic session/item/answer APIs, student-login activation, parent invitation reads/acceptance, under-13 parent setup requests, Stripe checkout creation/confirmation, and billing portal creation.
-- Extended `npm run validate:security` so a future change cannot remove these abuse controls, service-only grants, hashed subjects, fail-closed behavior, or `Retry-After` handling without failing the production build.
-- Added `docs/API_ABUSE_CONTROLS.md` with operating limits, privacy boundaries, monitoring/tuning rules, and pre-launch verification steps.
-- A Vercel build containing the new validator and protected endpoint changes has been confirmed green.
+## Latest hardening completed
+### Prelaunch commercial claim gate
+- Removed hard-coded price/Offer data from root SoftwareApplication JSON-LD while public billing terms are not launch-approved.
+- Added `prelaunch-guard.js`, which replaces the public pricing block with a prelaunch status message and removes unverified free-trial/cancel-anytime claims until an explicit launch flag is changed.
+- Added `npm run validate:launch` to fail production builds if prelaunch pricing metadata, commercial gating, youth safeguards, browser headers, or baseline accessibility safeguards regress.
 
-### Existing secure diagnostic integrity remains enforced
-- Secure diagnostic responses are explicitly linked to `content_item_id` and marked `scored_by_server=true`.
-- Secure progress/finalization counts only server-scored rows and verifies server-authored item identity.
-- New secure attempts verify required content-system migration readiness and fail closed when the data layer is not ready.
-- The browser does not receive answer keys or explanations during the diagnostic.
+### Youth-account privacy/safety guard
+- The under-13 setup form is now intercepted before the legacy browser database-write handler and routed through `/api/parent-setup-request`, which has origin checks, uniform responses, service-role persistence, and durable rate limiting.
+- Teen signup now checks the entered date of birth before account creation and blocks the teen flow if the DOB indicates the learner is under 13 or otherwise invalid.
+- The legacy direct parent-setup insert remains in `marketing.js` temporarily for backward compatibility, but capture-phase interception prevents it from running in the current application shell; removing that legacy code remains cleanup work.
 
-## Current infrastructure finding
-- Supabase project `nrjqykfrnfrgyuvprwob` was rechecked during this run and still reports `INACTIVE`.
-- The project was not restored automatically because restoring hosted infrastructure can change billing/operational state and is an explicit approval gate.
-- Content-system, calibration, marketing-measurement, privacy-request, and API-rate-limit migrations are therefore committed but **not claimed as live**.
+### Browser security headers
+- Added an enforcing Content Security Policy restricting resource origins, blocking object/plugin content and framing, limiting Supabase connectivity to the configured project, and allowing PDF workers only from self/blob.
+- Added Cross-Origin-Opener-Policy and X-Permitted-Cross-Domain-Policies alongside existing HSTS, nosniff, frame denial, Referrer-Policy, and Permissions-Policy.
+- Browser Payment Request API remains disabled while billing is prelaunch.
 
-## Content readiness rules still in force
-- No staged question is commercially approved merely because automated validation passes.
-- The 31-item practice expansion remains non-student-facing until independent accuracy, alignment, editorial, originality, and accessibility/bias review is completed and hash-valid approvals are applied.
-- Authored difficulty labels are development expectations, not empirical SAT difficulty claims.
+### Baseline accessibility layer
+- Added a keyboard skip link and focusable application target.
+- Added visible `:focus-visible` treatment, 44px baseline interactive-control targets, reduced-motion support, and higher-contrast preference handling.
+- These are baseline safeguards, not a claim of WCAG conformance; full keyboard/screen-reader/manual accessibility regression remains a launch gate.
+
+## Infrastructure status
+- Supabase project `nrjqykfrnfrgyuvprwob` was rechecked and remains `INACTIVE`.
+- It was **not restored automatically** because restoration can change hosted infrastructure/billing state.
+- Content-system/provenance, calibration, marketing-measurement, privacy-request, and API-rate-limit migrations are committed but are **not claimed live**.
+- Vercel builds containing the prelaunch validation changes have been green; latest security/accessibility header build should be verified after deployment completion before public-launch sign-off.
+
+## Content rules still in force
+- No question becomes commercially approved merely because automated validation passes.
+- Staged expansion content remains non-student-facing until independent accuracy, SAT/PSAT alignment, editorial, originality, and accessibility/bias review is completed and hash-valid approvals are applied.
 - Diagnostic mastery values are learning signals, not official SAT/PSAT scaled-score predictions.
-- No score-gain, admission, scholarship, or superiority claims may be published without supporting validation.
+- No score-gain, admissions, scholarship, superiority, or guaranteed-outcome claims may be published without evidence.
 
 ## Explicitly not activated
-- No Supabase restore, live Stripe payments, or public pricing activation.
-- No paid media, ad spend, prospect email, affiliate/referral activation, social publishing, Search Console submission, or public campaign launch.
-- No behavioral advertising or learner-performance marketing audiences.
+- No Supabase restore or unapplied migration activation.
+- No live Stripe activation or approved public pricing/trial terms.
+- No paid media, ad spend, prospect email, affiliate/referral launch, social publishing, Search Console submission, or outbound campaign launch.
+- No behavioral-advertising or learner-performance marketing audiences.
 - No final legal/privacy policy publication.
-- No use of real student reports, identifiable dashboards, or student outcomes in marketing assets.
+- No identifiable student outcomes/reports used as marketing proof.
 
 ## Highest-priority next actions
-1. Once Supabase is intentionally active, reconcile and apply pending migrations in dependency order: content-system/provenance, API rate limits, calibration, privacy requests, and marketing measurement as approved.
-2. Run end-to-end secure-v3 testing with a fresh test student: start, save, refresh, new window/device resume, completion, finalization, learning-path update, and controlled 429/503 abuse-control tests.
-3. Verify secure rows are `content_item_id` linked and `scored_by_server=true`, verify rate-limit table/RPC browser denial, then run Supabase security/performance advisors.
-4. Obtain independent human content review and apply only hash-valid approvals.
-5. Continue expanding question depth/rotation across difficulty levels, contexts, answer formats, and distractor patterns.
-6. Add/verify platform-layer Vercel firewall/traffic protections as an additional launch layer; do not treat them as a substitute for route authorization and durable application limits.
-7. Complete regression testing across student, parent, admin, onboarding, billing, uploads, learning, mastery, progress, privacy requests, and support recovery paths.
-8. Continue SEO/use-case/parent content and synthetic marketing assets while all outbound/paid activation remains gated.
+1. When Supabase is intentionally active, reconcile/apply pending migrations and run secure-v3 + RLS + rate-limit end-to-end tests.
+2. Independently review/approve production question content and continue increasing rotation across difficulty, context, answer format, and distractor patterns.
+3. Remove the legacy direct under-13 database insert from `marketing.js` after refactoring the signup flow to use the protected API natively.
+4. Complete full regression across student, parent, admin, onboarding, billing, uploads, learning, mastery, journey/progress, privacy requests, and support recovery.
+5. Perform manual accessibility regression with keyboard-only navigation, screen reader, zoom/reflow, contrast, focus order, error announcements, and mobile touch targets.
+6. Verify CSP/header behavior on the deployed production host and add platform-layer firewall/bot controls without treating them as substitutes for route authorization.
+7. Finalize legal/privacy/data-retention review, live billing terms, analytics consent/attribution, lifecycle email, and campaign activation before public launch.
 
 ## Commercial launch gates still open
-- Active, verified production database with migrations applied.
-- Independent content review and sufficient question-bank depth/rotation.
-- Empirical/psychometric calibration process after adequate pilot data exists.
+- Active verified production database with migrations applied.
+- Independent content review plus sufficient depth/rotation.
+- Pilot calibration process after adequate data exists.
 - Full end-to-end regression and production smoke testing.
-- Minor-data/privacy/legal and data-retention review.
-- Final RLS/API authorization plus platform-layer firewall review.
-- Live billing verification and approved public pricing.
-- Approved analytics/attribution, lifecycle email, paid/organic campaign activation, and support monitoring.
+- Minor-data/privacy/legal/data-retention review.
+- Manual accessibility review.
+- Final RLS/API authorization and platform-layer firewall review.
+- Live billing verification and approved pricing/trial terms.
+- Approved analytics/attribution and outbound marketing activation.
