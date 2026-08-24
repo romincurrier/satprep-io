@@ -22,6 +22,10 @@ const safeQuestion=core.match(/export function safeQuestion\([^)]*\)\{([^}]+)\}/
 if(!safeQuestion)fail('Could not verify safeQuestion projection.');
 else if(/answerIndex|explanation|distractor/i.test(safeQuestion))fail('safeQuestion must not expose answer/explanation fields.');
 
+const contentMigration=read('migrations/20260824_content_system.sql');
+if(!/secure_v3_responses_server_only/i.test(contentMigration)||!/as\s+restrictive/i.test(contentMigration))fail('Content migration must contain the restrictive secure-v3 diagnostic response policy.');
+if(!/coalesce\s*\(\s*da\.summary\s*->>\s*'engine'\s*,\s*'legacy'\s*\)\s*=\s*'secure-v3'/i.test(contentMigration))fail('Secure-v3 response policy must identify secure-v3 attempts from the server-authored attempt summary.');
+
 const serverAllowedPrefixes=['api/','server/','scripts/'];
 function walk(dir='.'){
  for(const entry of fs.readdirSync(path.join(root,dir),{withFileTypes:true})){
