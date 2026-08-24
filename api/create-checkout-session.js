@@ -1,12 +1,12 @@
 import {json,service,enforceRateLimit} from '../server/supabase-server.js';
-import {billingContext,safeSiteOrigin,stripeRequest,stripeSecret} from '../server/stripe-server.js';
+import {assertCheckoutSurfaceEnabled,billingContext,safeSiteOrigin,stripeRequest,stripeSecret} from '../server/stripe-server.js';
 
 const PLAN_PRICE_ENV={individual_monthly:'STRIPE_PRICE_INDIVIDUAL_MONTHLY',individual_annual:'STRIPE_PRICE_INDIVIDUAL_ANNUAL',family_monthly:'STRIPE_PRICE_FAMILY_MONTHLY',family_annual:'STRIPE_PRICE_FAMILY_ANNUAL'};
 
 export default async function handler(req,res){
  if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
  try{
-  stripeSecret(); // Enforces sandbox by default. Live keys require explicit ALLOW_LIVE_BILLING=true.
+  assertCheckoutSurfaceEnabled(req);stripeSecret(); // Public launch and live-key locks are both server enforced.
   const auth=await billingContext(req),p=auth?.profile;if(!p)return json(res,401,{error:'Please sign in again.'});if(p.role!=='parent'||!p.household_id||!p.billing_owner)return json(res,403,{error:'A parent or guardian billing owner must activate the household plan.'});
   await enforceRateLimit(auth.user.id,'billing/checkout-create',{limit:10,windowSeconds:3600});
   const planKey=String(req.body?.plan_key||''),envName=PLAN_PRICE_ENV[planKey],price=envName&&process.env[envName];if(!envName||!price||!String(price).startsWith('price_'))return json(res,400,{error:'That plan is not configured for checkout yet.'});
