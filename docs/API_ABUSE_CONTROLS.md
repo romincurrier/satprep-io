@@ -25,7 +25,10 @@ These limits are launch defaults and should be tuned using support and security 
 | --- | --- | ---: | ---: |
 | `diagnostic/session` | Open/create secure diagnostic session | 10 | 60 seconds |
 | `diagnostic/item` | Deliver current secure diagnostic item | 40 | 60 seconds |
-| `diagnostic/answer` | Submit answer for server scoring | 40 | 60 seconds |
+| `diagnostic/answer` | Submit diagnostic answer for server scoring | 40 | 60 seconds |
+| `practice/session` | Open/resume secure guided-practice session | 20 | 60 seconds |
+| `practice/item` | Deliver current guided-practice item | 60 | 60 seconds |
+| `practice/answer` | Submit practice answer for server scoring/feedback | 80 | 60 seconds |
 | `account/student-activation` | Parent creates a student login | 5 | 1 hour |
 | `parent/invitations/read` | Parent reads pending invitations | 60 | 60 seconds |
 | `parent/invitations/accept` | Parent accepts/link invitation | 10 | 1 hour |
@@ -35,8 +38,10 @@ These limits are launch defaults and should be tuned using support and security 
 | `billing/portal-create` | Create Stripe billing portal session | 20 | 1 hour |
 | `marketing/event` | Submit privacy-minimized first-party public-site event when explicitly enabled | 60 | 60 seconds |
 
-## Why the diagnostic limits matter
-The secure-v3 diagnostic endpoint is intentionally sequential: the browser may request only the current unanswered question. Rate limiting adds a second control against scripted polling and repeated scoring requests. It does not replace server-only answer keys, attempt ownership checks, sequential-position enforcement, restrictive RLS, or content approval gates.
+## Why diagnostic and practice limits matter
+The secure-v3 diagnostic and guided-practice endpoints are intentionally sequential: the browser may request only the current unanswered question. Rate limiting adds a second control against scripted polling, answer-key harvesting, repeated scoring requests, and accidental request loops. It does not replace server-only scoring keys, session/attempt ownership checks, sequential-position enforcement, restrictive RLS, or content approval gates.
+
+Practice answer limits are intentionally somewhat higher than diagnostic limits because guided practice legitimately returns feedback and may involve faster student pacing, retries around transient connectivity, and more frequent session interactions. They should still remain far below useful automated scraping throughput and must be tuned from controlled pilot data rather than guesswork.
 
 ## Why billing/account limits matter
 Rate limiting reduces repeated creation of provider sessions and privileged account mutations. It does not replace:
@@ -71,7 +76,7 @@ After launch or a controlled pilot:
 1. Track 429 counts by route key without exposing raw subject identifiers in dashboards.
 2. Investigate unexpected spikes before raising limits.
 3. Review false-positive support cases, especially accessibility/assistive-technology and household setup flows.
-4. Keep diagnostic item/answer limits comfortably above realistic human use while below useful scraping throughput.
+4. Keep diagnostic and practice item/answer limits comfortably above realistic human use while below useful scraping throughput.
 5. Alert on repeated 503 failures from the rate-limit backend because protected routes intentionally fail closed.
 6. Confirm stale limiter rows remain bounded by the opportunistic 24-hour cleanup behavior; if traffic is too low for reliable cleanup, add a separately approved maintenance job.
 7. Review anonymous marketing-event volumes by route/event class rather than by network identity.
@@ -83,6 +88,7 @@ After launch or a controlled pilot:
 - Exercise each protected route below and above its limit in a non-production test account.
 - Confirm 429 responses include `Retry-After` and contain no configuration details.
 - Confirm limiter/backend failure produces 503 for protected routes.
+- Exercise diagnostic and guided-practice session/item/answer routes separately so a tuning change to one flow does not silently weaken the other.
 - With first-party measurement still disabled, confirm the browser does not send marketing events and `/api/marketing-event` returns 404.
 - In a controlled non-public QA environment only, enable both measurement gates and verify allowlisted events work, authenticated/billing routes stay unmeasured, originless/cross-origin requests are rejected, contact-like campaign values are dropped, abusive traffic reaches 429, and no raw client address is stored.
 - Run `npm run validate:security`, `npm run validate:launch`, and a complete production build.
