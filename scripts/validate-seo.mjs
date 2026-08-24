@@ -50,6 +50,17 @@ else{
  if(!/Sitemap:\s*https:\/\/satprep\.io\/sitemap\.xml/i.test(robots))fail('robots.txt must advertise the canonical sitemap URL');
 }
 
+const notFound=path.join(publicDir,'404.html');
+if(!fs.existsSync(notFound))fail('public/404.html is missing');
+else if(!/name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(read(notFound)))fail('404 page must be noindex.');
+
+const vercelPath=path.join(root,'vercel.json');
+if(fs.existsSync(vercelPath)){
+ const config=JSON.parse(read(vercelPath));
+ const soft404=(config.rewrites||[]).some(r=>String(r.source).includes('(.*)')&&String(r.destination)==='/index.html');
+ if(soft404)fail('Catch-all rewrite to /index.html creates soft 404s; use the static 404 page for unknown routes.');
+}
+
 for(const w of warnings)console.warn(`SEO warning: ${w}`);
 if(errors.length){for(const e of errors)console.error(`SEO error: ${e}`);process.exit(1)}
 console.log(`SEO validation passed for ${urls.length} sitemap URLs (${warnings.length} warning${warnings.length===1?'':'s'}).`);
