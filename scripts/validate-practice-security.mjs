@@ -25,6 +25,8 @@ if(/practice-bank|question-bank/i.test(core))fail('Commercial practice runtime m
 if(!/practice-selection-core\.js/.test(core)||!/selectAdaptiveItems/.test(core)||!/adaptiveBand/.test(core))fail('Commercial practice runtime must use the pure mastery-adaptive selection core.');
 if(!/masteryForSkill\(student\.id,skill\)/.test(core))fail('Commercial practice must read the current trusted skill mastery before planning a new session.');
 if(!/selectAdaptiveItems\(source,\{length,mastery,randomIntFn:randomInt\}\)/.test(core))fail('Commercial practice must apply mastery-adaptive difficulty selection to the approved fresh item pool.');
+if(!/mastery_before:mastery,adaptive_band:band/.test(core))fail('New commercial practice sessions must persist the mastery baseline and adaptive band used to plan the immutable item set.');
+if(!/existing\.adaptive_band\|\|band/.test(core))fail('Resumed practice must report the adaptive band stored with the saved item plan rather than silently regenerating its planning provenance.');
 if(!/content_type=eq\.practice&skill_key=eq\./.test(core)||!/qa_status=eq\.production_approved&active=eq\.true&format=eq\.mcq/.test(core))fail('Commercial practice selection must use active production-approved server practice MCQs for the requested skill.');
 for(const review of ['accuracy','alignment','editorial','bias_accessibility','originality'])if(!core.includes(`'${review}'`))fail(`Commercial practice approval gate must require ${review} review.`);
 if(!/type:'practice'/.test(core)||!/createHash\('sha256'\)/.test(core)||!/r\.content_hash===hash/.test(core))fail('Commercial practice runtime must enforce exact SHA-256 hash-pinned review approval.');
@@ -58,9 +60,11 @@ for(const table of ['practice_sessions','practice_session_items','practice_respo
  if(!new RegExp(`create table if not exists public\\.${table}`,'i').test(migration))fail(`Practice migration must create ${table}.`);
  if(!migration.includes(`revoke all on table public.${table} from public, anon, authenticated;`))fail(`${table} must be inaccessible to browser roles.`);
 }
+if(!/mastery_before numeric/.test(migration)||!/adaptive_band text/.test(migration))fail('Practice-session schema must persist the trusted pre-session mastery and adaptive planning band.');
+if(!/adaptive_band in \('foundation','balanced','challenge'\)/.test(migration))fail('Practice-session schema must constrain adaptive planning provenance to supported bands.');
 if(!/create or replace function public\.finalize_practice_session\(p_session_id uuid\)/i.test(migration)||!/for update/i.test(migration))fail('Practice finalization must lock and finalize the session atomically.');
 if(!/security definer/i.test(migration)||!/grant execute on function public\.finalize_practice_session\(uuid\) to service_role/i.test(migration))fail('Practice finalization RPC must be service-role controlled.');
 if(!/on conflict\(student_id,skill_key\) do update/i.test(migration)||!/on conflict\(student_id,lesson_key\) do update/i.test(migration))fail('Practice finalization must update trusted mastery and lesson progress atomically.');
 
 if(errors.length){for(const e of errors)console.error(`Practice security validation error: ${e}`);process.exit(1)}
-console.log('Commercial practice security, adaptive selection, and resume invariants passed.');
+console.log('Commercial practice security, adaptive selection, provenance, and resume invariants passed.');
