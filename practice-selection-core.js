@@ -3,6 +3,7 @@
 // can be regression-tested independently of Supabase/Vercel runtime state.
 
 export function normalizedMastery(value){
+ if(value===null||value===undefined||value==='')return null;
  const n=Number(value);
  return Number.isFinite(n)?Math.max(0,Math.min(1,n)):null;
 }
