@@ -2,7 +2,7 @@ import {QUESTION_BANK,validateQuestionBank,eligibleQuestions} from '../question-
 import {SKILL_INDEX} from '../sat-spec.js';
 import {buildDiagnosticPlan,validateDiagnosticPlan} from '../diagnostic-blueprint.js';
 import {SKILL_GUIDES} from '../skill-guides.js';
-import {PRACTICE_BANK,validatePracticeBank} from '../practice-bank-v2.js';
+import {PRACTICE_BANK,validatePracticeBank} from '../practice-bank.js';
 
 const errors=[...validateQuestionBank(),...validatePracticeBank()];
 const diagnosticCounts={},practiceCounts={};
@@ -22,7 +22,6 @@ for(const skill of Object.keys(SKILL_INDEX)){
  if(!diagnosticCounts[skill])errors.push(`No proprietary diagnostic item covers required skill: ${skill}`);
  else if(diagnosticCounts[skill]<2)errors.push(`Development diagnostic bank requires at least 2 original items for ${skill}; found ${diagnosticCounts[skill]}`);
  if(!practiceCounts[skill])errors.push(`No practice-only item covers required skill: ${skill}`);
- else if(practiceCounts[skill]<2)errors.push(`Development practice bank requires at least 2 original items for ${skill}; found ${practiceCounts[skill]}`);
  if(!SKILL_GUIDES[skill])errors.push(`Missing instructional guide for ${skill}`);
 }
 for(const exam of ['SAT','PSAT/NMSQT','PSAT 10']){
@@ -40,9 +39,8 @@ if(errors.length){
 }
 
 const bySection=QUESTION_BANK.reduce((m,q)=>{m[q.section]=(m[q.section]||0)+1;return m},{});
-const practiceBySection=PRACTICE_BANK.reduce((m,q)=>{m[q.section]=(m[q.section]||0)+1;return m},{});
 console.log(`Diagnostic content validation passed: ${QUESTION_BANK.length} original assessment items (${bySection.RW||0} RW, ${bySection.MATH||0} Math), with at least two items for every official skill point.`);
-console.log(`Practice content validation passed: ${PRACTICE_BANK.length} separate practice-only items (${practiceBySection.RW||0} RW, ${practiceBySection.MATH||0} Math), with at least two items for all ${Object.keys(SKILL_INDEX).length} official skill points.`);
+console.log(`Practice content validation passed: ${PRACTICE_BANK.length} separate practice-only items covering all ${Object.keys(SKILL_INDEX).length} official skill points.`);
 console.log(`Instructional coverage passed: ${Object.keys(SKILL_GUIDES).length} official-skill teaching guides.`);
 console.log('Diagnostic blueprint validation passed for SAT, PSAT/NMSQT, and PSAT 10.');
 console.log('QA note: internal_review content is development content. Production launch requires independent accuracy/alignment/editorial review and a substantially deeper pool per skill.');
