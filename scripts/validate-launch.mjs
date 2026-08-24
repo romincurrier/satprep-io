@@ -6,6 +6,8 @@ const marketing = read('marketing.js');
 const guard = read('prelaunch-guard.js');
 const vercel = read('vercel.json');
 const accessibility = read('public/accessibility.css');
+const marketingEventApi = read('api/marketing-event.js');
+const envExample = read('env.example');
 const gates = JSON.parse(read('launch-gates.json'));
 const trademarkGate = read('docs/TRADEMARK_LAUNCH_GATE.md');
 const errors = [];
@@ -34,6 +36,12 @@ if(gates.college_board_trademark_review==='unresolved'){
   requireText(trademarkGate,'Do not copy or republish official College Board test questions','Trademark/content launch-gate documentation must preserve the official-content boundary.');
 }
 if(gates.live_payments!=='disabled') errors.push('Live payments must remain disabled in the committed prelaunch gate file.');
+if(gates.first_party_measurement!=='disabled') errors.push('First-party marketing measurement must remain disabled until explicit privacy/analytics launch approval.');
+requireText(envExample,'MARKETING_MEASUREMENT_ENABLED=false','env.example must keep first-party marketing measurement disabled by default.');
+requireText(marketingEventApi,"process.env.MARKETING_MEASUREMENT_ENABLED",'Marketing measurement API must require an explicit server-side enable flag.');
+requireText(marketingEventApi,"if(!MEASUREMENT_ENABLED)return json(res,404",'Marketing measurement API must fail closed while measurement is disabled.');
+requireText(marketingEventApi,"enforceRateLimit(networkSubject(req),'marketing/event'",'Marketing measurement API must use durable abuse controls before accepting anonymous events.');
+forbid(index,/src=["']\/marketing-events\.js["']/,'Prelaunch index.html must not directly activate the marketing tracking client while measurement is gated.');
 
 requireText(vercel,'Content-Security-Policy','Production headers must include a Content-Security-Policy.');
 requireText(vercel,"default-src 'self'",'Content-Security-Policy must default to same-origin resources.');
@@ -67,4 +75,4 @@ if(errors.length){
   for(const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-console.log('Launch validation passed: public billing/indexing/outbound marketing remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, browser security headers are present, and baseline accessibility safeguards are loaded.');
+console.log('Launch validation passed: public billing/indexing/outbound marketing/measurement remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, anonymous measurement is fail-closed and rate-limited, browser security headers are present, and baseline accessibility safeguards are loaded.');
