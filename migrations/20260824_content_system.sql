@@ -1,9 +1,10 @@
 -- SATprep.io production content-bank foundation.
--- Prompts and answer keys are separated so diagnostic answers never need to ship to the browser.
+-- Prompts and answer keys are separated so assessment answers never need to ship to the browser.
 
 create table if not exists public.content_items (
   id text primary key,
   version integer not null default 1 check (version > 0),
+  content_type text not null check (content_type in ('diagnostic','practice')),
   section text not null check (section in ('RW','MATH')),
   domain_key text not null,
   skill_key text not null,
@@ -54,8 +55,8 @@ create table if not exists public.diagnostic_attempt_items (
 alter table public.diagnostic_responses add column if not exists content_item_id text references public.content_items(id);
 alter table public.diagnostic_responses add column if not exists scored_by_server boolean not null default false;
 
-create index if not exists content_items_skill_idx on public.content_items(section,domain_key,skill_key,difficulty) where active;
-create index if not exists content_items_qa_idx on public.content_items(qa_status,active);
+create index if not exists content_items_skill_idx on public.content_items(content_type,section,domain_key,skill_key,difficulty) where active;
+create index if not exists content_items_qa_idx on public.content_items(content_type,qa_status,active);
 create index if not exists content_reviews_item_idx on public.content_item_reviews(item_id,review_type,created_at);
 create index if not exists diagnostic_attempt_items_attempt_idx on public.diagnostic_attempt_items(attempt_id,position);
 
@@ -67,7 +68,7 @@ alter table public.diagnostic_responses enable row level security;
 
 -- Proprietary production content, answer keys, review records, and the complete
 -- diagnostic item plan are server-only. The authenticated browser receives only
--- the current safe question projection through /api/diagnostic-item-v3.
+-- safe question projections through server APIs.
 -- Explicit revokes complement RLS so a future broad browser policy cannot turn
 -- these tables into an accidental content-export endpoint.
 revoke all on table public.content_items from public, anon, authenticated;
@@ -104,7 +105,7 @@ with check (
   )
 );
 
-comment on table public.content_items is 'SATprep.io proprietary item prompts and metadata. Browser roles are denied; safe question delivery is server-mediated.';
+comment on table public.content_items is 'SATprep.io proprietary diagnostic/practice prompts and metadata. Browser roles are denied; safe question delivery is server-mediated.';
 comment on table public.content_answer_keys is 'Server-only scoring keys and instructional explanations. Do not expose through browser RLS.';
-comment on table public.content_item_reviews is 'Server-only item QA audit trail. Every review is pinned to the SHA-256 hash of the exact prompt, key, explanation, taxonomy, difficulty, and exam eligibility reviewed; originality is a required production diagnostic review dimension.';
+comment on table public.content_item_reviews is 'Server-only item QA audit trail. Every review is pinned to the SHA-256 hash of the exact prompt, key, explanation, taxonomy, difficulty, exam eligibility, and content type reviewed; originality is required for production diagnostic/practice content.';
 comment on table public.diagnostic_attempt_items is 'Server-only immutable-per-attempt diagnostic plan used to verify question order and provenance.';
