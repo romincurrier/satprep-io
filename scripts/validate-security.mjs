@@ -8,8 +8,18 @@ const fail=m=>errors.push(m);
 const index=read('index.html');
 if(/diagnostic-feedback\.js/i.test(index))fail('Diagnostic feedback must not be loaded during assessment.');
 if(fs.existsSync(path.join(root,'diagnostic-feedback.js')))fail('Obsolete client-side diagnostic feedback/answer-key artifact must not ship.');
-if(/marketing-events\.js/i.test(index))fail('Marketing measurement is gated until its migration/privacy review are complete.');
 if(fs.existsSync(path.join(root,'api/billing-status.js')))fail('Public billing/environment configuration diagnostic endpoint must not ship.');
+
+const prelaunchGuard=read('prelaunch-guard.js');
+const marketingMeasurement=read('marketing-events.js');
+const marketingEventApi=read('api/marketing-event.js');
+if(!/const PUBLIC_MARKETING_MEASUREMENT_ENABLED = false/.test(prelaunchGuard))fail('First-party marketing measurement client gate must remain disabled during prelaunch.');
+if(!/window\.__SATPREP_MARKETING_MEASUREMENT_ENABLED__ = PUBLIC_MARKETING_MEASUREMENT_ENABLED/.test(prelaunchGuard))fail('Prelaunch guard must establish the client measurement state before tracking initializes.');
+if(!/isPublicMarketingSurface\(\)/.test(marketingMeasurement)||!/p\.get\('app'\)!=='1'/.test(marketingMeasurement))fail('Marketing measurement must remain restricted to public acquisition surfaces rather than authenticated application mode.');
+if(!/window\.__SATPREP_MARKETING_MEASUREMENT_ENABLED__!==true\|\|!isPublicMarketingSurface\(\)/.test(marketingMeasurement))fail('Marketing client must fail closed when measurement is disabled or the current surface is not public marketing.');
+if(!/process\.env\.MARKETING_MEASUREMENT_ENABLED/.test(marketingEventApi)||!/if\(!MEASUREMENT_ENABLED\)return json\(res,404/.test(marketingEventApi))fail('Marketing event API must require an independently enabled server measurement flag.');
+if(!/if\(!origin\)return false/.test(marketingEventApi))fail('Marketing event API must reject originless submissions.');
+if(!/EMAIL_LIKE/.test(marketingEventApi)||!/PHONE_LIKE/.test(marketingEventApi)||!/noContactData/.test(marketingEventApi))fail('Marketing event API must discard contact-like attribution values.');
 
 const router=read('diagnostic-router.js');
 if(/question-bank-production|question-bank\.js|answerIndex|correct_answer/i.test(router))fail('Secure diagnostic client must not import or reference diagnostic answer keys.');
@@ -36,13 +46,17 @@ const protectedApis=[
  ['api/diagnostic-session-v3.js','diagnostic/session'],
  ['api/diagnostic-item-v3.js','diagnostic/item'],
  ['api/diagnostic-answer-v3.js','diagnostic/answer'],
+ ['api/practice-session-v3.js','practice/session'],
+ ['api/practice-item-v3.js','practice/item'],
+ ['api/practice-answer-v3.js','practice/answer'],
  ['api/activate-student-login.js','account/student-activation'],
  ['api/parent-invitations.js','parent/invitations/read'],
  ['api/parent-invitations.js','parent/invitations/accept'],
  ['api/parent-setup-request.js','parent/setup-request'],
  ['api/create-checkout-session.js','billing/checkout-create'],
  ['api/confirm-checkout-session.js','billing/checkout-confirm'],
- ['api/create-portal-session.js','billing/portal-create']
+ ['api/create-portal-session.js','billing/portal-create'],
+ ['api/marketing-event.js','marketing/event']
 ];
 for(const [file,route] of protectedApis){const txt=read(file);if(!/enforceRateLimit\(/.test(txt)||!txt.includes(`'${route}'`))fail(`${file}: protected endpoint must enforce durable rate limit ${route}.`);if(!/Retry-After/.test(txt))fail(`${file}: rate-limited responses must emit Retry-After.`)}
 
@@ -54,7 +68,7 @@ if(!/ALLOW_PUBLIC_TEST_BILLING/.test(stripeServer)||!/mode!==['"]live['"]/.test(
 for(const file of ['api/create-checkout-session.js','api/confirm-checkout-session.js'])if(!/assertCheckoutSurfaceEnabled\(req\)/.test(read(file)))fail(`${file}: public checkout flow must enforce the server launch gate.`);
 if(!/assertBillingPortalEnabled\(req\)/.test(read('api/create-portal-session.js')))fail('api/create-portal-session.js: public billing management must enforce the independent server launch gate.');
 const envExample=read('env.example');
-for(const row of ['PUBLIC_BILLING_ENABLED=false','PUBLIC_BILLING_PORTAL_ENABLED=false','ALLOW_LIVE_BILLING=false','ALLOW_PUBLIC_TEST_BILLING=false'])if(!envExample.includes(row))fail(`env.example must default ${row} for safe pre-launch configuration.`);
+for(const row of ['PUBLIC_BILLING_ENABLED=false','PUBLIC_BILLING_PORTAL_ENABLED=false','ALLOW_LIVE_BILLING=false','ALLOW_PUBLIC_TEST_BILLING=false','MARKETING_MEASUREMENT_ENABLED=false'])if(!envExample.includes(row))fail(`env.example must default ${row} for safe pre-launch configuration.`);
 
 const serverAccess=read('server/supabase-server.js');
 if(!/export async function enforceRateLimit/.test(serverAccess)||!/consume_api_rate_limit/.test(serverAccess))fail('Server data layer must expose the durable rate-limit helper.');
@@ -66,6 +80,7 @@ const rateMigration=read('migrations/20260824_api_rate_limits.sql');
 if(!/create table if not exists public\.api_rate_limits/i.test(rateMigration)||!/create or replace function public\.consume_api_rate_limit/i.test(rateMigration))fail('Rate-limit migration must define the durable counter table and atomic consumption function.');
 if(!/revoke all on table public\.api_rate_limits from public, anon, authenticated/i.test(rateMigration))fail('Rate-limit counters must not be readable or writable by browser roles.');
 if(!/revoke all on function public\.consume_api_rate_limit\(text,text,integer,integer\) from public, anon, authenticated/i.test(rateMigration)||!/grant execute on function public\.consume_api_rate_limit\(text,text,integer,integer\) to service_role/i.test(rateMigration))fail('Rate-limit RPC must be executable only by the service role.');
+if(!/updated_at < v_now - interval '24 hours'/i.test(rateMigration))fail('Hashed abuse-control counters must retain the prelaunch target of approximately 24 hours or less.');
 
 const core=read('server/diagnostic-core.js');
 if(/question-bank-production|question-bank\.js|answerIndex\s*\}/i.test(core))fail('Secure diagnostic runtime must not source scoring content from the committed JavaScript question bank.');
@@ -127,4 +142,4 @@ const headerKeys=new Set(headerRows.map(x=>String(x.key).toLowerCase()));
 for(const key of ['strict-transport-security','x-content-type-options','x-frame-options','referrer-policy','permissions-policy','x-robots-tag'])if(!headerKeys.has(key))fail(`vercel.json missing baseline security/prelaunch header: ${key}`);
 
 if(errors.length){for(const e of errors)console.error(`Security validation error: ${e}`);process.exit(1)}
-console.log('Security invariant validation passed for protected MCQ/SPR diagnostic, account, billing, content, and abuse-control surfaces.');
+console.log('Security invariant validation passed for protected MCQ/SPR diagnostic, guided practice, account, billing, content, privacy-minimized measurement, and durable abuse-control surfaces.');
