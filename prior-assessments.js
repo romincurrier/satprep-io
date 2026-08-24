@@ -1,128 +1,27 @@
 import { supabase } from './supabase.js';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import pdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url';
+pdfjsLib.GlobalWorkerOptions.workerSrc=pdfWorker;
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));
 let busy=false;
 
-async function ctx(){
-  const{data:{session}}=await supabase.auth.getSession();
-  if(!session)return{};
-  const{data:p}=await supabase.from('profiles').select('id,role,household_id,first_name').eq('id',session.user.id).maybeSingle();
-  let students=[];
-  if(p?.role==='student'){
-    const{data:s}=await supabase.from('students').select('*').eq('profile_id',p.id).maybeSingle();
-    if(s)students=[s];
-  }else if(p?.role==='parent'&&p.household_id){
-    const{data:s}=await supabase.from('students').select('*').eq('household_id',p.household_id).order('created_at');
-    students=s||[];
-  }
-  return{session,profile:p,students};
-}
-
-function form(student){
-  const name=student.display_name||[student.first_name,student.last_name].filter(Boolean).join(' ')||'Student';
-  return `<div class="eyebrow">ACADEMIC RECORDS</div><h2 style="margin-top:6px">Previous test scores for ${esc(name)}</h2><p class="muted">Upload a CTP, ERB, FAST, MAP, PSAT, SAT or other standardized assessment, or enter the important scores manually. SATprep.io will preserve these results as part of the student's learning profile.</p><div id="assessmentMsg"></div><div class="field"><label>Assessment</label><select id="assessmentType"><option>CTP</option><option>ERB</option><option>FAST</option><option>MAP Growth</option><option>PSAT</option><option>PSAT/NMSQT</option><option>SAT</option><option>Other</option></select></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="field"><label>Test date (optional)</label><input id="assessmentDate" type="date"></div><div class="field"><label>Overall score (optional)</label><input id="overallScore" placeholder="e.g. 1280 or scale score"></div></div><div class="field"><label>Overall percentile (optional)</label><input id="overallPercentile" type="number" min="0" max="100" placeholder="e.g. 78"></div><div class="field"><label>Section/domain results</label><textarea id="sectionScores" rows="4" placeholder="Example: Quantitative Reasoning 62nd percentile; Reading Comprehension 84th percentile; Vocabulary 71st percentile"></textarea></div><div class="field"><label>Upload report (optional)</label><input id="assessmentFile" type="file" accept="application/pdf,image/png,image/jpeg,image/webp"><div class="small">PDF, PNG, JPG or WebP · maximum 10 MB. Reports are stored privately.</div></div><div class="field"><label>Notes (optional)</label><textarea id="assessmentNotes" rows="2" placeholder="Anything useful about this test or the student's performance"></textarea></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="saveAssessment">Save assessment</button><button class="btn secondary" id="closeAssessment">Cancel</button></div>`;
-}
-
+async function ctx(){const{data:{session}}=await supabase.auth.getSession();if(!session)return{};const{data:p}=await supabase.from('profiles').select('id,role,household_id,first_name').eq('id',session.user.id).maybeSingle();let students=[];if(p?.role==='student'){const{data:s}=await supabase.from('students').select('*').eq('profile_id',p.id).maybeSingle();if(s)students=[s]}else if(p?.role==='parent'&&p.household_id){const{data:s}=await supabase.from('students').select('*').eq('household_id',p.household_id).order('created_at');students=s||[]}return{session,profile:p,students}}
 function closeOverlay(){document.querySelector('#assessmentOverlay')?.remove()}
-
-async function save(student,container){
-  if(busy)return;
-  busy=true;
-  const btn=container.querySelector('#saveAssessment');
-  btn.disabled=true;btn.textContent='Saving…';
-  try{
-    const{data:{session}}=await supabase.auth.getSession();
-    if(!session)throw new Error('Please sign in again.');
-    const file=container.querySelector('#assessmentFile').files?.[0];
-    let file_path=null,file_name=null,source_method='manual';
-    if(file){
-      if(file.size>10*1024*1024)throw new Error('The report must be 10 MB or smaller.');
-      const allowed=['application/pdf','image/png','image/jpeg','image/webp'];
-      if(!allowed.includes(file.type))throw new Error('Please upload a PDF, PNG, JPG or WebP report.');
-      const ext=(file.name.split('.').pop()||'file').replace(/[^a-z0-9]/gi,'').toLowerCase();
-      const safe=`${crypto.randomUUID()}.${ext}`;
-      const path=`${session.user.id}/${student.id}/${safe}`;
-      const{error:up}=await supabase.storage.from('assessment-reports').upload(path,file,{contentType:file.type,upsert:false});
-      if(up)throw up;
-      file_path=path;file_name=file.name;source_method='upload';
-    }
-    const percentile=container.querySelector('#overallPercentile').value;
-    const sections=container.querySelector('#sectionScores').value.trim();
-    const{error}=await supabase.from('prior_assessments').insert({
-      student_id:student.id,
-      assessment_type:container.querySelector('#assessmentType').value,
-      assessment_date:container.querySelector('#assessmentDate').value||null,
-      grade_level:student.grade_level||null,
-      source_method,file_name,file_path,
-      overall_score:container.querySelector('#overallScore').value.trim()||null,
-      overall_percentile:percentile===''?null:Number(percentile),
-      section_scores:sections?{reported_text:sections}:{},
-      notes:container.querySelector('#assessmentNotes').value.trim()||null,
-      created_by:session.user.id,
-      status:'submitted'
-    });
-    if(error)throw error;
-    container.innerHTML=`<div class="success"><strong>Assessment saved.</strong><br>SATprep.io will use this record together with the student's own diagnostic when building the learning profile.</div><div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn" id="assessmentDone">Continue</button><button class="btn secondary" id="addAnotherAssessment">Add another assessment</button></div>`;
-    container.querySelector('#assessmentDone').onclick=closeOverlay;
-    container.querySelector('#addAnotherAssessment').onclick=()=>openOverlay(student);
-  }catch(e){
-    const msg=container.querySelector('#assessmentMsg');
-    if(msg)msg.innerHTML=`<div class="error">${esc(e.message||'Unable to save assessment.')}</div>`;
-    btn.disabled=false;btn.textContent='Save assessment';
-  }finally{busy=false}
-}
-
-function openOverlay(student){
-  closeOverlay();
-  const overlay=document.createElement('div');
-  overlay.id='assessmentOverlay';
-  overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(13,31,52,.72);overflow:auto;padding:24px;display:flex;align-items:flex-start;justify-content:center';
-  overlay.innerHTML=`<div class="card" style="width:min(780px,100%);margin:20px auto;padding:28px;position:relative" id="assessmentForm">${form(student)}</div>`;
-  document.body.appendChild(overlay);
-  const container=overlay.querySelector('#assessmentForm');
-  container.querySelector('#saveAssessment').onclick=()=>save(student,container);
-  container.querySelector('#closeAssessment').onclick=closeOverlay;
-  overlay.addEventListener('click',e=>{if(e.target===overlay)closeOverlay()});
-}
-
-function chooseStudent(students){
-  closeOverlay();
-  const overlay=document.createElement('div');
-  overlay.id='assessmentOverlay';
-  overlay.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(13,31,52,.72);overflow:auto;padding:24px;display:flex;align-items:flex-start;justify-content:center';
-  overlay.innerHTML=`<div class="card" style="width:min(620px,100%);margin:40px auto;padding:28px"><div class="eyebrow">ACADEMIC RECORDS</div><h2>Choose a student</h2><p class="muted">Select the student whose prior testing you want to add.</p>${students.map(s=>`<button class="option chooseAssessmentStudent" data-id="${s.id}" style="width:100%;margin:8px 0">${esc(s.display_name||[s.first_name,s.last_name].filter(Boolean).join(' ')||'Student')}</button>`).join('')}<button class="btn secondary" id="closeAssessment" style="margin-top:12px">Cancel</button></div>`;
-  document.body.appendChild(overlay);
-  overlay.querySelector('#closeAssessment').onclick=closeOverlay;
-  overlay.querySelectorAll('.chooseAssessmentStudent').forEach(b=>b.onclick=()=>openOverlay(students.find(s=>s.id===b.dataset.id)));
-  overlay.addEventListener('click',e=>{if(e.target===overlay)closeOverlay()});
-}
-
-async function inject(){
-  const p=new URLSearchParams(location.search);
-  if(p.get('app')!=='1'||p.get('openBilling')==='1')return;
-  const{profile,students}=await ctx();
-  if(!profile||!students.length)return;
-  if(profile.role==='student'){
-    const s=students[0];
-    if(!s.onboarding_complete||s.diagnostic_completed_at||document.querySelector('#priorAssessmentCard'))return;
-    const main=document.querySelector('main');if(!main)return;
-    const card=document.createElement('section');
-    card.id='priorAssessmentCard';card.className='card';card.style.maxWidth='760px';card.style.margin='18px auto';
-    card.innerHTML=`<div class="eyebrow">OPTIONAL — PRIOR TESTING</div><h2>Have scores from CTP, ERB, FAST, MAP, PSAT, SAT or another test?</h2><p class="muted">Put those results to work before your SATprep.io diagnostic. Upload the report or enter the scores manually. You can also skip this and continue with the diagnostic.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="addPriorScores" type="button">Add previous scores</button><button class="btn secondary" id="skipPriorScores" type="button">I don't have scores</button></div>`;
-    main.prepend(card);
-    card.querySelector('#addPriorScores').addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openOverlay(s)});
-    card.querySelector('#skipPriorScores').addEventListener('click',e=>{e.preventDefault();card.remove()});
-  }else if(profile.role==='parent'&&!document.querySelector('#academicRecordsBtn')){
-    const section=document.querySelector('#parentDashboardEnhanced .hero .row');if(!section)return;
-    const b=document.createElement('button');b.id='academicRecordsBtn';b.type='button';b.className='btn secondary';b.textContent='Academic records';
-    b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();students.length===1?openOverlay(students[0]):chooseStudent(students)});
-    section.appendChild(b);
-  }
-}
-
-let scheduled=false;
-function scheduleInject(){if(scheduled)return;scheduled=true;setTimeout(async()=>{scheduled=false;await inject()},80)}
-const observer=new MutationObserver(scheduleInject);
-observer.observe(document.documentElement,{subtree:true,childList:true});
-setTimeout(inject,250);
-supabase.auth.onAuthStateChange(()=>scheduleInject());
+function overlayShell(inner){closeOverlay();const o=document.createElement('div');o.id='assessmentOverlay';o.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(13,31,52,.72);overflow:auto;padding:24px;display:flex;align-items:flex-start;justify-content:center';o.innerHTML=`<div class="card" style="width:min(820px,100%);margin:20px auto;padding:28px;position:relative" id="assessmentPanel">${inner}</div>`;document.body.appendChild(o);o.addEventListener('click',e=>{if(e.target===o)closeOverlay()});return o.querySelector('#assessmentPanel')}
+function uploadForm(student){const name=student.display_name||[student.first_name,student.last_name].filter(Boolean).join(' ')||'Student';return `<div class="eyebrow">ACADEMIC RECORDS</div><h2>Upload a previous test report</h2><p class="muted">Upload ${esc(name)}'s CTP, ERB, FAST, MAP, PSAT, SAT or other standardized testing report. SATprep.io will read the report and pull the scores directly from the document.</p><div id="assessmentMsg"></div><div class="field"><label>Report file</label><input id="assessmentFile" type="file" accept="application/pdf"><div class="small">PDF · maximum 10 MB · stored privately</div></div><div class="notice"><strong>No score entry required.</strong> SATprep.io will extract the assessment name, date, scores, percentiles and available subtest/domain results from the uploaded report.</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><button class="btn" id="processAssessment" type="button">Upload & analyze report</button><button class="btn secondary" id="closeAssessment" type="button">Cancel</button></div>`}
+async function pdfText(blob){const data=new Uint8Array(await blob.arrayBuffer()),pdf=await pdfjsLib.getDocument({data}).promise;const pages=[];for(let n=1;n<=pdf.numPages;n++){const page=await pdf.getPage(n),content=await page.getTextContent(),items=content.items.map(i=>String(i.str||'').trim()).filter(Boolean);pages.push(items.join(' '))}return pages.join('\n')}
+function detectType(text,fileName=''){const s=`${fileName} ${text}`.toLowerCase();if(/\bctp\b|comprehensive testing program/.test(s))return'CTP';if(/\berb\b/.test(s))return'ERB';if(/map growth|nwea/.test(s))return'MAP Growth';if(/\bfast\b|florida assessment/.test(s))return'FAST';if(/psat\/nmsqt|nmsqt/.test(s))return'PSAT/NMSQT';if(/\bpsat\b/.test(s))return'PSAT';if(/\bsat\b/.test(s))return'SAT';return'Other'}
+function firstMatch(text,patterns){for(const re of patterns){const m=text.match(re);if(m)return m[1]}return null}
+function parseNum(v){if(v==null)return null;const n=Number(String(v).replace(/,/g,''));return Number.isFinite(n)?n:null}
+function parseReport(text,fileName=''){const clean=text.replace(/\s+/g,' ').trim(),type=detectType(clean,fileName);const date=firstMatch(clean,[/(?:test(?:ing)? date|date tested|administration date)\s*[:\-]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,/(?:test(?:ing)? date|date tested|administration date)\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i]);const overallScore=firstMatch(clean,[/(?:overall|total|composite)\s+(?:scale|scaled)?\s*score\s*[:\-]?\s*(\d{2,4})/i,/(?:composite|total)\s*[:\-]?\s*(\d{2,4})/i]);const overallPct=parseNum(firstMatch(clean,[/(?:overall|total|composite)[^\d]{0,40}(?:percentile rank|national percentile|percentile|npr)\s*[:\-]?\s*(\d{1,3})/i]));const labels=['Verbal Reasoning','Quantitative Reasoning','Reading Comprehension','Vocabulary','Writing Mechanics','Mathematics','Math','Language Arts','Reading','English','Writing','Algebra','Geometry','Data Analysis','Problem Solving'];const sections=[];for(const label of labels){const i=clean.toLowerCase().indexOf(label.toLowerCase());if(i<0)continue;const chunk=clean.slice(i,i+260),pct=parseNum(firstMatch(chunk,[/(?:percentile rank|national percentile|percentile|npr|pr)\s*[:\-]?\s*(\d{1,3})/i])),scale=firstMatch(chunk,[/(?:scale|scaled)\s*score\s*[:\-]?\s*(\d{2,4})/i]),stanine=firstMatch(chunk,[/stanine\s*[:\-]?\s*(\d)/i]);if(!sections.some(x=>x.name===label))sections.push({name:label,percentile:pct,scale_score:scale||null,stanine:stanine||null,snippet:chunk.slice(0,180)})}const strengths=sections.filter(x=>x.percentile!=null&&x.percentile>=75).map(x=>x.name),needs_attention=sections.filter(x=>x.percentile!=null&&x.percentile<=40).map(x=>x.name),confidence=sections.some(x=>x.percentile!=null||x.scale_score)?'high':sections.length?'medium':'low';return{assessment_type:type,assessment_date:date,overall_score:overallScore||null,overall_percentile:overallPct,sections,strengths,needs_attention,confidence,text_length:clean.length}}
+function resultHtml(data,fileName){const scoreRows=(data.sections||[]).filter(x=>x.percentile!=null||x.scale_score||x.stanine);return `<div class="eyebrow">REPORT PROCESSED</div><h2>✓ ${esc(fileName)} was analyzed</h2><p class="muted">SATprep.io extracted the available testing information from the report and saved it to the student's academic profile.</p><div class="success"><strong>${esc(data.assessment_type||'Assessment')} recognized.</strong> Extraction confidence: ${esc(data.confidence||'unknown')}.</div>${data.overall_score||data.overall_percentile!=null?`<div class="card" style="margin-top:14px"><h3>Overall result</h3>${data.overall_score?`<div><strong>Score:</strong> ${esc(data.overall_score)}</div>`:''}${data.overall_percentile!=null?`<div><strong>Percentile:</strong> ${esc(data.overall_percentile)}th</div>`:''}</div>`:''}${scoreRows.length?`<div class="card" style="margin-top:14px"><h3>Extracted subtests / domains</h3>${scoreRows.map(x=>`<div class="lesson"><div><strong>${esc(x.name)}</strong></div><div class="right">${x.percentile!=null?`<span class="badge">${esc(x.percentile)}th percentile</span>`:''}${x.scale_score?`<span class="badge">Score ${esc(x.scale_score)}</span>`:''}${x.stanine?`<span class="badge">Stanine ${esc(x.stanine)}</span>`:''}</div></div>`).join('')}</div>`:`<div class="notice" style="margin-top:14px"><strong>The PDF text was extracted, but its score layout could not be mapped reliably.</strong> The report remains saved for review; SATprep.io will not invent or guess scores.</div>`}${data.strengths?.length?`<div class="success" style="margin-top:14px"><strong>Potential strengths:</strong> ${data.strengths.map(esc).join(', ')}</div>`:''}${data.needs_attention?.length?`<div class="notice" style="margin-top:14px"><strong>Areas to confirm in the SATprep.io diagnostic:</strong> ${data.needs_attention.map(esc).join(', ')}</div>`:''}<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px"><button class="btn" id="assessmentDone">Continue</button><button class="btn secondary" id="addAnotherAssessment">Add another report</button></div>`}
+async function updateStudentSignals(student,data){const current=student.recommended_path&&typeof student.recommended_path==='object'?student.recommended_path:{};const prior=Array.isArray(current.prior_assessments)?current.prior_assessments:[];prior.push({assessment_type:data.assessment_type,assessment_date:data.assessment_date||null,strengths:data.strengths||[],needs_attention:data.needs_attention||[],sections:(data.sections||[]).map(x=>({name:x.name,percentile:x.percentile,scale_score:x.scale_score}))});await supabase.from('students').update({recommended_path:{...current,prior_assessments:prior}}).eq('id',student.id)}
+async function processBlob(student,blob,fileName,existingId=null,filePath=null){const panel=document.querySelector('#assessmentPanel');panel.innerHTML=`<div class="eyebrow">PROCESSING REPORT</div><h2>Reading ${esc(fileName)}…</h2><p class="muted">SATprep.io is extracting scores and identifying strengths and areas that may need attention.</p><div class="progress" style="margin-top:20px"><div style="width:70%"></div></div>`;try{const text=await pdfText(blob),data=parseReport(text,fileName),status=data.confidence==='low'?'needs_review':'processed',payload={assessment_type:data.assessment_type,assessment_date:data.assessment_date||null,grade_level:student.grade_level||null,source_method:'upload',file_name:fileName,file_path:filePath,overall_score:data.overall_score,overall_percentile:data.overall_percentile,section_scores:{sections:data.sections,strengths:data.strengths,needs_attention:data.needs_attention},extracted_text:text.slice(0,50000),extracted_data:data,status,processed_at:new Date().toISOString(),processing_error:null};let id=existingId;if(existingId){const{error}=await supabase.from('prior_assessments').update(payload).eq('id',existingId);if(error)throw error}else{const{data:row,error}=await supabase.from('prior_assessments').insert({...payload,student_id:student.id,created_by:(await supabase.auth.getSession()).data.session.user.id}).select('id').single();if(error)throw error;id=row.id}await updateStudentSignals(student,data);panel.innerHTML=resultHtml(data,fileName);panel.querySelector('#assessmentDone').onclick=closeOverlay;panel.querySelector('#addAnotherAssessment').onclick=()=>openOverlay(student)}catch(e){if(existingId)await supabase.from('prior_assessments').update({status:'needs_review',processing_error:String(e.message||e),processed_at:new Date().toISOString()}).eq('id',existingId);panel.innerHTML=`<div class="error"><strong>We couldn't finish reading this report.</strong><br>${esc(e.message||'The PDF could not be processed.')}</div><p class="muted">The uploaded file is still safely stored. SATprep.io will not guess at scores it cannot read reliably.</p><button class="btn" id="assessmentDone">Return</button>`;panel.querySelector('#assessmentDone').onclick=closeOverlay}}
+async function uploadAndProcess(student,panel){if(busy)return;const file=panel.querySelector('#assessmentFile')?.files?.[0];if(!file)return panel.querySelector('#assessmentMsg').innerHTML='<div class="error">Choose a PDF report first.</div>';if(file.size>10*1024*1024)return panel.querySelector('#assessmentMsg').innerHTML='<div class="error">The report must be 10 MB or smaller.</div>';if(file.type!=='application/pdf')return panel.querySelector('#assessmentMsg').innerHTML='<div class="error">Automatic extraction currently requires a PDF report.</div>';busy=true;try{const{data:{session}}=await supabase.auth.getSession();if(!session)throw new Error('Please sign in again.');const safe=`${crypto.randomUUID()}.pdf`,path=`${session.user.id}/${student.id}/${safe}`,{error:up}=await supabase.storage.from('assessment-reports').upload(path,file,{contentType:file.type,upsert:false});if(up)throw up;await processBlob(student,file,file.name,null,path)}catch(e){panel.querySelector('#assessmentMsg').innerHTML=`<div class="error">${esc(e.message||'Unable to upload report.')}</div>`}finally{busy=false}}
+async function findPending(student){const{data}=await supabase.from('prior_assessments').select('*').eq('student_id',student.id).eq('source_method','upload').is('processed_at',null).not('file_path','is',null).order('created_at',{ascending:false}).limit(1);return data?.[0]||null}
+async function processPending(student,row){const panel=document.querySelector('#assessmentPanel');panel.innerHTML=`<div class="eyebrow">PROCESSING EXISTING REPORT</div><h2>Analyzing ${esc(row.file_name||'uploaded report')}…</h2><p class="muted">You do not need to upload it again.</p><div class="progress"><div style="width:65%"></div></div>`;const{data:blob,error}=await supabase.storage.from('assessment-reports').download(row.file_path);if(error){panel.innerHTML=`<div class="error">The stored report could not be opened: ${esc(error.message)}</div><button class="btn" id="assessmentDone">Close</button>`;panel.querySelector('#assessmentDone').onclick=closeOverlay;return}await processBlob(student,blob,row.file_name||'Assessment.pdf',row.id,row.file_path)}
+async function openOverlay(student){const panel=overlayShell(uploadForm(student));panel.querySelector('#closeAssessment').onclick=closeOverlay;panel.querySelector('#processAssessment').onclick=()=>uploadAndProcess(student,panel);const pending=await findPending(student);if(pending)await processPending(student,pending)}
+function chooseStudent(students){const panel=overlayShell(`<div class="eyebrow">ACADEMIC RECORDS</div><h2>Choose a student</h2><p class="muted">Select the student whose prior testing you want to add.</p>${students.map(s=>`<button class="option chooseAssessmentStudent" data-id="${s.id}" style="width:100%;margin:8px 0">${esc(s.display_name||[s.first_name,s.last_name].filter(Boolean).join(' ')||'Student')}</button>`).join('')}<button class="btn secondary" id="closeAssessment" style="margin-top:12px">Cancel</button>`);panel.querySelector('#closeAssessment').onclick=closeOverlay;panel.querySelectorAll('.chooseAssessmentStudent').forEach(b=>b.onclick=()=>openOverlay(students.find(s=>s.id===b.dataset.id)))}
+async function inject(){const p=new URLSearchParams(location.search);if(p.get('app')!=='1'||p.get('openBilling')==='1')return;const{profile,students}=await ctx();if(!profile||!students.length)return;if(profile.role==='student'){const s=students[0];if(!s.onboarding_complete||s.diagnostic_completed_at||document.querySelector('#priorAssessmentCard'))return;const main=document.querySelector('main');if(!main)return;const card=document.createElement('section');card.id='priorAssessmentCard';card.className='card';card.style.maxWidth='760px';card.style.margin='18px auto';card.innerHTML=`<div class="eyebrow">OPTIONAL — PRIOR TESTING</div><h2>Have a previous standardized test report?</h2><p class="muted">Upload the report and SATprep.io will read the scores automatically before your diagnostic. No retyping required.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="addPriorScores" type="button">Upload previous report</button><button class="btn secondary" id="skipPriorScores" type="button">I don't have scores</button></div>`;main.prepend(card);card.querySelector('#addPriorScores').onclick=e=>{e.preventDefault();openOverlay(s)};card.querySelector('#skipPriorScores').onclick=e=>{e.preventDefault();card.remove()}}else if(profile.role==='parent'&&!document.querySelector('#academicRecordsBtn')){const section=document.querySelector('#parentDashboardEnhanced .hero .row');if(!section)return;const b=document.createElement('button');b.id='academicRecordsBtn';b.type='button';b.className='btn secondary';b.textContent='Academic records';b.onclick=e=>{e.preventDefault();students.length===1?openOverlay(students[0]):chooseStudent(students)};section.appendChild(b)}}
+let scheduled=false;function scheduleInject(){if(scheduled)return;scheduled=true;setTimeout(async()=>{scheduled=false;await inject()},80)}const observer=new MutationObserver(scheduleInject);observer.observe(document.documentElement,{subtree:true,childList:true});setTimeout(inject,250);supabase.auth.onAuthStateChange(()=>scheduleInject());
