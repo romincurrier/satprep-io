@@ -5,18 +5,23 @@ Last updated: 2026-08-24
 ## Current state
 SATprep.io is a **pre-launch commercial candidate**, not approved for public paying customers. The codebase includes student/parent/admin/onboarding/billing flows, prior-assessment ingestion, an assessment-only adaptive diagnostic, server-scored guided practice with explanations, mastery/progress tracking, content review and calibration tooling, SEO/trust content, marketing/measurement plans, privacy/security controls, youth-account safeguards, accessibility checks, durable API rate limiting, and launch runbooks.
 
-The latest committed main-branch changes add a fail-closed first-party measurement launch gate, privacy-minimized client wiring that remains inert during prelaunch, durable anonymous-event rate limiting, and short-lived hashed abuse-control counters. GitHub/Vercel deployment verification is still required for the newest commits because the connected Vercel team/project context is not currently discoverable through the deployment connector.
+The newest main-branch hardening makes first-party acquisition measurement fail closed on both client and server, limits it to public marketing surfaces, requires an approved browser Origin, filters contact-like campaign values, applies durable anonymous-event throttling, and keeps hashed abuse-control counters short-lived. The changed JavaScript modules passed direct Node syntax checks. Full repository build/deployment verification is still required because the connected Vercel team/project context is not currently discoverable and this runtime cannot clone GitHub over the public network.
 
 ## Most recent launch hardening
 
 ### First-party measurement launch controls
-- `launch-gates.json` now explicitly tracks `first_party_measurement`, which remains `disabled`.
-- `MARKETING_MEASUREMENT_ENABLED=false` is documented as the server-side default. The `/api/marketing-event` route returns 404 unless that explicit server flag is enabled.
-- The browser measurement module can now be loaded safely in prelaunch but remains inert unless the separate client launch flag is explicitly enabled before it initializes.
-- When enabled later, measurement remains first-party and privacy-minimized: no cookies, localStorage IDs, account IDs, learner IDs, age/DOB, school data, test scores, diagnostic responses, or uploaded-report data are included in marketing events.
+- `launch-gates.json` explicitly tracks `first_party_measurement`, which remains `disabled`.
+- `MARKETING_MEASUREMENT_ENABLED=false` is documented as the server-side default. `/api/marketing-event` returns 404 unless that explicit server flag is enabled.
+- The browser measurement module is present for launch readiness but remains inert unless a separate client launch flag is explicitly enabled before initialization.
+- Even after future approval, the client measures only public acquisition surfaces; authenticated `?app=1`, billing UI, checkout return, and billing-success modes are excluded.
+- The receiving API requires an approved browser `Origin`; originless and cross-origin submissions are rejected.
+- Event names are allowlisted and payload/field lengths are bounded.
+- Measurement remains privacy-minimized: no cookies, localStorage IDs, account IDs, learner IDs, age/DOB, school data, test scores, diagnostic responses, skill mastery, uploaded-report data, or parent-child linkage are included.
+- Email-like and phone-like values in campaign/referral fields are discarded server-side instead of being stored.
 - The anonymous event endpoint is protected by the durable database-backed limiter. Vercel documents that it overwrites `x-forwarded-for` at the edge to prevent ordinary spoofing; the raw address is used only transiently as a limiter subject and is SHA-256 hashed before database storage.
-- The rate-limit migration now opportunistically removes hashed limiter counters older than 48 hours so abuse-prevention identifiers do not accumulate indefinitely.
-- Production launch validation now fails if measurement is activated accidentally, if the server-side fail-closed flag is removed, if anonymous event rate limiting is removed, or if the client module can send while its launch gate is disabled.
+- The rate-limit migration opportunistically removes hashed limiter counters older than 24 hours, aligned with the proposed retention target.
+- Production launch validation now fails if measurement is activated accidentally, if the server fail-closed flag is removed, if public-surface/origin/contact-data boundaries disappear, if anonymous rate limiting is removed, or if the client can send while its launch gate is disabled.
+- `docs/API_ABUSE_CONTROLS.md` now documents the anonymous measurement threat model, route limit, raw-IP prohibition, short retention, and required QA cases.
 
 ### Explicit commercial launch gates
 - `launch-gates.json` is the repository-level source of truth for launch-sensitive state.
@@ -28,24 +33,24 @@ The latest committed main-branch changes add a fail-closed first-party measureme
 - Current College Board trademark guidance was reviewed on 2026-08-24 and documented in `docs/TRADEMARK_LAUNCH_GATE.md`.
 - The current product name/domain contains `SAT`, which College Board identifies as a registered mark. College Board's published guidance creates a material unresolved launch issue for third-party company/product/domain/advertising use of its marks.
 - This is recorded as a **launch gate, not a legal conclusion**. Before indexing, advertising, affiliate promotion, broad social/PR execution, or public billing, the intended naming/domain/mark use must be addressed through appropriate permission/legal review or a rebrand/domain transition.
-- `docs/BRAND_TRANSITION_PLAN.md` and `npm run brand:inventory` now provide a reversible technical migration path if a rebrand is chosen.
+- `docs/BRAND_TRANSITION_PLAN.md` and `npm run brand:inventory` provide a reversible technical migration path if a rebrand is chosen.
 - The content boundary is explicit: do not copy/reproduce official College Board test questions in the commercial bank, and do not use College Board copyrighted test content to train a generative authoring system.
 
 ### Digital Math response-format fidelity
 - Current College Board public specifications confirm Reading and Writing is four-option multiple choice while Math is approximately **75% MCQ / 25% student-produced response (SPR)**.
-- Secure commercial content now supports `mcq` plus Math-only `spr` as first-class formats.
+- Secure commercial content supports `mcq` plus Math-only `spr` as first-class formats.
 - Shared server scoring validates positive SPR entries to 5 characters and negative entries to 6 including the minus sign, supports integer/decimal/fraction entry, rejects symbols/mixed numbers/zero denominators, and handles exact terminating-decimal/fraction equivalence.
 - Non-terminating-decimal questions can author explicit accepted forms, preserving reviewed rounding/truncation behavior.
 - Secure guided practice renders SPR input, saves it durably, scores it server-side, and then provides correct/incorrect feedback, accepted answer, submitted answer when wrong, and explanation.
 - Secure diagnostic renders and server-scores SPR without revealing correctness or explanations while assessment is in progress.
-- A 20-question secure diagnostic now attempts a public-spec-style Math SPR mix when independently approved bank depth permits it, without allowing SPR in Reading and Writing.
+- A 20-question secure diagnostic attempts a public-spec-style Math SPR mix when independently approved bank depth permits it, without allowing SPR in Reading and Writing.
 - `docs/SPR_CONTENT_STANDARD.md` defines authoring/review rules and `validate:spr` adds regression coverage based on current public response-entry examples.
 
 ### Independent content review for MCQ and SPR
-- Exact-hash review canonicalization now supports both MCQ answer indices and SPR accepted-response sets without invalidating the existing MCQ hash shape.
+- Exact-hash review canonicalization supports both MCQ answer indices and SPR accepted-response sets without invalidating the existing MCQ hash shape.
 - Review export includes response format and accepted SPR answers.
-- Private reviewed-content import supports MCQ or Math SPR, still requiring five approvals: accuracy, alignment, editorial, bias/accessibility, and originality.
-- New response-storage migration adds mutually exclusive `selected_answer` / `response_text` fields to diagnostic and practice responses. It is committed but not live while Supabase remains inactive.
+- Private reviewed-content import supports MCQ or Math SPR, requiring five approvals: accuracy, alignment, editorial, bias/accessibility, and originality.
+- Response-storage migration adds mutually exclusive `selected_answer` / `response_text` fields to diagnostic and practice responses. It is committed but not live while Supabase remains inactive.
 
 ### Marketing-claims build gate
 - `validate:marketing-claims` runs in every production build.
@@ -65,7 +70,7 @@ The latest committed main-branch changes add a fail-closed first-party measureme
 ## Security, privacy, accessibility, and billing state
 - Public checkout and checkout confirmation are server-gated and disabled on the public host unless explicit launch flags are enabled.
 - Live Stripe use has a separate server-side lock; public test billing is not treated as production billing.
-- First-party marketing measurement now has independent browser/server launch locks and remains disabled; when later approved it is designed to collect only privacy-minimized public-site events.
+- First-party marketing measurement has independent browser/server launch locks and remains disabled; when later approved it is designed for public acquisition surfaces only and collects privacy-minimized events.
 - Youth signup includes browser defense-in-depth plus a pending database age-gate migration; under-13 learners are routed through the parent/guardian workflow.
 - Durable API abuse controls, privacy-request workflow, profile-privilege restrictions, content-integrity controls, secure diagnostic/practice sessions, and server-scored MCQ/SPR response protections are implemented in code/migrations.
 - Production builds validate security, SPR scoring, practice security, adaptive practice, youth privacy, privilege boundaries, private content workflow, SEO, marketing claims, accessibility, launch state, and deterministic regression behavior.
@@ -75,6 +80,7 @@ The latest committed main-branch changes add a fail-closed first-party measureme
 - Supabase project `nrjqykfrnfrgyuvprwob` remains **INACTIVE** as of the latest check and was not restored automatically because restoration can affect hosted infrastructure/billing.
 - Pending migrations include the content/review system, practice sessions, MCQ/SPR response storage, calibration, marketing measurement, privacy requests, durable API rate limits, profile privilege locking, and student-signup age gate. They are committed but **not claimed live**.
 - GitHub repository is currently public. Fresh secure commercial question content should use the documented external private-review/import bridge and should ultimately live behind a dedicated private editorial/content boundary.
+- The connected Vercel deployment tool currently exposes no discoverable team/project context, so the latest commits are **not claimed deployed or build-verified** in this run. Direct Node syntax checks passed for the modified measurement client/server modules; full `npm run build` remains required through CI/deployment.
 - Public indexing, live Stripe, ads, first-party measurement, public outbound email, affiliate/referral execution, Search Console submission, retargeting, social publishing, and final legal/privacy publication remain disabled.
 
 ## Highest-priority next actions
