@@ -40,6 +40,16 @@ const protectedApis=[
 ];
 for(const [file,route] of protectedApis){const txt=read(file);if(!/enforceRateLimit\(/.test(txt)||!txt.includes(`'${route}'`))fail(`${file}: protected endpoint must enforce durable rate limit ${route}.`);if(!/Retry-After/.test(txt))fail(`${file}: rate-limited responses must emit Retry-After.`)}
 
+const stripeServer=read('server/stripe-server.js');
+if(!/PUBLIC_HOSTS=new Set\(\['satprep\.io','www\.satprep\.io'\]\)/.test(stripeServer))fail('Stripe server must identify the canonical public hosts for launch gating.');
+if(!/export function assertCheckoutSurfaceEnabled/.test(stripeServer)||!/PUBLIC_BILLING_ENABLED/.test(stripeServer))fail('Stripe server must expose a server-enforced public checkout launch gate.');
+if(!/export function assertBillingPortalEnabled/.test(stripeServer)||!/PUBLIC_BILLING_PORTAL_ENABLED/.test(stripeServer))fail('Stripe server must expose an independently controlled billing-portal launch gate.');
+if(!/ALLOW_PUBLIC_TEST_BILLING/.test(stripeServer)||!/mode!==['"]live['"]/.test(stripeServer))fail('Public billing must fail closed when the public host is still using a Stripe test key.');
+for(const file of ['api/create-checkout-session.js','api/confirm-checkout-session.js'])if(!/assertCheckoutSurfaceEnabled\(req\)/.test(read(file)))fail(`${file}: public checkout flow must enforce the server launch gate.`);
+if(!/assertBillingPortalEnabled\(req\)/.test(read('api/create-portal-session.js')))fail('api/create-portal-session.js: public billing management must enforce the independent server launch gate.');
+const envExample=read('env.example');
+for(const row of ['PUBLIC_BILLING_ENABLED=false','PUBLIC_BILLING_PORTAL_ENABLED=false','ALLOW_LIVE_BILLING=false','ALLOW_PUBLIC_TEST_BILLING=false'])if(!envExample.includes(row))fail(`env.example must default ${row} for safe pre-launch configuration.`);
+
 const serverAccess=read('server/supabase-server.js');
 if(!/export async function enforceRateLimit/.test(serverAccess)||!/consume_api_rate_limit/.test(serverAccess))fail('Server data layer must expose the durable rate-limit helper.');
 if(!/createHash\('sha256'\)/.test(serverAccess))fail('Rate-limit subjects must be hashed before persistence.');
