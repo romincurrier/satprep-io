@@ -1,6 +1,21 @@
 const PUBLIC_BILLING_ENABLED = false;
+const PUBLIC_HOSTS = new Set(['satprep.io','www.satprep.io']);
+const IS_PUBLIC_HOST = PUBLIC_HOSTS.has(location.hostname.toLowerCase());
+const BILLING_UI_ALLOWED = PUBLIC_BILLING_ENABLED || !IS_PUBLIC_HOST;
 
 const esc = value => String(value ?? '').replace(/[&<>\"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));
+
+if(!BILLING_UI_ALLOWED){
+  const params = new URLSearchParams(location.search);
+  let changed = false;
+  for(const key of ['openBilling','billing','session_id']){
+    if(params.has(key)){ params.delete(key); changed = true; }
+  }
+  if(changed){
+    const qs = params.toString();
+    history.replaceState({},'',`${location.pathname}${qs?`?${qs}`:''}${location.hash}`);
+  }
+}
 
 function ageFromDob(value){
   if(!value) return null;
@@ -67,6 +82,15 @@ function guardYouthSignup(event){
 
 document.addEventListener('submit', guardYouthSignup, true);
 
+document.addEventListener('click', event=>{
+  if(BILLING_UI_ALLOWED) return;
+  const target = event.target.closest?.('#billingBtn,.billing-checkout,#manageSubscription');
+  if(!target) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  alert('Plans and billing are still in pre-launch validation. No public purchase or trial is available yet.');
+}, true);
+
 function applyPrelaunchCommercialState(){
   if(PUBLIC_BILLING_ENABLED) return;
   const pricing = document.querySelector('#pricing');
@@ -83,6 +107,15 @@ function applyPrelaunchCommercialState(){
   document.querySelectorAll('.final-cta .small').forEach(el=>{
     if(/trial|cancel/i.test(el.textContent || '')) el.remove();
   });
+  if(!BILLING_UI_ALLOWED){
+    document.querySelectorAll('#billingBtn,.billing-checkout,#manageSubscription').forEach(el=>el.remove());
+    const billingHeading = [...document.querySelectorAll('h1')].find(h=>/plans\s*&\s*billing/i.test(h.textContent||''));
+    if(billingHeading){
+      const main = billingHeading.closest('main');
+      if(main) main.innerHTML = `<section class="hero"><h1>Plans & Billing</h1><p>Billing is still in pre-launch validation. No public purchase, paid plan, or trial is available yet.</p></section><section class="card"><button class="btn" id="prelaunchBillingBack">Return to dashboard</button></section>`;
+      document.querySelector('#prelaunchBillingBack')?.addEventListener('click',()=>location.assign('/?app=1'));
+    }
+  }
 }
 
 let scheduled = false;
