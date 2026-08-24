@@ -11,6 +11,8 @@ function officialSkill(value){const s=String(value||'');return SKILL_INDEX[s]?s:
 function examLabel(value){const k=examKey(value);return k==='SAT'?'SAT':k==='PSAT_10'?'PSAT 10':'PSAT/NMSQT'}
 function secureAttempt(attempt){const ids=attempt?.summary?.question_plan;return attempt?.summary?.engine==='secure-v3'&&Array.isArray(ids)&&ids.length>0}
 function normalizeContentItem(row){return{id:row.id,section:row.section,domain:row.domain_key,skill:row.skill_key,difficulty:Number(row.difficulty),format:row.format,stimulus:row.stimulus||null,stem:row.stem,choices:Array.isArray(row.choices)?row.choices:null,exams:Array.isArray(row.exams)?row.exams:[],estimatedSeconds:Number(row.estimated_seconds)||null}}
+function latestReviewMap(reviews){const map=new Map();for(const r of reviews||[]){if(!r.item_id||!REQUIRED_REVIEWS.includes(r.review_type))continue;const byType=map.get(r.item_id)||new Map();byType.set(r.review_type,r);map.set(r.item_id,byType)}return map}
+function reviewsApproved(reviewMap,itemId){return REQUIRED_REVIEWS.every(type=>{const r=reviewMap.get(itemId)?.get(type);return r?.decision==='approve'&&!!String(r.reviewer_label||'').trim()})}
 export function studentPriorities(student){const path=student?.recommended_path||{},raw=path.external_priority_skills||path.priority_skills||[];return raw.map(x=>({skill:officialSkill(x.skill||x.source_skill),mastery:Number(x.mastery??1)})).filter(x=>x.skill).sort((a,b)=>a.mastery-b.mastery)}
 async function contentSystemReady(){
  if(contentSystemReadyCache!==null)return contentSystemReadyCache;
@@ -34,12 +36,11 @@ async function approvedRuntimeBank(targetExam){
   service('/rest/v1/content_answer_keys?select=item_id'),
   service('/rest/v1/content_item_reviews?select=item_id,review_type,reviewer_label,decision,created_at&order=created_at.asc')
  ]);
- const keyed=new Set((keys||[]).map(x=>x.item_id)),reviewMap=new Map();
- for(const r of reviews||[]){if(!r.item_id||!REQUIRED_REVIEWS.includes(r.review_type))continue;const byType=reviewMap.get(r.item_id)||new Map();byType.set(r.review_type,r);reviewMap.set(r.item_id,byType)}
- const reviewsApproved=itemId=>REQUIRED_REVIEWS.every(type=>{const r=reviewMap.get(itemId)?.get(type);return r?.decision==='approve'&&!!String(r.reviewer_label||'').trim()});
- return (items||[]).filter(row=>keyed.has(row.id)&&reviewsApproved(row.id)&&Array.isArray(row.exams)&&row.exams.includes(exam)&&SKILL_INDEX[row.skill_key]).map(normalizeContentItem);
+ const keyed=new Set((keys||[]).map(x=>x.item_id)),reviewMap=latestReviewMap(reviews);
+ return (items||[]).filter(row=>keyed.has(row.id)&&reviewsApproved(reviewMap,row.id)&&Array.isArray(row.exams)&&row.exams.includes(exam)&&SKILL_INDEX[row.skill_key]).map(normalizeContentItem);
 }
-async function approvedItem(itemId){const rows=await service(`/rest/v1/content_items?id=eq.${encodeURIComponent(itemId)}&qa_status=eq.production_approved&active=eq.true&format=eq.mcq&select=id,section,domain_key,skill_key,difficulty,format,stimulus,stem,choices,exams,estimated_seconds&limit=1`),item=rows?.[0];if(!item)throw Object.assign(new Error('This assessment item is not currently approved for use.'),{status:503});return normalizeContentItem(item)}
+async function reviewStateApproved(itemId){const rows=await service(`/rest/v1/content_item_reviews?item_id=eq.${encodeURIComponent(itemId)}&select=item_id,review_type,reviewer_label,decision,created_at&order=created_at.asc`);return reviewsApproved(latestReviewMap(rows),itemId)}
+async function approvedItem(itemId){const rows=await service(`/rest/v1/content_items?id=eq.${encodeURIComponent(itemId)}&qa_status=eq.production_approved&active=eq.true&format=eq.mcq&select=id,section,domain_key,skill_key,difficulty,format,stimulus,stem,choices,exams,estimated_seconds&limit=1`),item=rows?.[0];if(!item||!(await reviewStateApproved(itemId)))throw Object.assign(new Error('This assessment item is not currently approved for use.'),{status:503});return normalizeContentItem(item)}
 async function scoringKey(itemId){const rows=await service(`/rest/v1/content_answer_keys?item_id=eq.${encodeURIComponent(itemId)}&select=answer&limit=1`),raw=rows?.[0]?.answer;const n=typeof raw==='number'?raw:Number(raw?.answerIndex??raw?.index);if(!Number.isInteger(n)||n<0||n>3)throw Object.assign(new Error('The approved scoring key is not ready.'),{status:503});return n}
 async function assertPersistedPlanItem(attemptId,position,itemId){const rows=await service(`/rest/v1/diagnostic_attempt_items?attempt_id=eq.${encodeURIComponent(attemptId)}&position=eq.${Number(position)}&select=item_id&limit=1`);if(rows?.[0]?.item_id!==itemId)throw Object.assign(new Error('The secure assessment plan could not be verified.'),{status:503})}
 export async function latestOpenAttempt(studentId){const rows=await service(`/rest/v1/diagnostic_attempts?student_id=eq.${encodeURIComponent(studentId)}&status=neq.completed&select=id,status,started_at,summary&order=started_at.desc&limit=1`);return rows?.[0]||null}
