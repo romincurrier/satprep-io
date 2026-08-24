@@ -1,6 +1,6 @@
 {
   "name": "satprep-io",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,6 +10,7 @@
     "validate:security": "node scripts/validate-security.mjs",
     "content:readiness": "node scripts/content-readiness.mjs",
     "content:review-export": "node scripts/export-content-review.mjs",
+    "content:review-validate": "node scripts/validate-content-review.mjs",
     "build": "npm run validate:content && npm run validate:seo && npm run validate:security && vite build",
     "preview": "vite preview"
   },
