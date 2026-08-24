@@ -33,6 +33,8 @@ requireText(vercel,'Cross-Origin-Opener-Policy','Production headers must isolate
 requireText(vercel,'X-Permitted-Cross-Domain-Policies','Production headers must disable legacy cross-domain policy files.');
 requireText(vercel,'browsing-topics=()','Permissions-Policy must disable Topics API access.');
 requireText(vercel,'payment=()','Permissions-Policy must disable browser Payment Request API while billing is prelaunch.');
+requireText(vercel,'X-Robots-Tag','Prelaunch deployments must send an X-Robots-Tag header until explicit public indexing approval.');
+requireText(vercel,'noindex, nofollow, noarchive','Prelaunch X-Robots-Tag must block indexing, link following, and cached copies.');
 
 requireText(index,'href="/accessibility.css"','The application shell must load the accessibility stylesheet.');
 requireText(index,'class="skip-link"','The application shell must include a keyboard skip link.');
@@ -54,4 +56,4 @@ if(errors.length){
   for(const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-console.log('Launch validation passed: public billing is gated, youth setup uses the protected flow, browser security headers are present, and baseline accessibility safeguards are loaded.');
+console.log('Launch validation passed: public billing is gated, prelaunch indexing is blocked, youth setup uses the protected flow, browser security headers are present, and baseline accessibility safeguards are loaded.');
