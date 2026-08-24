@@ -1,4 +1,4 @@
-import {eligibleQuestions} from './question-bank.js';
+import {eligibleQuestions} from './question-bank-production.js';
 import {examKey} from './sat-spec.js';
 
 const RW_QUOTA={'information-and-ideas':3,'craft-and-structure':3,'expression-of-ideas':2,'standard-english-conventions':3};
@@ -12,7 +12,6 @@ function priorityRank(item,priorities){const i=priorities.findIndex(p=>p.skill==
 function chooseDomain(pool,count,priorities,random){
  const ordered=shuffle(pool,random).sort((a,b)=>priorityRank(a,priorities)-priorityRank(b,priorities)||a.difficulty-b.difficulty);
  const chosen=[];
- // Avoid a diagnostic composed entirely of one difficulty level.
  for(const target of [1,2,3]){const q=ordered.find(x=>x.difficulty===target&&!chosen.includes(x));if(q&&chosen.length<count)chosen.push(q)}
  for(const q of ordered)if(chosen.length<count&&!chosen.includes(q))chosen.push(q);
  return chosen.slice(0,count);
@@ -29,7 +28,6 @@ export function buildDiagnosticPlan({targetExam='SAT',priorities=[],seed='satpre
   }
  };
  addSection('RW',RW_QUOTA);addSection('MATH',MATH_QUOTA);
- // If a future bank/eligibility rule leaves a quota short, fill from unused exam-eligible items while retaining section balance as closely as possible.
  const desiredRW=Math.round(length*54/98),desiredMath=length-desiredRW;
  const fill=(section,target)=>{for(const q of shuffle(bank.filter(x=>x.section===section&&!selected.includes(x)),random).sort((a,b)=>priorityRank(a,pri)-priorityRank(b,pri))){if(selected.filter(x=>x.section===section).length>=target)break;selected.push(q)}};
  fill('RW',desiredRW);fill('MATH',desiredMath);
