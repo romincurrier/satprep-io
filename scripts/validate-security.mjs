@@ -55,7 +55,8 @@ else if(/answerIndex|explanation|distractor/i.test(safeQuestion))fail('safeQuest
 if(!/contentSystemReady\(\)/.test(core)||!/content_items\?select=id,qa_status,active&limit=1/.test(core))fail('Secure diagnostic must verify that the server-only content system is ready before creating/scoring secure attempts.');
 if(!/qa_status=eq\.production_approved&active=eq\.true&format=eq\.mcq/.test(core))fail('Secure diagnostic selection must be limited to active production-approved MCQ content.');
 for(const review of ['accuracy','alignment','editorial','bias_accessibility'])if(!core.includes(`'${review}'`))fail(`Secure diagnostic approval gate must require ${review} review.`);
-if(!/content_answer_keys\?select=item_id/.test(core)||!/content_item_reviews\?decision=eq\.approve/.test(core))fail('Secure diagnostic plan creation must require answer keys and recorded approving reviews.');
+if(!/content_answer_keys\?select=item_id/.test(core)||!/content_item_reviews\?select=item_id,review_type,reviewer_label,decision,created_at&order=created_at\.asc/.test(core))fail('Secure diagnostic plan creation must require answer keys and an ordered independent-review audit trail.');
+if(!/byType\.set\(r\.review_type,r\)/.test(core)||!/r\?\.decision==='approve'/.test(core))fail('Secure diagnostic approval gate must use the latest decision for each required review type.');
 if(!/diagnostic_attempt_items/.test(core)||!/assertPersistedPlanItem/.test(core))fail('Secure diagnostic must persist and verify the server-selected item plan.');
 if(!/content_answer_keys\?item_id=eq\./.test(core)||!/scoringKey/.test(core))fail('Secure diagnostic scoring must retrieve the answer key through the server-only answer-key table.');
 if(!/content_item_id:item\.id/.test(core))fail('Secure diagnostic responses must be linked to the server-selected content item.');
