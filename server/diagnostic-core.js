@@ -6,7 +6,7 @@ import {service} from './supabase-server.js';
 const LEGACY_TO_OFFICIAL={
  'Analysis':'inferences','Inference':'inferences','Reading Comprehension':'central-ideas-details','Evidence':'command-evidence-textual','Precision':'words-in-context','Vocabulary':'words-in-context','Words in Context':'words-in-context','Organization':'rhetorical-synthesis','Purpose':'rhetorical-synthesis','Style':'rhetorical-synthesis','Rhetorical Synthesis':'rhetorical-synthesis','Writing Mechanics':'form-structure-sense','Grammar':'form-structure-sense','Punctuation':'boundaries','Transitions':'transitions','Linear Equations':'linear-equations-one-variable','Systems':'systems-linear-equations','Functions':'linear-functions','Quadratics':'nonlinear-equations-one-variable','Percent':'percentages','Rates':'ratios-rates-units','Ratios':'ratios-rates-units','Data Analysis':'one-variable-data','Problem Solving':'ratios-rates-units','Geometry':'lines-angles-triangles','Fractions & Decimals':'ratios-rates-units','Number Sense':'ratios-rates-units'
 };
-const REQUIRED_REVIEWS=['accuracy','alignment','editorial','bias_accessibility'];
+const REQUIRED_REVIEWS=['accuracy','alignment','editorial','bias_accessibility','originality'];
 let contentSystemReadyCache=null;
 function officialSkill(value){const s=String(value||'');return SKILL_INDEX[s]?s:(LEGACY_TO_OFFICIAL[s]||null)}
 function examLabel(value){const k=examKey(value);return k==='SAT'?'SAT':k==='PSAT_10'?'PSAT 10':'PSAT/NMSQT'}
