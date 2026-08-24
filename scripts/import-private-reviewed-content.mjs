@@ -1,19 +1,21 @@
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx';
 
 const REVIEW_TYPES=['accuracy','alignment','editorial','bias_accessibility','originality'];
 const args=process.argv.slice(2),file=args.find(x=>!x.startsWith('--'));
 const activate=args.includes('--activate');
 if(!file){console.error('Usage: node scripts/import-private-reviewed-content.mjs /absolute/private/content-review.csv [--activate]');process.exit(2)}
 if(!path.isAbsolute(file)){console.error('For safety, provide an absolute path to a private review file outside the public repository.');process.exit(2)}
+const resolvedFile=path.resolve(file),repoRoot=path.resolve(process.cwd());
+if(resolvedFile===repoRoot||resolvedFile.startsWith(`${repoRoot}${path.sep}`)){console.error('Refusing to import proprietary review content from inside the public repository. Move the file to a private external location first.');process.exit(2)}
 const projectUrl=String(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||'').replace(/\/$/,'');
 const serviceKey=String(process.env.SUPABASE_SERVICE_ROLE_KEY||'');
 if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(projectUrl)||!serviceKey){console.error('SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY are required.');process.exit(2)}
 if(activate&&process.env.PRIVATE_CONTENT_IMPORT_CONFIRM!=='ACTIVATE_REVIEWED_CONTENT'){console.error('Activation requires PRIVATE_CONTENT_IMPORT_CONFIRM=ACTIVATE_REVIEWED_CONTENT. Omit --activate to import approved content inactive.');process.exit(2)}
 
-const workbook=XLSX.readFile(file,{cellDates:false}),sheet=workbook.Sheets[workbook.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
+const workbook=XLSX.readFile(resolvedFile,{cellDates:false}),sheet=workbook.Sheets[workbook.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
 if(!rows.length){console.error('Review file has no content rows.');process.exit(2)}
 const norm=v=>String(v??'').trim();
 const decision=v=>norm(v).toLowerCase();
@@ -39,7 +41,7 @@ if(new Set(prepared.map(x=>x.c.id)).size!==prepared.length){console.error('Revie
 
 async function rest(route,{method='GET',body,prefer}={}){
  const r=await fetch(`${projectUrl}${route}`,{method,headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,'Content-Type':'application/json',...(prefer?{Prefer:prefer}:{})},body:body===undefined?undefined:JSON.stringify(body)});
- if(!r.ok){const text=await r.text().catch(()=>'');const e=new Error(`Supabase request failed (${r.status})${text?`: ${text.slice(0,300)}`:''}`);e.status=r.status;throw e}
+ if(!r.ok){const e=new Error(`Supabase content import request failed (${r.status}).`);e.status=r.status;throw e}
  if(r.status===204)return null;const text=await r.text();return text?JSON.parse(text):null;
 }
 
