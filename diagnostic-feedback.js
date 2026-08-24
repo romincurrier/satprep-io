@@ -7,10 +7,9 @@ const EXPLANATIONS={
 'If f(x)=3x²−2, what is f(−2)?':{a:1,e:'Substitute −2 for x. First square it: (−2)² = 4. Then 3 × 4 − 2 = 12 − 2 = 10.'},
 'Which values solve x² − 7x + 12 = 0?':{a:1,e:'Factor the quadratic: x² − 7x + 12 = (x − 3)(x − 4). Set each factor equal to zero, giving x = 3 and x = 4.'},
 'A circle has area 49π. What is its circumference?':{a:1,e:'Area is πr², so r² = 49 and r = 7. Circumference is 2πr, so 2π(7) = 14π.'},
-'Which inference is best supported?':{a:1,e:'Choose the answer supported by specific details rather than one that adds new information. The actions in the passage show preparation, attention, or an intention to follow what was described.'},
+'Which inference is best supported?':{a:1,e:'Look for the answer that is directly supported by the actions described in the passage. Avoid choices that introduce facts the passage never states. The correct choice is the one that best explains the behavior using only the evidence given.'},
 'The experiment produced an unexpected result. ___, the researchers repeated it with a larger sample.':{a:2,e:'The second action happens because of the unexpected result. “Therefore” signals that cause-and-effect relationship.'},
 'Which sentence is grammatically correct?':{a:1,e:'The true subject is “collection,” which is singular. The phrase “of maps” does not change the subject, so the verb must be “is.”'},
-'Which claim is best supported?':{a:1,e:'Use only what the evidence establishes. The data show an association between the change and improved first-period attendance; they do not prove broader effects such as grades or preferences.'},
 'In the sentence “The committee adopted a measured response rather than acting immediately,” measured most nearly means:':{a:1,e:'Use the surrounding words as clues. “Rather than acting immediately” suggests a careful, restrained response, not a measurement in units.'},
 'A student wants to emphasize a contrast between two studies. Which transition best serves that goal?':{a:2,e:'“However” signals contrast. The other choices signal similarity, example, or result.'},
 'Choose the best punctuation: “The telescope revealed three objects ___ a comet, a distant galaxy, and a nebula.”':{a:1,e:'The words before the blank form a complete clause, and what follows is a list explaining “three objects.” A colon is the correct punctuation.'},
@@ -28,10 +27,28 @@ const EXPLANATIONS={
 'A rectangle has length 12 and width 7. What is its area?':{a:2,e:'Area of a rectangle is length × width. 12 × 7 = 84 square units.'}
 };
 
-let showing=false;
+let showing=false,bypassNext=false;
 const esc=s=>String(s??'').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));
-function closeFeedback(){document.querySelector('#diagnosticFeedbackOverlay')?.remove();showing=false}
-function showFeedback({question,selected,options}){
- if(showing)return;const info=EXPLANATIONS[question];if(!info)return;showing=true;const correct=selected===info.a,correctText=options[info.a]||'';const o=document.createElement('div');o.id='diagnosticFeedbackOverlay';o.style.cssText='position:fixed;inset:0;z-index:200000;background:rgba(13,31,52,.76);display:flex;align-items:center;justify-content:center;padding:22px;overflow:auto';o.innerHTML=`<div class="card" style="width:min(680px,100%);padding:28px"><div class="eyebrow">ANSWER REVIEW</div><h2 style="margin-top:8px">${correct?'✓ Correct':'Not quite — learn from this one'}</h2><div class="${correct?'success':'notice'}" style="margin:14px 0"><strong>Correct answer:</strong> ${String.fromCharCode(65+info.a)}. ${esc(correctText)}</div><h3>How to get there</h3><p style="font-size:16px;line-height:1.65">${esc(info.e)}</p><p class="muted">Take a moment to follow the process. SATprep.io uses your answer as evidence for what to reinforce next.</p><button class="btn" id="diagnosticFeedbackContinue" style="width:100%;margin-top:10px">Continue</button></div>`;document.body.appendChild(o);o.querySelector('#diagnosticFeedbackContinue').onclick=closeFeedback}
+function resolveExplanation(question,options){
+ if(question==='Which claim is best supported?'){
+   if(String(options?.[0]||'').startsWith('Longer hours'))return {a:0,e:'The report shows that evening visits increased after the library extended its evening hours, while daytime visits were nearly unchanged. That supports an association between longer evening hours and increased evening use. It does not prove effects on grades, preferences, or every visitor.'};
+   return {a:1,e:'The attendance data show that first-period attendance improved after the start-time change, while later periods changed little. The evidence supports an association with improved first-period attendance, but it does not establish broader claims about grades or student preferences.'};
+ }
+ return EXPLANATIONS[question]||null;
+}
+function showFeedback({question,selected,options,button}){
+ if(showing)return;const info=resolveExplanation(question,options);if(!info)return;showing=true;const correct=selected===info.a,correctText=options[info.a]||'';const o=document.createElement('div');o.id='diagnosticFeedbackOverlay';o.style.cssText='position:fixed;inset:0;z-index:200000;background:rgba(13,31,52,.78);display:flex;align-items:center;justify-content:center;padding:22px;overflow:auto';o.innerHTML=`<div class="card" style="width:min(700px,100%);padding:30px"><div class="eyebrow">ANSWER REVIEW</div><h2 style="margin:8px 0 4px">${correct?'✓ Correct':'Not quite — here is how to solve it'}</h2><p class="muted">${correct?'Good work. Review the reasoning so you can repeat the process on a harder version.':'Use this explanation to see the process, not just the answer.'}</p><div class="${correct?'success':'notice'}" style="margin:16px 0;padding:16px"><strong>Correct answer:</strong><br>${String.fromCharCode(65+info.a)}. ${esc(correctText)}</div><h3>How to get the right answer</h3><p style="font-size:17px;line-height:1.7">${esc(info.e)}</p><button class="btn" id="diagnosticFeedbackContinue" style="width:100%;margin-top:16px">Continue to next question</button></div>`;document.body.appendChild(o);
+ o.querySelector('#diagnosticFeedbackContinue').onclick=()=>{o.remove();showing=false;bypassNext=true;button.click()};
+}
 
-document.addEventListener('click',e=>{const btn=e.target.closest?.('[data-a]');if(!btn||showing)return;const card=btn.closest('.card');const q=card?.querySelector('.question')?.textContent?.trim();if(!q||!EXPLANATIONS[q])return;const options=[...card.querySelectorAll('[data-a]')].map(x=>x.textContent.replace(/^\s*[A-D]\.\s*/,'').trim());const selected=Number(btn.dataset.a);setTimeout(()=>showFeedback({question:q,selected,options}),40)},true);
+document.addEventListener('click',e=>{
+ const btn=e.target.closest?.('[data-a]');
+ if(!btn)return;
+ if(bypassNext){bypassNext=false;return}
+ if(showing){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();return}
+ const card=btn.closest('.card'),question=card?.querySelector('.question')?.textContent?.trim();
+ const options=[...card?.querySelectorAll?.('[data-a]')||[]].map(x=>x.textContent.replace(/^\s*[A-D]\.\s*/,'').trim());
+ const info=resolveExplanation(question,options);if(!question||!info)return;
+ e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+ showFeedback({question,selected:Number(btn.dataset.a),options,button:btn});
+},true);
