@@ -1,8 +1,10 @@
 const PUBLIC_BILLING_ENABLED = false;
+const PUBLIC_MARKETING_MEASUREMENT_ENABLED = false;
 const PUBLIC_HOSTS = new Set(['satprep.io','www.satprep.io']);
 const IS_PUBLIC_HOST = PUBLIC_HOSTS.has(location.hostname.toLowerCase());
 const BILLING_UI_ALLOWED = PUBLIC_BILLING_ENABLED || !IS_PUBLIC_HOST;
 window.__SATPREP_PRELAUNCH__ = !PUBLIC_BILLING_ENABLED;
+window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__ = PUBLIC_MARKETING_MEASUREMENT_ENABLED;
 
 if(!BILLING_UI_ALLOWED){
   const params = new URLSearchParams(location.search);
