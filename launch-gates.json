@@ -3,6 +3,7 @@
   "public_indexing": "disabled",
   "public_billing": "disabled",
   "live_payments": "disabled",
+  "first_party_measurement": "disabled",
   "outbound_marketing": "disabled",
-  "note": "Change launch gates only after the corresponding legal, commercial, security, privacy, and operational approvals are complete."
+  "note": "Change launch gates only after the corresponding legal, commercial, security, privacy, analytics, and operational approvals are complete."
 }
