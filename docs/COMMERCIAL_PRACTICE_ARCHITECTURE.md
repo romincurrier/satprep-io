@@ -3,7 +3,7 @@
 Status: **IMPLEMENTED IN CODE, DATABASE MIGRATION NOT YET ACTIVATED**
 
 ## Purpose
-Commercial learning/practice must do more than show explanations. It must preserve reliable progress, keep proprietary scoring material out of browser bundles, survive refreshes/new browser windows, and prevent a learner from directly writing an inflated mastery score.
+Commercial learning/practice must do more than show explanations. It must preserve reliable progress, keep proprietary scoring material out of browser bundles, survive refreshes/new browser windows, adapt practice difficulty to demonstrated readiness, and prevent a learner from directly writing an inflated mastery score.
 
 The current prelaunch product therefore has two practice paths:
 
@@ -38,13 +38,25 @@ An eligible item must be:
 
 Every approval is SHA-256 hash-pinned to the exact current practice prompt, choices, answer, explanation, taxonomy, difficulty, and exam eligibility. If the content changes after review, delivery/scoring fails closed until the new content is reviewed.
 
+## Mastery-adaptive question selection
+Commercial practice now uses the learner's current trusted `skill_mastery` estimate when building a **new** five-question session. The pure selection logic lives in `practice-selection-core.js` and is covered by a production-build regression test.
+
+The current non-psychometric instructional bands are:
+- **Foundation** (`mastery < 40%`): target mix 1, 1, 2, 2, 2;
+- **Balanced** (`40%–74%`, or no trusted baseline): target mix 1, 2, 2, 2, 3; and
+- **Challenge** (`75%+`): target mix 2, 2, 2, 3, 3.
+
+These bands adjust practice difficulty only. They are not SAT score predictions, do not claim College Board calibration, and must remain subordinate to later empirical item calibration and independent content review.
+
+Selection still prefers questions the learner has not seen in the most recent response history. If the approved fresh pool does not contain the ideal difficulty mix, the selector falls back to the nearest available difficulty without duplicating an item. Existing in-progress sessions remain immutable so a refresh/new browser window resumes the exact saved plan rather than regenerating questions.
+
 ## API flow
 ### Start/resume
 `POST /api/practice-session-v3`
 
 Input: `skill_key`.
 
-The server validates the authenticated student, target-exam eligibility, commercial practice schema, reviewed content depth, and any existing open session. If an open session exists and its items are still approved, the same session is returned with the saved answered count.
+The server validates the authenticated student, target-exam eligibility, commercial practice schema, reviewed content depth, current trusted mastery, and any existing open session. If an open session exists and its items are still approved, the same session is returned with the saved answered count. The response also includes the current instructional adaptive level (`foundation`, `balanced`, or `challenge`) for UI context.
 
 ### Deliver question
 `GET /api/practice-item-v3?session_id=...&position=...`
@@ -89,7 +101,7 @@ and the server can resume at the next unanswered practice item without relying o
 - **prelaunch:** internal browser-scored QA practice may continue so product testing is not blocked;
 - **commercial/public mode:** the learning UI displays an error and does not fall back to browser-scored practice.
 
-This is enforced by `scripts/validate-practice-security.mjs` in every production build.
+This is enforced by `scripts/validate-practice-security.mjs` in every production build. Adaptive selection is independently regression-checked by `scripts/validate-adaptive-practice.mjs`.
 
 ## Activation checklist
 Do not treat server practice as live merely because the code exists. Before activation:
@@ -97,9 +109,9 @@ Do not treat server practice as live merely because the code exists. Before acti
 2. apply and verify the content-system and practice-session migrations;
 3. establish the private proprietary-content boundary;
 4. import fresh/eligible independently reviewed practice content with hash-matching approval rows;
-5. test session start, resume, item delivery, correct and incorrect feedback, idempotent retries, finalization, mastery updates, revoked-review behavior, 429 rate limits, and 503 fail-closed behavior;
+5. test foundation/balanced/challenge selection, session start, resume, item delivery, correct and incorrect feedback, idempotent retries, finalization, mastery updates, revoked-review behavior, 429 rate limits, and 503 fail-closed behavior;
 6. verify browser roles cannot query practice session/response/content tables directly;
 7. verify the public/commercial launch switch disables the browser-scored fallback before launch.
 
 ## Remaining content-depth gate
-The server currently requires at least five independently reviewed eligible questions to open a practice session. The broader internal commercial-readiness target remains at least eight practice items per official skill to support better rotation and reduce memorization effects.
+The server currently requires at least five independently reviewed eligible questions to open a practice session. The broader internal commercial-readiness target remains at least eight practice items per official skill to support better rotation, adaptive difficulty, and reduced memorization effects.
