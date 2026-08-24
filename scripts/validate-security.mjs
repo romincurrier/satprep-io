@@ -15,6 +15,10 @@ if(/question-bank-production|question-bank\.js|answerIndex|correct_answer/i.test
 
 const itemApi=read('api/diagnostic-item-v3.js');
 if(!/enforceCurrent\s*:\s*true/.test(itemApi))fail('Secure diagnostic item delivery must enforce the current unanswered position.');
+const answerApi=read('api/diagnostic-answer-v3.js');
+if(!/JSON\.stringify\(raw\)\.length\s*>\s*1000/.test(answerApi))fail('Secure diagnostic answer API must reject oversized payloads.');
+if(!/UUID\.test\(attemptId\)/.test(answerApi))fail('Secure diagnostic answer API must validate attempt UUIDs before server scoring.');
+if(!/Number\.isInteger\(selected\)/.test(answerApi)||!/selected\s*>\s*3/.test(answerApi))fail('Secure diagnostic answer API must validate answer choice bounds.');
 
 const core=read('server/diagnostic-core.js');
 if(/correct_answer\s*:\s*item\.answerIndex/.test(core))fail('Secure diagnostic must not persist the real answer key in browser-readable legacy response fields.');
