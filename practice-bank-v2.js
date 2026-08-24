@@ -2,7 +2,10 @@ import {PRACTICE_BANK as BASE_PRACTICE_BANK} from './practice-bank.js';
 import {EXTRA_PRACTICE_BANK} from './practice-bank-extra.js';
 import {SKILL_INDEX,skillEligibleForExam} from './sat-spec.js';
 
-export const PRACTICE_BANK=[...BASE_PRACTICE_BANK,...EXTRA_PRACTICE_BANK];
+// Only the previously validated base bank is student-facing. New items remain staged
+// until the independent content-review gate is complete.
+export const PRACTICE_BANK=[...BASE_PRACTICE_BANK];
+export const STAGED_PRACTICE_BANK=[...BASE_PRACTICE_BANK,...EXTRA_PRACTICE_BANK];
 
 function examLabel(targetExam='SAT'){
  const v=String(targetExam||'SAT').toUpperCase();
@@ -16,9 +19,9 @@ export function practiceForSkill(skill,targetExam='SAT'){
  return PRACTICE_BANK.filter(q=>q.skill===skill&&skillEligibleForExam(skill,exam)&&(!q.exams||q.exams.includes(exam)));
 }
 
-export function validatePracticeBank(){
+export function validatePracticeBank(bank=PRACTICE_BANK){
  const errors=[],ids=new Set();
- for(const q of PRACTICE_BANK){
+ for(const q of bank){
   if(!q.id||ids.has(q.id))errors.push(`Duplicate or missing practice id ${q.id}`);ids.add(q.id);
   const skill=SKILL_INDEX[q.skill];
   if(!skill)errors.push(`${q.id}: unknown skill ${q.skill}`);
