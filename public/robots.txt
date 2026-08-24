@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /*?app=1
+Disallow: /*?openBilling=1
+Disallow: /*?billing=
+
+Sitemap: https://satprep.io/sitemap.xml
