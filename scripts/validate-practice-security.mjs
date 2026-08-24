@@ -33,6 +33,14 @@ if(!/finalize_practice_session/.test(core))fail('Commercial practice completion 
 if(!/latestOpen\(/.test(core)||!/practice_session_items/.test(core)||!/resumed:true/.test(core))fail('Commercial practice engine must support durable server-side resume from a persisted item plan.');
 if(!/correct_answer_index/.test(core)||!/correct_answer:/.test(core)||!/explanation/.test(core))fail('Practice submission feedback must return correctness, the correct answer, and an explanation after scoring.');
 
+const learning=read('learning-v2.js'),guard=read('prelaunch-guard.js');
+for(const route of ['/api/practice-session-v3','/api/practice-item-v3','/api/practice-answer-v3'])if(!learning.includes(route))fail(`Student learning UI must use ${route} for commercial practice.`);
+if(!/window\.__SATPREP_PRELAUNCH__===true/.test(learning))fail('Browser-scored practice fallback must be explicitly limited to prelaunch mode.');
+if(!/Commercial practice will not fall back to browser-scored questions/.test(learning))fail('Public/commercial practice must fail closed rather than silently falling back to browser-scored content.');
+if(!/This practice session is saved after every answer and can be resumed/.test(learning))fail('Student practice UX must communicate durable resume behavior.');
+if(!/serverFeedback=await authFetch\('\/api\/practice-answer-v3'/.test(learning))fail('Practice feedback UI must render only after trusted server scoring returns.');
+if(!/window\.__SATPREP_PRELAUNCH__\s*=\s*!PUBLIC_BILLING_ENABLED/.test(guard))fail('Prelaunch guard must expose an explicit state used to gate QA-only browser scoring.');
+
 const contentMigration=read('migrations/20260824_content_system.sql');
 if(!/content_type text not null check \(content_type in \('diagnostic','practice'\)\)/i.test(contentMigration))fail('Content system must distinguish diagnostic and practice items.');
 const migration=read('migrations/20260824_practice_sessions.sql');
@@ -45,4 +53,4 @@ if(!/security definer/i.test(migration)||!/grant execute on function public\.fin
 if(!/on conflict\(student_id,skill_key\) do update/i.test(migration)||!/on conflict\(student_id,lesson_key\) do update/i.test(migration))fail('Practice finalization must update trusted mastery and lesson progress atomically.');
 
 if(errors.length){for(const e of errors)console.error(`Practice security validation error: ${e}`);process.exit(1)}
-console.log('Commercial practice security invariants passed.');
+console.log('Commercial practice security and resume invariants passed.');
