@@ -1,8 +1,9 @@
 import {PRACTICE_BANK as BASE_PRACTICE_BANK} from './practice-bank.js';
 import {EXTRA_PRACTICE_BANK} from './practice-bank-extra.js';
+import {DEPTH3_PRACTICE_BANK} from './practice-bank-depth3.js';
 import {SKILL_INDEX,skillEligibleForExam} from './sat-spec.js';
 
-// Keep authored staging source immutable during review; corrections are applied here so
+// Keep authored staging sources immutable during review; corrections are applied here so
 // the staged QA bank has an auditable override instead of silently duplicating an assessment item.
 const STAGED_OVERRIDES={
  'p-m-118':{
@@ -17,7 +18,7 @@ const QA_EXTRA_PRACTICE_BANK=EXTRA_PRACTICE_BANK.map(q=>STAGED_OVERRIDES[q.id]?{
 // Only the previously validated base bank is student-facing. New items remain staged
 // until the independent content-review gate is complete.
 export const PRACTICE_BANK=[...BASE_PRACTICE_BANK];
-export const STAGED_PRACTICE_BANK=[...BASE_PRACTICE_BANK,...QA_EXTRA_PRACTICE_BANK];
+export const STAGED_PRACTICE_BANK=[...BASE_PRACTICE_BANK,...QA_EXTRA_PRACTICE_BANK,...DEPTH3_PRACTICE_BANK];
 
 function examLabel(targetExam='SAT'){
  const v=String(targetExam||'SAT').toUpperCase();
