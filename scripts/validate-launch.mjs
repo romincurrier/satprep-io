@@ -11,13 +11,18 @@ const requireText = (haystack, needle, label) => { if(!haystack.includes(needle)
 const forbid = (haystack, pattern, label) => { if(pattern.test(haystack)) errors.push(label); };
 
 requireText(index,'src="/prelaunch-guard.js"','index.html must load prelaunch-guard.js.');
+const guardPos=index.indexOf('src="/prelaunch-guard.js"'),billingPos=index.indexOf('src="/billing.js"');
+if(guardPos<0||billingPos<0||guardPos>billingPos)errors.push('prelaunch-guard.js must load before billing.js so public billing URLs/clicks are gated before billing initialization.');
 forbid(index,/"offers"\s*:/,'Pre-launch SoftwareApplication JSON-LD must not publish an Offer before billing terms are approved.');
 forbid(index,/"price"\s*:/,'Pre-launch structured data must not publish a price before billing terms are approved.');
 requireText(guard,'const PUBLIC_BILLING_ENABLED = false','Prelaunch commercial gate must remain disabled until an explicit launch change.');
+requireText(guard,"PUBLIC_HOSTS = new Set(['satprep.io','www.satprep.io'])",'Public billing gate must explicitly cover the production hosts.');
+requireText(guard,'const BILLING_UI_ALLOWED = PUBLIC_BILLING_ENABLED || !IS_PUBLIC_HOST','Preview QA may remain available while public-host billing is gated.');
 requireText(guard,"fetch('/api/parent-setup-request'",'Under-13 setup requests must use the protected server endpoint.');
-requireText(guard,"event.stopImmediatePropagation()",'Youth setup guard must stop the legacy direct-submit handler before it can write from the browser.');
+requireText(guard,"event.stopImmediatePropagation()",'Youth/billing guards must stop legacy handlers when required.');
 requireText(guard,"form.id === 'teenForm'",'Teen signup must be guarded by date-of-birth validation.');
 requireText(guard,'age < 13','Teen signup must reject an entered date of birth indicating the learner is under 13.');
+requireText(guard,"#billingBtn,.billing-checkout,#manageSubscription",'Public-host billing controls must be blocked during prelaunch.');
 requireText(guard,"Public pricing and trial terms will be posted only after those launch checks are complete.",'Prelaunch pricing section must not imply unverified public billing terms.');
 
 requireText(vercel,'Content-Security-Policy','Production headers must include a Content-Security-Policy.');
@@ -50,4 +55,4 @@ if(errors.length){
   for(const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-console.log('Launch validation passed: commercial claims are gated, youth setup uses the protected flow, browser security headers are present, and baseline accessibility safeguards are loaded.');
+console.log('Launch validation passed: public billing is gated, youth setup uses the protected flow, browser security headers are present, and baseline accessibility safeguards are loaded.');
