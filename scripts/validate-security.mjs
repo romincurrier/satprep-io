@@ -13,6 +13,11 @@ if(fs.existsSync(path.join(root,'api/billing-status.js')))fail('Public billing/e
 
 const router=read('diagnostic-router.js');
 if(/question-bank-production|question-bank\.js|answerIndex|correct_answer/i.test(router))fail('Secure diagnostic client must not import or reference diagnostic answer keys.');
+const planCore=read('diagnostic-plan-core.js');
+const blueprint=read('diagnostic-blueprint.js');
+if(/question-bank-production|question-bank\.js|answerIndex|explanation/i.test(planCore))fail('Secure diagnostic planning core must not import or embed authored question content or answer keys.');
+if(/question-bank-production|question-bank\.js/.test(blueprint))fail('Diagnostic blueprint compatibility module must remain free of authored question-bank dependencies.');
+if(!/bank=\[\]/.test(planCore)||!/Array\.isArray\(bank\)\?bank:\[\]/.test(planCore))fail('Secure diagnostic planner must require an explicitly injected content bank.');
 
 const itemApi=read('api/diagnostic-item-v3.js');
 if(!/enforceCurrent\s*:\s*true/.test(itemApi))fail('Secure diagnostic item delivery must enforce the current unanswered position.');
@@ -52,9 +57,10 @@ if(/correct_answer\s*:\s*item\.answerIndex/.test(core))fail('Secure diagnostic m
 const safeQuestion=core.match(/export function safeQuestion\([^)]*\)\{([^}]+)\}/s)?.[1]||'';
 if(!safeQuestion)fail('Could not verify safeQuestion projection.');
 else if(/answerIndex|explanation|distractor/i.test(safeQuestion))fail('safeQuestion must not expose answer/explanation fields.');
-if(!/contentSystemReady\(\)/.test(core)||!/content_items\?select=id,qa_status,active&limit=1/.test(core))fail('Secure diagnostic must verify that the server-only content system is ready before creating/scoring secure attempts.');
+if(!/contentSystemReady\(\)/.test(core)||!/content_items\?select=id,content_type,qa_status,active&limit=1/.test(core))fail('Secure diagnostic must verify that the server-only typed content system is ready before creating/scoring secure attempts.');
 if(!/content_item_reviews\?select=item_id,review_type,decision,content_hash&limit=1/.test(core))fail('Secure diagnostic readiness must require the hash-pinned review schema.');
-if(!/qa_status=eq\.production_approved&active=eq\.true&format=eq\.mcq/.test(core))fail('Secure diagnostic selection must be limited to active production-approved MCQ content.');
+if(!/content_type=eq\.diagnostic&qa_status=eq\.production_approved&active=eq\.true&format=eq\.mcq/.test(core))fail('Secure diagnostic selection must be limited to active production-approved diagnostic MCQ content.');
+if(!/row\.content_type==='diagnostic'/.test(core))fail('Secure diagnostic runtime must verify the returned content type before use.');
 for(const review of ['accuracy','alignment','editorial','bias_accessibility','originality'])if(!core.includes(`'${review}'`))fail(`Secure diagnostic approval gate must require ${review} review.`);
 if(!/content_answer_keys\?select=item_id,answer,explanation/.test(core)||!/content_item_reviews\?select=id,item_id,review_type,reviewer_label,decision,content_hash,created_at&order=created_at\.asc,id\.asc/.test(core))fail('Secure diagnostic plan creation must require scoring content and an ordered hash-pinned independent-review audit trail.');
 if(!/byType\.set\(r\.review_type,r\)/.test(core)||!/r\?\.decision==='approve'/.test(core))fail('Secure diagnostic approval gate must use the latest decision for each required review type.');
@@ -69,6 +75,7 @@ if(!/scored_by_server=eq\.true/.test(core))fail('Secure diagnostic progress/fina
 if(!/r\.content_item_id===r\.question_key/.test(core))fail('Secure diagnostic finalization must verify response/content-item identity.');
 
 const contentMigration=read('migrations/20260824_content_system.sql');
+if(!/content_type text not null check \(content_type in \('diagnostic','practice'\)\)/i.test(contentMigration))fail('Server content items must distinguish diagnostic and practice content types.');
 if(!/add column if not exists content_item_id/i.test(contentMigration)||!/add column if not exists scored_by_server/i.test(contentMigration))fail('Content migration must add secure response provenance columns.');
 if(!/content_hash text not null check \(content_hash ~ '\^\[0-9a-f\]\{64\}\$'\)/i.test(contentMigration))fail('Content review records must be pinned to a 64-character SHA-256 content hash.');
 if(!/review_type in \('accuracy','alignment','editorial','bias_accessibility','originality','psychometric'\)/i.test(contentMigration))fail('Content review schema must support the required originality review dimension.');
