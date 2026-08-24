@@ -1,7 +1,7 @@
 import {supabase} from './supabase.js';
 import {SKILL_INDEX,DOMAIN_INDEX,skillEligibleForExam,examKey} from './sat-spec.js';
 import {SKILL_GUIDES} from './skill-guides.js';
-import {practiceForSkill} from './practice-bank-v2.js';
+import {practiceForSkill} from './practice-bank.js';
 
 const esc=s=>String(s??'').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));
 const pct=x=>Math.round(Math.max(0,Math.min(1,Number(x)||0))*100);
