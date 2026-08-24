@@ -2,10 +2,22 @@ import {PRACTICE_BANK as BASE_PRACTICE_BANK} from './practice-bank.js';
 import {EXTRA_PRACTICE_BANK} from './practice-bank-extra.js';
 import {SKILL_INDEX,skillEligibleForExam} from './sat-spec.js';
 
+// Keep authored staging source immutable during review; corrections are applied here so
+// the staged QA bank has an auditable override instead of silently duplicating an assessment item.
+const STAGED_OVERRIDES={
+ 'p-m-118':{
+  stem:'Two angles of a triangle measure 52° and 73°. What is the measure of the third angle?',
+  choices:['45°','55°','65°','125°'],
+  answerIndex:1,
+  explanation:'The interior angles of a triangle sum to 180°. 180−52−73=55°.'
+ }
+};
+const QA_EXTRA_PRACTICE_BANK=EXTRA_PRACTICE_BANK.map(q=>STAGED_OVERRIDES[q.id]?{...q,...STAGED_OVERRIDES[q.id]}:q);
+
 // Only the previously validated base bank is student-facing. New items remain staged
 // until the independent content-review gate is complete.
 export const PRACTICE_BANK=[...BASE_PRACTICE_BANK];
-export const STAGED_PRACTICE_BANK=[...BASE_PRACTICE_BANK,...EXTRA_PRACTICE_BANK];
+export const STAGED_PRACTICE_BANK=[...BASE_PRACTICE_BANK,...QA_EXTRA_PRACTICE_BANK];
 
 function examLabel(targetExam='SAT'){
  const v=String(targetExam||'SAT').toUpperCase();
