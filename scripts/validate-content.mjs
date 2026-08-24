@@ -1,6 +1,7 @@
 import {QUESTION_BANK,validateQuestionBank,eligibleQuestions} from '../question-bank.js';
 import {SKILL_INDEX} from '../sat-spec.js';
 import {buildDiagnosticPlan,validateDiagnosticPlan} from '../diagnostic-blueprint.js';
+import {OFFICIAL_LESSONS,SKILL_GUIDES} from '../learning-catalog.js';
 
 const errors=[...validateQuestionBank()];
 const counts={};
@@ -13,6 +14,15 @@ for(const exam of ['SAT','PSAT/NMSQT','PSAT 10']){
  for(const e of validateDiagnosticPlan(plan))errors.push(`${exam}: ${e}`);
  for(const p of plan)if(!eligible.some(q=>q.id===p.itemId))errors.push(`${exam}: plan selected ineligible item ${p.itemId}`);
 }
+for(const skill of Object.keys(SKILL_INDEX)){
+ const guide=SKILL_GUIDES[skill],lesson=OFFICIAL_LESSONS.find(l=>l.skills.includes(skill));
+ if(!guide)errors.push(`Missing instructional guide for ${skill}`);
+ if(!lesson)errors.push(`Missing lesson object for ${skill}`);
+ else{
+  if(!lesson.qs?.length)errors.push(`${skill}: lesson has no practice item`);
+  for(const q of lesson.qs||[])if(!/^Correct answer:/i.test(q.e||''))errors.push(`${skill}: practice feedback must state the correct answer before the explanation`);
+ }
+}
 
 if(errors.length){
  console.error(`Content validation failed with ${errors.length} issue(s):`);
@@ -22,5 +32,6 @@ if(errors.length){
 
 const bySection=QUESTION_BANK.reduce((m,q)=>{m[q.section]=(m[q.section]||0)+1;return m},{});
 console.log(`Content validation passed: ${QUESTION_BANK.length} original items (${bySection.RW||0} RW, ${bySection.MATH||0} Math), covering ${Object.keys(SKILL_INDEX).length} official skill points.`);
+console.log(`Instructional coverage passed: ${OFFICIAL_LESSONS.length} official-skill lesson guides with explicit correct-answer practice feedback.`);
 console.log('Diagnostic blueprint validation passed for SAT, PSAT/NMSQT, and PSAT 10.');
 console.log('QA note: internal_review items are development content. Production launch requires independent item review and a substantially deeper pool per skill.');
