@@ -3,6 +3,7 @@ import fs from 'node:fs';
 const read = path => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const index = read('index.html');
 const marketing = read('marketing.js');
+const marketingEvents = read('marketing-events.js');
 const guard = read('prelaunch-guard.js');
 const vercel = read('vercel.json');
 const accessibility = read('public/accessibility.css');
@@ -15,11 +16,14 @@ const requireText = (haystack, needle, label) => { if(!haystack.includes(needle)
 const forbid = (haystack, pattern, label) => { if(pattern.test(haystack)) errors.push(label); };
 
 requireText(index,'src="/prelaunch-guard.js"','index.html must load prelaunch-guard.js.');
-const guardPos=index.indexOf('src="/prelaunch-guard.js"'),billingPos=index.indexOf('src="/billing.js"');
+const guardPos=index.indexOf('src="/prelaunch-guard.js"'),billingPos=index.indexOf('src="/billing.js"'),measurementPos=index.indexOf('src="/marketing-events.js"');
 if(guardPos<0||billingPos<0||guardPos>billingPos)errors.push('prelaunch-guard.js must load before billing.js so public billing URLs/clicks are gated before billing initialization.');
+if(measurementPos<0||guardPos<0||guardPos>measurementPos)errors.push('prelaunch-guard.js must load before marketing-events.js so the disabled client measurement gate exists before tracking code initializes.');
 forbid(index,/"offers"\s*:/,'Pre-launch SoftwareApplication JSON-LD must not publish an Offer before billing terms are approved.');
 forbid(index,/"price"\s*:/,'Pre-launch structured data must not publish a price before billing terms are approved.');
 requireText(guard,'const PUBLIC_BILLING_ENABLED = false','Prelaunch commercial gate must remain disabled until an explicit launch change.');
+requireText(guard,'const PUBLIC_MARKETING_MEASUREMENT_ENABLED = false','Prelaunch client measurement gate must remain disabled until explicit privacy/analytics approval.');
+requireText(guard,'window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__ = PUBLIC_MARKETING_MEASUREMENT_ENABLED','Prelaunch guard must expose the disabled client measurement state before the tracking module loads.');
 requireText(guard,"PUBLIC_HOSTS = new Set(['satprep.io','www.satprep.io'])",'Public billing gate must explicitly cover the production hosts.');
 requireText(guard,'const BILLING_UI_ALLOWED = PUBLIC_BILLING_ENABLED || !IS_PUBLIC_HOST','Preview QA may remain available while public-host billing is gated.');
 requireText(marketing,"fetch('/api/parent-setup-request'",'Under-13 setup requests must use the protected server endpoint natively.');
@@ -41,7 +45,8 @@ requireText(envExample,'MARKETING_MEASUREMENT_ENABLED=false','env.example must k
 requireText(marketingEventApi,"process.env.MARKETING_MEASUREMENT_ENABLED",'Marketing measurement API must require an explicit server-side enable flag.');
 requireText(marketingEventApi,"if(!MEASUREMENT_ENABLED)return json(res,404",'Marketing measurement API must fail closed while measurement is disabled.');
 requireText(marketingEventApi,"enforceRateLimit(networkSubject(req),'marketing/event'",'Marketing measurement API must use durable abuse controls before accepting anonymous events.');
-forbid(index,/src=["']\/marketing-events\.js["']/,'Prelaunch index.html must not directly activate the marketing tracking client while measurement is gated.');
+requireText(marketingEvents,"window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__!==true",'Marketing tracking client must refuse to send while the client launch gate is disabled.');
+requireText(marketingEvents,"if(window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__===true)installMarketingTracking()",'Marketing tracking client may self-install only after explicit client-gate enablement.');
 
 requireText(vercel,'Content-Security-Policy','Production headers must include a Content-Security-Policy.');
 requireText(vercel,"default-src 'self'",'Content-Security-Policy must default to same-origin resources.');
@@ -75,4 +80,4 @@ if(errors.length){
   for(const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-console.log('Launch validation passed: public billing/indexing/outbound marketing/measurement remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, anonymous measurement is fail-closed and rate-limited, browser security headers are present, and baseline accessibility safeguards are loaded.');
+console.log('Launch validation passed: public billing/indexing/outbound marketing/measurement remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, first-party measurement is inert until explicitly enabled and is rate-limited server-side, browser security headers are present, and baseline accessibility safeguards are loaded.');
