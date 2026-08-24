@@ -1,4 +1,4 @@
-import {authenticatedUser,json,service} from '../server/supabase-server.js';
+import {authenticatedUser,json,service,enforceRateLimit} from '../server/supabase-server.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -8,6 +8,7 @@ export default async function handler(req,res){
  if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
  try{
   const auth=await authenticatedUser(req),user=auth?.user;if(!user)return json(res,401,{error:'Sign in required.'});const p=await parentProfile(user);if(!p||p.role!=='parent'||!p.household_id)return json(res,403,{error:'A parent or guardian must activate the student login.'});
+  await enforceRateLimit(user.id,'account/student-activation',{limit:5,windowSeconds:3600});
   const studentId=String(req.body?.student_id||'').trim(),normalized=String(req.body?.email||'').trim().toLowerCase(),password=String(req.body?.password||'');if(!UUID.test(studentId)||!EMAIL.test(normalized)||normalized.length>254||!password)return json(res,400,{error:'Valid student, email and password are required.'});if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters.'});if(password.length>200)return json(res,400,{error:'Password is too long.'});
   const link=await service(`/rest/v1/parent_students?parent_profile_id=eq.${encodeURIComponent(p.id)}&student_id=eq.${encodeURIComponent(studentId)}&select=student_id`);if(!Array.isArray(link)||!link.length)return json(res,403,{error:'That student is not linked to this parent account.'});
   const students=await service(`/rest/v1/students?id=eq.${encodeURIComponent(studentId)}&household_id=eq.${encodeURIComponent(p.household_id)}&select=id,profile_id,first_name,last_name,display_name,household_id,date_of_birth`),s=students?.[0];if(!s)return json(res,404,{error:'Student not found.'});if(s.profile_id)return json(res,409,{error:'This student already has a login.'});
@@ -20,5 +21,5 @@ export default async function handler(req,res){
   // verification method, consent version, revocation, and deletion rights require legal/privacy review.
   await service('/rest/v1/parental_consents',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({student_profile_id:uid,parent_profile_id:p.id,consent_type:'account_and_data',consent_version:'2026-08'})});
   return json(res,200,{ok:true,email:normalized,student_id:studentId});
- }catch(e){console.error('activate-student-login',e);return json(res,500,{error:'Unable to activate the student login right now.'})}
+ }catch(e){console.error('activate-student-login',e);if(e.retryAfter)res.setHeader('Retry-After',String(e.retryAfter));return json(res,e.status||500,{error:e.status&&e.status<500?e.message:'Unable to activate the student login right now.'})}
 }
