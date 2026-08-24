@@ -45,6 +45,10 @@ requireText(envExample,'MARKETING_MEASUREMENT_ENABLED=false','env.example must k
 requireText(marketingEventApi,"process.env.MARKETING_MEASUREMENT_ENABLED",'Marketing measurement API must require an explicit server-side enable flag.');
 requireText(marketingEventApi,"if(!MEASUREMENT_ENABLED)return json(res,404",'Marketing measurement API must fail closed while measurement is disabled.');
 requireText(marketingEventApi,"enforceRateLimit(networkSubject(req),'marketing/event'",'Marketing measurement API must use durable abuse controls before accepting anonymous events.');
+requireText(marketingEventApi,'const EMAIL_LIKE=','Marketing measurement API must retain an email-like data filter.');
+requireText(marketingEventApi,'const PHONE_LIKE=','Marketing measurement API must retain a phone-like data filter.');
+requireText(marketingEventApi,'const noContactData=','Marketing measurement API must discard contact-like campaign values instead of persisting them.');
+requireText(marketingEventApi,'utm_term:cleanFree','Free-form paid-keyword attribution must pass through the contact-data filter.');
 requireText(marketingEvents,"window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__!==true",'Marketing tracking client must refuse to send while the client launch gate is disabled.');
 requireText(marketingEvents,"if(window.__SATPREP_MARKETING_MEASUREMENT_ENABLED__===true)installMarketingTracking()",'Marketing tracking client may self-install only after explicit client-gate enablement.');
 
@@ -80,4 +84,4 @@ if(errors.length){
   for(const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-console.log('Launch validation passed: public billing/indexing/outbound marketing/measurement remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, first-party measurement is inert until explicitly enabled and is rate-limited server-side, browser security headers are present, and baseline accessibility safeguards are loaded.');
+console.log('Launch validation passed: public billing/indexing/outbound marketing/measurement remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, first-party measurement is inert until explicitly enabled, contact-like attribution values are discarded, anonymous measurement is rate-limited server-side, browser security headers are present, and baseline accessibility safeguards are loaded.');
