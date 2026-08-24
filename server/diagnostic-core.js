@@ -1,4 +1,4 @@
-import {QUESTION_BANK,questionById} from '../question-bank.js';
+import {QUESTION_BANK,questionById} from '../question-bank-production.js';
 import {buildDiagnosticPlan} from '../diagnostic-blueprint.js';
 import {SKILL_INDEX} from '../sat-spec.js';
 import {service} from './supabase-server.js';
@@ -15,7 +15,7 @@ export async function ensureSecureAttempt(student){
  const existing=await latestOpenAttempt(student.id);
  if(existing){const ids=existing.summary?.question_plan||[];return{attempt:existing,legacy:!isSecurePlan(ids),total:ids.length,completed:await responseCount(existing.id)}}
  if(student.diagnostic_completed_at)return{completedDiagnostic:true};
- const priorities=studentPriorities(student),seed=`${student.id}:${new Date().toISOString().slice(0,10)}`,plan=buildDiagnosticPlan({targetExam:student.target_exam||'SAT',priorities,seed}),ids=plan.map(x=>x.itemId),summary={engine:'secure-v3',adaptive:true,assessment_only:true,question_plan:ids,blueprint:plan,external_priorities:priorities,content_version:'bank-v1'};
+ const priorities=studentPriorities(student),seed=`${student.id}:${new Date().toISOString().slice(0,10)}`,plan=buildDiagnosticPlan({targetExam:student.target_exam||'SAT',priorities,seed}),ids=plan.map(x=>x.itemId),summary={engine:'secure-v3',adaptive:true,assessment_only:true,question_plan:ids,blueprint:plan,external_priorities:priorities,content_version:'bank-v2'};
  const rows=await service('/rest/v1/diagnostic_attempts',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({student_id:student.id,status:'in_progress',summary})});
  const attempt=rows?.[0];if(!attempt)throw new Error('Diagnostic attempt could not be created.');return{attempt,legacy:false,total:ids.length,completed:0};
 }
