@@ -20,12 +20,19 @@ if(!/JSON\.stringify\(raw\)\.length\s*>\s*1000/.test(answerApi))fail('Secure dia
 if(!/UUID\.test\(attemptId\)/.test(answerApi))fail('Secure diagnostic answer API must validate attempt UUIDs before server scoring.');
 if(!/Number\.isInteger\(selected\)/.test(answerApi)||!/selected\s*>\s*3/.test(answerApi))fail('Secure diagnostic answer API must validate answer choice bounds.');
 
-const secureApis=[
+const protectedApis=[
  ['api/diagnostic-session-v3.js','diagnostic/session'],
  ['api/diagnostic-item-v3.js','diagnostic/item'],
- ['api/diagnostic-answer-v3.js','diagnostic/answer']
+ ['api/diagnostic-answer-v3.js','diagnostic/answer'],
+ ['api/activate-student-login.js','account/student-activation'],
+ ['api/parent-invitations.js','parent/invitations/read'],
+ ['api/parent-invitations.js','parent/invitations/accept'],
+ ['api/parent-setup-request.js','parent/setup-request'],
+ ['api/create-checkout-session.js','billing/checkout-create'],
+ ['api/confirm-checkout-session.js','billing/checkout-confirm'],
+ ['api/create-portal-session.js','billing/portal-create']
 ];
-for(const [file,route] of secureApis){const txt=read(file);if(!/enforceRateLimit\(/.test(txt)||!txt.includes(`'${route}'`))fail(`${file}: secure diagnostic endpoint must enforce its durable per-user rate limit.`);if(!/Retry-After/.test(txt))fail(`${file}: rate-limited responses must emit Retry-After.`)}
+for(const [file,route] of protectedApis){const txt=read(file);if(!/enforceRateLimit\(/.test(txt)||!txt.includes(`'${route}'`))fail(`${file}: protected endpoint must enforce durable rate limit ${route}.`);if(!/Retry-After/.test(txt))fail(`${file}: rate-limited responses must emit Retry-After.`)}
 
 const serverAccess=read('server/supabase-server.js');
 if(!/export async function enforceRateLimit/.test(serverAccess)||!/consume_api_rate_limit/.test(serverAccess))fail('Server data layer must expose the durable rate-limit helper.');
