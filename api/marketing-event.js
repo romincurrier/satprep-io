@@ -9,7 +9,7 @@ const noContactData=value=>value&&(EMAIL_LIKE.test(value)||PHONE_LIKE.test(value
 const cleanKey=(value,max=80)=>{const s=noContactData(clean(value,max));return s&&/^[a-z0-9_./:-]+$/i.test(s)?s:null};
 const cleanFree=(value,max=140)=>noContactData(clean(value,max));
 const safePath=value=>{const s=clean(value,240)||'/';if(!s.startsWith('/')||s.startsWith('//'))return'/';return s.split('?')[0].split('#')[0].slice(0,240)||'/'};
-const allowedOrigin=req=>{const origin=String(req.headers.origin||'');if(!origin)return true;try{const host=new URL(origin).hostname.toLowerCase();return host==='satprep.io'||host==='www.satprep.io'||host.endsWith('.vercel.app')||host==='localhost'||host==='127.0.0.1'}catch{return false}};
+const allowedOrigin=req=>{const origin=String(req.headers.origin||'');if(!origin)return false;try{const host=new URL(origin).hostname.toLowerCase();return host==='satprep.io'||host==='www.satprep.io'||host.endsWith('.vercel.app')||host==='localhost'||host==='127.0.0.1'}catch{return false}};
 function networkSubject(req){
  // Vercel overwrites x-forwarded-for at the edge, so it is suitable as a short-lived
  // abuse-control subject. The raw address is never written to marketing_events or
