@@ -2,8 +2,7 @@ import {QUESTION_BANK,validateQuestionBank,eligibleQuestions} from '../question-
 import {SKILL_INDEX} from '../sat-spec.js';
 import {buildDiagnosticPlan,validateDiagnosticPlan} from '../diagnostic-blueprint.js';
 import {SKILL_GUIDES} from '../skill-guides.js';
-import {PRACTICE_BANK} from '../practice-bank-v2.js';
-import {validatePracticeBank} from '../practice-bank.js';
+import {PRACTICE_BANK,validatePracticeBank} from '../practice-bank.js';
 
 const errors=[...validateQuestionBank(),...validatePracticeBank()];
 const diagnosticCounts={},practiceCounts={};
@@ -40,8 +39,8 @@ if(errors.length){
 }
 
 const bySection=QUESTION_BANK.reduce((m,q)=>{m[q.section]=(m[q.section]||0)+1;return m},{});
-const practiceBySection=PRACTICE_BANK.reduce((m,q)=>{m[q.section]=(m[q.section]||0)+1;return m},{});
 console.log(`Diagnostic content validation passed: ${QUESTION_BANK.length} original assessment items (${bySection.RW||0} RW, ${bySection.MATH||0} Math), with at least two items for every official skill point.`);
-console.log(`Expanded practice content cross-bank validation passed: ${PRACTICE_BANK.length} items (${practiceBySection.RW||0} RW, ${practiceBySection.MATH||0} Math).`);
+console.log(`Practice content validation passed: ${PRACTICE_BANK.length} separate practice-only items covering all ${Object.keys(SKILL_INDEX).length} official skill points.`);
 console.log(`Instructional coverage passed: ${Object.keys(SKILL_GUIDES).length} official-skill teaching guides.`);
 console.log('Diagnostic blueprint validation passed for SAT, PSAT/NMSQT, and PSAT 10.');
+console.log('QA note: internal_review content is development content. Production launch requires independent accuracy/alignment/editorial review and a substantially deeper pool per skill.');
