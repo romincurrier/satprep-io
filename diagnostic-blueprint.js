@@ -18,18 +18,19 @@ function chooseDomain(pool,count,priorities,random){
 }
 function examLabel(targetExam){const k=examKey(targetExam);return k==='SAT'?'SAT':k==='PSAT_10'?'PSAT 10':'PSAT/NMSQT'}
 
-export function buildDiagnosticPlan({targetExam='SAT',priorities=[],seed='satprep',length=20}={}){
- const exam=examLabel(targetExam),bank=eligibleQuestions(exam),random=rng(`${seed}:${exam}`),pri=normalizedPriorities(priorities);
+export function buildDiagnosticPlan({targetExam='SAT',priorities=[],seed='satprep',length=20,bank=null}={}){
+ const exam=examLabel(targetExam),source=Array.isArray(bank)?bank:eligibleQuestions(exam),random=rng(`${seed}:${exam}`),pri=normalizedPriorities(priorities);
+ const eligible=source.filter(q=>(!q.exams||q.exams.includes(exam))&&q.format==='mcq');
  const selected=[];
  const addSection=(section,quota)=>{
   for(const [domain,count] of Object.entries(quota)){
-   const pool=bank.filter(q=>q.section===section&&q.domain===domain&&!selected.includes(q));
+   const pool=eligible.filter(q=>q.section===section&&q.domain===domain&&!selected.includes(q));
    selected.push(...chooseDomain(pool,count,pri,random));
   }
  };
  addSection('RW',RW_QUOTA);addSection('MATH',MATH_QUOTA);
  const desiredRW=Math.round(length*54/98),desiredMath=length-desiredRW;
- const fill=(section,target)=>{for(const q of shuffle(bank.filter(x=>x.section===section&&!selected.includes(x)),random).sort((a,b)=>priorityRank(a,pri)-priorityRank(b,pri))){if(selected.filter(x=>x.section===section).length>=target)break;selected.push(q)}};
+ const fill=(section,target)=>{for(const q of shuffle(eligible.filter(x=>x.section===section&&!selected.includes(x)),random).sort((a,b)=>priorityRank(a,pri)-priorityRank(b,pri))){if(selected.filter(x=>x.section===section).length>=target)break;selected.push(q)}};
  fill('RW',desiredRW);fill('MATH',desiredMath);
  return selected.slice(0,length).map((q,position)=>({position,itemId:q.id,section:q.section,domain:q.domain,skill:q.skill,difficulty:q.difficulty,isTargeted:priorityRank(q,pri)<4}));
 }
