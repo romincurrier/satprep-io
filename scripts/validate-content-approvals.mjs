@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import {QUESTION_BANK} from '../question-bank-production.js';
 import {STAGED_PRACTICE_BANK} from '../practice-bank-v2.js';
+import {canonicalReviewContent} from '../content-integrity.js';
 
 const registry=JSON.parse(fs.readFileSync('content-approval-registry.json','utf8'));
-const canonical=(type,q)=>({type,id:q.id,section:q.section,domain:q.domain,skill:q.skill,difficulty:q.difficulty,exams:q.exams||['SAT','PSAT/NMSQT','PSAT 10'],stimulus:q.stimulus??null,stem:q.stem,choices:q.choices||null,answerIndex:q.answerIndex,explanation:q.explanation});
-const hash=(type,q)=>createHash('sha256').update(JSON.stringify(canonical(type,q))).digest('hex');
+const hash=(type,q)=>createHash('sha256').update(JSON.stringify(canonicalReviewContent(type,q))).digest('hex');
 const expected=new Map([
  ...QUESTION_BANK.map(q=>[`diagnostic:${q.id}`,{type:'diagnostic',q,hash:hash('diagnostic',q)}]),
  ...STAGED_PRACTICE_BANK.map(q=>[`practice:${q.id}`,{type:'practice',q,hash:hash('practice',q)}])
