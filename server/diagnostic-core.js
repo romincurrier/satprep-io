@@ -9,6 +9,7 @@ const LEGACY_TO_OFFICIAL={
  'Analysis':'inferences','Inference':'inferences','Reading Comprehension':'central-ideas-details','Evidence':'command-evidence-textual','Precision':'words-in-context','Vocabulary':'words-in-context','Words in Context':'words-in-context','Organization':'rhetorical-synthesis','Purpose':'rhetorical-synthesis','Style':'rhetorical-synthesis','Rhetorical Synthesis':'rhetorical-synthesis','Writing Mechanics':'form-structure-sense','Grammar':'form-structure-sense','Punctuation':'boundaries','Transitions':'transitions','Linear Equations':'linear-equations-one-variable','Systems':'systems-linear-equations','Functions':'linear-functions','Quadratics':'nonlinear-equations-one-variable','Percent':'percentages','Rates':'ratios-rates-units','Ratios':'ratios-rates-units','Data Analysis':'one-variable-data','Problem Solving':'ratios-rates-units','Geometry':'lines-angles-triangles','Fractions & Decimals':'ratios-rates-units','Number Sense':'ratios-rates-units'
 };
 const REQUIRED_REVIEWS=['accuracy','alignment','editorial','bias_accessibility','originality'];
+const REVIEW_FETCH_CHUNK=40;
 let contentSystemReadyCache=null;
 function officialSkill(value){const s=String(value||'');return SKILL_INDEX[s]?s:(LEGACY_TO_OFFICIAL[s]||null)}
 function examLabel(value){const k=examKey(value);return k==='SAT'?'SAT':k==='PSAT_10'?'PSAT 10':'PSAT/NMSQT'}
@@ -18,6 +19,15 @@ function runtimeContentHash(row,key){const explanation=typeof key?.explanation==
 function latestReviewMap(reviews){const map=new Map();for(const r of reviews||[]){if(!r.item_id||!REQUIRED_REVIEWS.includes(r.review_type))continue;const byType=map.get(r.item_id)||new Map();byType.set(r.review_type,r);map.set(r.item_id,byType)}return map}
 function reviewsApproved(reviewMap,itemId,contentHash){return !!contentHash&&REQUIRED_REVIEWS.every(type=>{const r=reviewMap.get(itemId)?.get(type);return r?.decision==='approve'&&!!String(r.reviewer_label||'').trim()&&r?.content_hash===contentHash})}
 function usableFormat(row){return row?.format==='mcq'||(row?.format==='spr'&&row?.section==='MATH')}
+function candidateIdFilter(rows){return `(${rows.map(row=>encodeURIComponent(String(row.id))).join(',')})`}
+async function scopedReviewMaterial(candidates){
+ const chunks=[];for(let i=0;i<candidates.length;i+=REVIEW_FETCH_CHUNK)chunks.push(candidates.slice(i,i+REVIEW_FETCH_CHUNK));
+ const batches=await Promise.all(chunks.map(async chunk=>{const itemFilter=candidateIdFilter(chunk),[keys,reviews]=await Promise.all([
+  service(`/rest/v1/content_answer_keys?select=item_id,answer,explanation&item_id=in.${itemFilter}`),
+  service(`/rest/v1/content_item_reviews?select=id,item_id,review_type,reviewer_label,decision,content_hash,created_at&order=created_at.asc,id.asc&item_id=in.${itemFilter}`)
+ ]);return{keys:keys||[],reviews:reviews||[]}}));
+ return{keys:batches.flatMap(x=>x.keys),reviews:batches.flatMap(x=>x.reviews)};
+}
 export function studentPriorities(student){const path=student?.recommended_path||{},raw=path.external_priority_skills||path.priority_skills||[];return raw.map(x=>({skill:officialSkill(x.skill||x.source_skill),mastery:Number(x.mastery??1)})).filter(x=>x.skill).sort((a,b)=>a.mastery-b.mastery)}
 async function contentSystemReady(){
  if(contentSystemReadyCache!==null)return contentSystemReadyCache;
@@ -36,13 +46,11 @@ async function contentSystemReady(){
 }
 async function approvedRuntimeBank(targetExam){
  const exam=examLabel(targetExam);
- const [items,keys,reviews]=await Promise.all([
-  service('/rest/v1/content_items?content_type=eq.diagnostic&qa_status=eq.production_approved&active=eq.true&select=id,content_type,section,domain_key,skill_key,difficulty,format,stimulus,stem,choices,exams,estimated_seconds&order=id.asc'),
-  service('/rest/v1/content_answer_keys?select=item_id,answer,explanation'),
-  service('/rest/v1/content_item_reviews?select=id,item_id,review_type,reviewer_label,decision,content_hash,created_at&order=created_at.asc,id.asc')
- ]);
- const keyMap=new Map((keys||[]).map(x=>[x.item_id,x])),reviewMap=latestReviewMap(reviews);
- return (items||[]).filter(row=>{const key=keyMap.get(row.id),contentHash=runtimeContentHash(row,key);return row.content_type==='diagnostic'&&usableFormat(row)&&reviewsApproved(reviewMap,row.id,contentHash)&&Array.isArray(row.exams)&&row.exams.includes(exam)&&SKILL_INDEX[row.skill_key]}).map(normalizeContentItem);
+ const items=await service('/rest/v1/content_items?content_type=eq.diagnostic&qa_status=eq.production_approved&active=eq.true&select=id,content_type,section,domain_key,skill_key,difficulty,format,stimulus,stem,choices,exams,estimated_seconds&order=id.asc');
+ const candidates=(items||[]).filter(row=>row.content_type==='diagnostic'&&usableFormat(row)&&Array.isArray(row.exams)&&row.exams.includes(exam)&&SKILL_INDEX[row.skill_key]);
+ if(!candidates.length)return[];
+ const{keys,reviews}=await scopedReviewMaterial(candidates),keyMap=new Map((keys||[]).map(x=>[x.item_id,x])),reviewMap=latestReviewMap(reviews);
+ return candidates.filter(row=>{const key=keyMap.get(row.id),contentHash=runtimeContentHash(row,key);return reviewsApproved(reviewMap,row.id,contentHash)}).map(normalizeContentItem);
 }
 async function approvedContent(itemId){const [items,keys,reviews]=await Promise.all([service(`/rest/v1/content_items?id=eq.${encodeURIComponent(itemId)}&content_type=eq.diagnostic&qa_status=eq.production_approved&active=eq.true&select=id,content_type,section,domain_key,skill_key,difficulty,format,stimulus,stem,choices,exams,estimated_seconds&limit=1`),service(`/rest/v1/content_answer_keys?item_id=eq.${encodeURIComponent(itemId)}&select=item_id,answer,explanation&limit=1`),service(`/rest/v1/content_item_reviews?item_id=eq.${encodeURIComponent(itemId)}&select=id,item_id,review_type,reviewer_label,decision,content_hash,created_at&order=created_at.asc,id.asc`)]),row=items?.[0],key=keys?.[0];if(!row||row.content_type!=='diagnostic'||!key||!usableFormat(row))throw Object.assign(new Error('This assessment item is not currently approved for use.'),{status:503});const contentHash=runtimeContentHash(row,key),reviewMap=latestReviewMap(reviews);if(!reviewsApproved(reviewMap,itemId,contentHash))throw Object.assign(new Error('This assessment item changed after review or is not currently approved for use.'),{status:503});if(!answerSpec(row.format||'mcq',key.answer))throw Object.assign(new Error('The approved scoring key is not ready.'),{status:503});return{item:normalizeContentItem(row),answer:key.answer,contentHash}}
 async function assertPersistedPlanItem(attemptId,position,itemId){const rows=await service(`/rest/v1/diagnostic_attempt_items?attempt_id=eq.${encodeURIComponent(attemptId)}&position=eq.${Number(position)}&select=item_id&limit=1`);if(rows?.[0]?.item_id!==itemId)throw Object.assign(new Error('The secure assessment plan could not be verified.'),{status:503})}
