@@ -16,7 +16,7 @@ export default async function handler(req,res){
   await enforceRateLimit(auth.user.id,'billing/overview',{limit:60,windowSeconds:60});
 
   if(p.role==='admin')return json(res,200,{ok:true,profile:{role:'admin',billing_owner:false},student_count:0,subscription:null});
-  if(p.role!=='parent')return json(res,403,{error:'A parent or guardian account is required for billing.'});
+  if(p.role!=='parent')return json(res,200,{ok:true,profile:{role:String(p.role||'student'),billing_owner:false},student_count:0,subscription:null});
 
   let studentCount=0,sub=null;
   if(p.household_id){
