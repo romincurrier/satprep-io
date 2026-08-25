@@ -25,9 +25,11 @@ if(!/String\(raw\.response_text\)/.test(answerApi))fail('Practice answer API mus
 const core=read('server/practice-core.js');
 if(/practice-bank|question-bank/i.test(core))fail('Commercial practice runtime must not import committed authored question banks.');
 if(!/practice-selection-core\.js/.test(core)||!/selectAdaptiveItems/.test(core)||!/adaptiveBand/.test(core))fail('Commercial practice runtime must use the pure mastery-adaptive selection core.');
+if(!/commercial-content-policy\.js/.test(core)||!core.includes("evaluateSkillCoverage(bank,'practice')")||!core.includes('COMMERCIAL_CONTENT_POLICY.practice.minApprovedPerSkill'))fail('Commercial practice must enforce the shared approved depth and difficulty-coverage policy before opening a new session.');
 if(!/response-scoring\.js/.test(core)||!/scoreResponse\(/.test(core))fail('Commercial practice runtime must use shared server-side MCQ/SPR response scoring.');
 if(!/masteryForSkill\(student\.id,skill\)/.test(core))fail('Commercial practice must read the current trusted skill mastery before planning a new session.');
-if(!/selectAdaptiveItems\(source,\{length,mastery,randomIntFn:randomInt\}\)/.test(core))fail('Commercial practice must apply mastery-adaptive difficulty selection to the approved fresh item pool.');
+if(!/selectAdaptiveItems\(source,\{length,mastery,sprTarget,randomIntFn:randomInt\}\)/.test(core))fail('Commercial practice must apply mastery-adaptive difficulty and Math SPR selection to the approved fresh item pool.');
+if(!core.includes("sprTarget=meta.section==='MATH'?Math.max(1,Math.round(length*.25)):0"))fail('Math guided practice must target approximately 25% SPR when the approved pool supports it.');
 if(!/mastery_before:mastery,adaptive_band:band/.test(core))fail('New commercial practice sessions must persist the mastery baseline and adaptive band used to plan the immutable item set.');
 if(!/existing\.adaptive_band\|\|band/.test(core))fail('Resumed practice must report the adaptive band stored with the saved item plan rather than silently regenerating its planning provenance.');
 if(!/content_type=eq\.practice&skill_key=eq\./.test(core)||!/qa_status=eq\.production_approved&active=eq\.true/.test(core))fail('Commercial practice selection must use active production-approved server practice content for the requested skill.');
@@ -76,4 +78,4 @@ if(!/security definer/i.test(migration)||!/grant execute on function public\.fin
 if(!/on conflict\(student_id,skill_key\) do update/i.test(migration)||!/on conflict\(student_id,lesson_key\) do update/i.test(migration))fail('Practice finalization must update trusted mastery and lesson progress atomically.');
 
 if(errors.length){for(const e of errors)console.error(`Practice security validation error: ${e}`);process.exit(1)}
-console.log('Commercial MCQ/SPR practice security, adaptive selection, provenance, and resume invariants passed.');
+console.log('Commercial MCQ/SPR practice security, adaptive selection, content-depth policy, provenance, and resume invariants passed.');
