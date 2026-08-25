@@ -34,7 +34,8 @@ for(const forbidden of ['supabase.from("profiles")','supabase.from("subscription
  if(billingClient.includes(forbidden))failures.push(`Billing browser must not directly read broad billing/account tables: ${forbidden}`);
 }
 if(!billingClient.includes('subscription?.can_manage'))failures.push('Billing browser must use the minimized can_manage flag instead of a provider customer identifier.');
-if(!billingClient.includes('!["parent","admin"].includes(profile?.role)'))failures.push('Billing controls must remain hidden from non-billing roles in the browser.');
+if(!billingClient.includes('profile?.role!=="parent"'))failures.push('Billing controls must remain hidden from non-parent roles in the browser.');
+if(!billingClient.includes('profile?.role==="parent"'))failures.push('Billing checkout-return handling must remain parent-scoped in the browser.');
 
 if(failures.length){
  console.error('Billing security validation failed:');
