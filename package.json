@@ -7,6 +7,7 @@
     "dev": "vite",
     "validate:content": "node scripts/validate-content.mjs",
     "validate:approvals": "node scripts/validate-content-approvals.mjs",
+    "validate:content-policy": "node scripts/validate-commercial-content-policy.mjs",
     "validate:seo": "node scripts/validate-seo.mjs",
     "validate:marketing-claims": "node scripts/validate-marketing-claims.mjs",
     "validate:accessibility": "node scripts/validate-accessibility.mjs",
@@ -29,7 +30,7 @@
     "content:private-import": "node scripts/import-private-reviewed-content.mjs",
     "content:calibration": "node scripts/content-calibration-report.mjs",
     "verify:backend": "node scripts/verify-live-backend.mjs",
-    "build": "npm run validate:content && npm run validate:approvals && npm run validate:seo && npm run validate:marketing-claims && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:security && npm run validate:spr && npm run validate:practice-security && npm run validate:adaptive-practice && npm run validate:backend-contract && npm run validate:launch && npm run validate:regression && vite build",
+    "build": "npm run validate:content && npm run validate:approvals && npm run validate:content-policy && npm run validate:seo && npm run validate:marketing-claims && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:security && npm run validate:spr && npm run validate:practice-security && npm run validate:adaptive-practice && npm run validate:backend-contract && npm run validate:launch && npm run validate:regression && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
