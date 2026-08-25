@@ -6,6 +6,8 @@ import {canonicalReviewContent} from '../content-integrity.js';
 import {sprSpecFrom} from '../server/response-scoring.js';
 
 const REVIEW_TYPES=['accuracy','alignment','editorial','bias_accessibility','originality'];
+const MIN_INDEPENDENT_REVIEWERS=3;
+const MAX_DIMENSIONS_PER_REVIEWER=2;
 const NEAR_DUPLICATE_THRESHOLD=.96;
 const EXISTING_PAGE_SIZE=500;
 const args=process.argv.slice(2),file=args.find(x=>!x.startsWith('--'));
@@ -38,6 +40,22 @@ function duplicateSignature(c){return createHash('sha256').update(JSON.stringify
 function similarityTokens(c){return compact([typeof c.stimulus==='string'?c.stimulus:JSON.stringify(c.stimulus??''),c.stem,...(c.choices||[])].join(' ')).replace(/[^\p{L}\p{N}]+/gu,' ').split(' ').filter(Boolean)}
 function tokenJaccard(a,b){const A=new Set(a),B=new Set(b);if(!A.size||!B.size)return 0;let common=0;for(const token of A)if(B.has(token))common++;return common/(A.size+B.size-common)}
 function nearDuplicate(a,b){if(a.section!==b.section||a.skill!==b.skill||a.format!==b.format)return false;const A=similarityTokens(a),B=similarityTokens(b);if(Math.min(A.length,B.length)<12)return false;return tokenJaccard(A,B)>=NEAR_DUPLICATE_THRESHOLD}
+function reviewDetails(row,line){
+ const commonReviewedAt=norm(row.reviewed_at),details={};
+ for(const type of REVIEW_TYPES){
+  if(decision(row[`${type}_review`])!=='approve')throw new Error(`Row ${line}: ${type} review is not APPROVE.`);
+  const reviewer=norm(row[`${type}_reviewer`]||row.reviewer),reviewedAt=norm(row[`${type}_reviewed_at`]||commonReviewedAt);
+  if(!reviewer)throw new Error(`Row ${line}: ${type}_reviewer is required for independent commercial review.`);
+  if(!reviewedAt||Number.isNaN(Date.parse(reviewedAt)))throw new Error(`Row ${line}: ${type}_reviewed_at (or reviewed_at) must be a valid date/time.`);
+  details[type]={reviewer,reviewedAt:new Date(reviewedAt).toISOString()};
+ }
+ const counts=new Map();
+ for(const type of REVIEW_TYPES){const label=details[type].reviewer.toLowerCase();counts.set(label,(counts.get(label)||0)+1)}
+ if(counts.size<MIN_INDEPENDENT_REVIEWERS)throw new Error(`Row ${line}: commercial approval requires at least ${MIN_INDEPENDENT_REVIEWERS} distinct reviewers across the five review dimensions.`);
+ if(Math.max(...counts.values())>MAX_DIMENSIONS_PER_REVIEWER)throw new Error(`Row ${line}: no reviewer may approve more than ${MAX_DIMENSIONS_PER_REVIEWER} review dimensions for the same item.`);
+ return details;
+}
+
 const prepared=[];
 for(const [i,row] of rows.entries()){
  const line=i+2,c=parsedRow(row),expected=norm(row.content_hash).toLowerCase();
@@ -45,13 +63,11 @@ for(const [i,row] of rows.entries()){
  if(!c.id||!c.stem||!c.explanation||!['RW','MATH'].includes(c.section)||!c.domain||!c.skill||![1,2,3].includes(c.difficulty)||!['mcq','spr'].includes(c.format))throw new Error(`Row ${line}: incomplete or invalid content fields.`);
  if(c.format==='mcq'&&(c.answerIndex===null||!Array.isArray(c.choices)||c.choices.length!==4||c.choices.some(x=>!x)))throw new Error(`Row ${line}: MCQ content requires four choices and a valid A-D correct answer.`);
  if(c.format==='spr'){
-   if(c.section!=='MATH')throw new Error(`Row ${line}: student-produced response format is valid only for Math content.`);
-   if(!sprSpecFrom(c.answer))throw new Error(`Row ${line}: SPR content requires one or more valid accepted_answers and a display answer.`);
+  if(c.section!=='MATH')throw new Error(`Row ${line}: student-produced response format is valid only for Math content.`);
+  if(!sprSpecFrom(c.answer))throw new Error(`Row ${line}: SPR content requires one or more valid accepted_answers and a display answer.`);
  }
  const actual=hash(c);if(expected!==actual)throw new Error(`Row ${line}: content hash does not match the exact reviewed item.`);
- for(const type of REVIEW_TYPES)if(decision(row[`${type}_review`])!=='approve')throw new Error(`Row ${line}: ${type} review is not APPROVE.`);
- const reviewer=norm(row.reviewer),reviewedAt=norm(row.reviewed_at);if(!reviewer||!reviewedAt||Number.isNaN(Date.parse(reviewedAt)))throw new Error(`Row ${line}: reviewer and valid reviewed_at are required.`);
- prepared.push({c,hash:actual,reviewer,reviewedAt,notes:norm(row.review_notes)});
+ prepared.push({c,hash:actual,reviews:reviewDetails(row,line),notes:norm(row.review_notes)});
 }
 if(new Set(prepared.map(x=>x.c.id)).size!==prepared.length){console.error('Review file contains duplicate item IDs.');process.exit(2)}
 const incomingSignatures=new Map();
@@ -69,16 +85,16 @@ const existing=(await existingReviewedContent()).map(existingShape),existingSign
 for(const item of existing)existingSignatures.set(duplicateSignature(item),item.id);
 for(const entry of prepared){const exact=existingSignatures.get(duplicateSignature(entry.c));if(exact&&exact!==entry.c.id)throw new Error(`Item ${entry.c.id}: reviewed content exactly duplicates existing production-approved item ${exact}. Diagnostic and practice banks must remain distinct.`);for(const prior of existing){if(prior.id!==entry.c.id&&nearDuplicate(entry.c,prior))throw new Error(`Item ${entry.c.id}: wording is too similar to existing production-approved item ${prior.id}; diversify and re-review before import. Diagnostic and practice banks must remain distinct.`)}}
 
-console.log(`Validated ${prepared.length} exact hash-pinned reviewed items and screened them against duplicate/near-duplicate commercial content across diagnostic and practice banks. No proprietary question text will be printed.`);
-for(const {c,hash:contentHash,reviewer,reviewedAt,notes} of prepared){
+console.log(`Validated ${prepared.length} exact hash-pinned reviewed items with at least ${MIN_INDEPENDENT_REVIEWERS} independent reviewers per item and screened them against duplicate/near-duplicate commercial content across diagnostic and practice banks. No proprietary question text will be printed.`);
+for(const {c,hash:contentHash,reviews:reviewDetailsByType,notes} of prepared){
  await rest(`/rest/v1/content_items?id=eq.${encodeURIComponent(c.id)}`,{method:'PATCH',body:{active:false,updated_at:new Date().toISOString()},prefer:'return=minimal'});
  const item={id:c.id,content_type:c.type,section:c.section,domain_key:c.domain,skill_key:c.skill,difficulty:c.difficulty,format:c.format,stimulus:c.stimulus,stem:c.stem,choices:c.format==='mcq'?c.choices:null,exams:c.exams.length?c.exams:['SAT','PSAT/NMSQT','PSAT 10'],origin:'satprep_original',qa_status:'production_approved',active:false,updated_at:new Date().toISOString()};
  await rest('/rest/v1/content_items?on_conflict=id',{method:'POST',body:item,prefer:'resolution=merge-duplicates,return=minimal'});
  const answer=c.format==='mcq'?{answerIndex:c.answerIndex}:c.answer;
  await rest('/rest/v1/content_answer_keys?on_conflict=item_id',{method:'POST',body:{item_id:c.id,answer,explanation:c.explanation,updated_at:new Date().toISOString()},prefer:'resolution=merge-duplicates,return=minimal'});
- const reviews=REVIEW_TYPES.map(review_type=>({item_id:c.id,review_type,reviewer_label:reviewer,decision:'approve',content_hash:contentHash,notes:notes||null,created_at:new Date(reviewedAt).toISOString()}));
+ const reviews=REVIEW_TYPES.map(review_type=>({item_id:c.id,review_type,reviewer_label:reviewDetailsByType[review_type].reviewer,decision:'approve',content_hash:contentHash,notes:notes||null,created_at:reviewDetailsByType[review_type].reviewedAt}));
  await rest('/rest/v1/content_item_reviews',{method:'POST',body:reviews,prefer:'return=minimal'});
  if(activate)await rest(`/rest/v1/content_items?id=eq.${encodeURIComponent(c.id)}`,{method:'PATCH',body:{active:true,updated_at:new Date().toISOString()},prefer:'return=minimal'});
- console.log(`${c.id}: imported ${activate?'ACTIVE':'inactive'} ${c.format.toUpperCase()} with five hash-pinned approvals.`);
+ console.log(`${c.id}: imported ${activate?'ACTIVE':'inactive'} ${c.format.toUpperCase()} with five hash-pinned approvals from an independently reviewed set.`);
 }
 console.log(`Import complete. ${activate?'Items were activated only after all writes succeeded.':'Items remain inactive; rerun with --activate and the explicit confirmation only after launch QA.'}`);
