@@ -1,10 +1,10 @@
-import {json,service,enforceRateLimit} from '../server/supabase-server.js';
+import {assertAppRequestOrigin,json,service,enforceRateLimit} from '../server/supabase-server.js';
 
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-function allowedOrigin(req){const origin=String(req.headers.origin||'');if(!origin)return true;try{const h=new URL(origin).hostname.toLowerCase();return h==='satprep.io'||h==='www.satprep.io'||h.endsWith('.vercel.app')||h==='localhost'||h==='127.0.0.1'}catch{return false}}
 export default async function handler(req,res){
- if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});if(!allowedOrigin(req))return json(res,403,{error:'Request origin not allowed.'});
+ if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
  try{
+  assertAppRequestOrigin(req);
   const email=String(req.body?.parent_email||'').trim().toLowerCase();if(!EMAIL.test(email)||email.length>254)return json(res,400,{error:'Enter a valid parent or guardian email.'});
   await enforceRateLimit(email,'parent/setup-request',{limit:3,windowSeconds:3600});
   const since=new Date(Date.now()-60*60*1000).toISOString();const recent=await service(`/rest/v1/parent_setup_requests?parent_email=ilike.${encodeURIComponent(email)}&created_at=gte.${encodeURIComponent(since)}&select=id&limit=1`);
