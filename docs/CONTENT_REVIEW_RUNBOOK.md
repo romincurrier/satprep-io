@@ -12,7 +12,7 @@ For secure production diagnostics there are now **two separate hash gates**:
 An item that changes after review must therefore fail closed even if its database row still says `production_approved`.
 
 ## Reviewer roles
-A single qualified reviewer may complete all five fields for an item, but launch review is stronger when content/assessment accuracy and editorial/accessibility review are separated. The reviewer should not rely on the author’s explanation as proof that the answer key is correct.
+A single qualified reviewer may complete all five fields for an item, but launch review is stronger when content/assessment accuracy and editorial/accessibility review are separated. The reviewer should not rely on the author’s explanation as proof that the answer key is correct. A reviewer approving originality must not treat machine-generated similarity checks as a substitute for human source/originality judgment.
 
 Recommended minimum qualifications:
 - Strong command of the tested Math or Reading and Writing skill.
@@ -37,7 +37,8 @@ Recommended minimum qualifications:
 14. Run `npm run build` and `npm run content:readiness -- --strict` before a content release decision.
 15. For secure diagnostic release, import only fresh post-private-boundary diagnostic content into the server-only content tables. The import must carry the exact reviewed `content_hash` into each required `content_item_reviews` approval row.
 16. Recompute the production hash from the imported prompt metadata, answer key, and explanation before activation. Do not hand-edit the database hash to make a review pass.
-17. Verify that `/api/diagnostic-session-v3`, `/api/diagnostic-item-v3`, and `/api/diagnostic-answer-v3` fail closed if any required latest review is missing, revised/rejected, or hash-mismatched.
+17. Run `npm run verify:live-content` against the expected live SATprep.io project to report exact-hash approved depth by exam, skill, difficulty, and response format. Use `npm run verify:launch-content` for the strict launch gate.
+18. Verify that `/api/diagnostic-session-v3`, `/api/diagnostic-item-v3`, `/api/diagnostic-answer-v3`, `/api/practice-session-v3`, `/api/practice-item-v3`, and `/api/practice-answer-v3` fail closed if required current review or commercial depth requirements are not satisfied.
 
 ## Review dimensions
 ### Accuracy review
@@ -82,7 +83,7 @@ Approve only if:
 ## Hash-pinned approval behavior
 `content-approval-registry.json` stores authoring approval against the SHA-256 hash of the exact reviewed content. The production build validates every stored approval. If the stem, stimulus, choices, answer key, explanation, taxonomy, difficulty, or exam eligibility changes, the hash changes and the build fails until the item is re-reviewed or the stale approval is removed.
 
-The secure diagnostic runtime applies the same principle independently inside the server-only database. It reconstructs a canonical object from the current `content_items` row plus the current `content_answer_keys` answer and explanation, hashes that exact object with SHA-256, and requires the **latest** approval for each required runtime review type to contain that same hash. Delivery and scoring both perform this check.
+The secure diagnostic and commercial practice runtimes apply the same principle independently inside the server-only database. They reconstruct a canonical object from the current `content_items` row plus the current `content_answer_keys` answer and explanation, hash that exact object with SHA-256, and require the latest approval for each required runtime review type to contain that same hash. Delivery and scoring both perform this check.
 
 This means:
 - changing a prompt after review invalidates approval;
@@ -104,25 +105,28 @@ After a private proprietary-content boundary is established, fresh diagnostic it
 - never writes secure answer keys into browser-delivered source.
 
 ## Commercial release threshold
-The current readiness script uses development depth targets of:
-- at least 6 diagnostic items per official skill;
-- at least 8 practice items per official skill;
-- at least 4 independently approved diagnostic and 4 independently approved practice items per official skill.
+The shared commercial content policy now requires, for every eligible official skill/exam combination:
+- at least **6 exact-hash approved diagnostic items per skill**, with approved inventory represented at difficulty 1, 2, and 3;
+- at least **8 exact-hash approved practice items per skill**;
+- within those approved practice items, at least **2 difficulty-1, 3 difficulty-2, and 2 difficulty-3** items, plus at least one additional approved item at any supported difficulty to reach the eight-item rotation floor.
 
-These are release-engineering thresholds, not claims about psychometric equivalence to the SAT. They can be raised as calibration data and content inventory grow.
+A guided-practice session currently uses 5 items. The 8-item practice requirement is intentionally larger than a single session so repeat practice can rotate content while retaining enough inventory to satisfy foundation, balanced, and challenge adaptive difficulty patterns. Math practice targets approximately 25% SPR in a five-item session when the approved pool supports that format mix; Reading and Writing remains MCQ.
+
+These are release-engineering thresholds, not claims about psychometric equivalence to the SAT. They can be raised as calibration data and content inventory grow. Difficulty labels must be treated as reviewed authoring classifications until empirical calibration supports stronger claims.
 
 ## Diagnostic-specific rule
 The initial diagnostic remains assessment-only. Do not show the answer key, correctness, or explanation while the diagnostic is in progress. Review explanations are retained for internal QA and runtime hash integrity, but they are not delivered to the diagnostic client.
 
 ## Practice-specific rule
-Practice/learning sessions should provide correctness feedback, the correct answer, and a useful explanation after submission. Explanations should teach a reusable process rather than merely restating the answer.
+Practice/learning sessions should provide correctness feedback, the correct answer, and a useful explanation after submission. Explanations should teach a reusable process rather than merely restating the answer. New commercial practice sessions must fail closed if the approved server-only bank for the requested skill is below the shared depth/difficulty policy; a five-item minimum alone is not sufficient for commercial mode.
 
 ## Final launch sign-off
 Before public launch, record the commit SHA that passed:
 - content structural validation;
 - hash-pinned approval validation;
-- strict content-readiness review;
-- runtime database hash-approval verification;
+- shared commercial content-policy regression;
+- strict authoring content-readiness review;
+- strict live runtime database content-readiness verification;
 - end-to-end diagnostic/practice regression;
 - security validation;
 - SEO validation;
