@@ -5,7 +5,7 @@ Last updated: 2026-08-25
 ## Current state
 SATprep.io is a **pre-launch commercial candidate**, not approved for public paying customers. The codebase includes student/parent/admin/onboarding/billing flows, prior-assessment ingestion, an assessment-only adaptive diagnostic, server-scored guided practice with explanations, mastery/progress tracking, content review and calibration tooling, SEO/trust content, marketing/measurement plans, privacy/security controls, youth-account safeguards, accessibility checks, durable API rate limiting, and launch runbooks.
 
-The newest main-branch hardening improves commercial guided-practice rotation: adaptive selection now uses recent trusted response history to prefer unseen items first and least-recently-used items when repetition is unavoidable, without sacrificing the reviewed difficulty targets or Math SPR mix. The security validator was updated to enforce that rotation contract, and the resulting main-branch Vercel deployment is green. Live database migration reconciliation is still pending because the Supabase management connector became unavailable during the current run; no alternate or unrelated Supabase project was touched.
+The newest main-branch hardening reduces sensitive commercial-content reads in the secure diagnostic path: the runtime now filters the active production-approved diagnostic bank to exam-eligible candidates before loading answer keys or independent-review history, then fetches that server-only material only for those candidate IDs in bounded chunks. A dedicated build validator prevents regression to full answer-key/review-table scans, and the resulting Vercel deployment is green. The earlier least-recently-used guided-practice rotation remains in place. Live database migration reconciliation is still pending because Supabase management access is unavailable in this run; no alternate or unrelated Supabase project was touched.
 
 ## Most recent launch hardening
 
@@ -16,7 +16,15 @@ The newest main-branch hardening improves commercial guided-practice rotation: a
 - The verifier remains read-only: it does not restore projects, apply migrations, write student data, or invoke mutating RPCs.
 - `npm run verify:backend` runs the explicit live read-only verification when the required Supabase environment values are available.
 - `validate:backend-contract` performs a syntax check in every build without requiring production secrets.
-- The exact live SATprep.io project `ataaiocpbjavmdpgmzlv` was previously reconnected and verified healthy. During the latest automation run the Supabase management tool became unavailable before migration inspection, so no live database changes are claimed.
+- The exact live SATprep.io project `ataaiocpbjavmdpgmzlv` was previously reconnected and verified healthy. During the latest automation run the Supabase management tool remained unavailable before migration inspection, so no live database changes are claimed.
+
+### Secure diagnostic content-read scoping
+- Secure diagnostic planning first loads only active `production_approved` diagnostic item metadata, then filters by selected exam, supported response format, and official skill before requesting scoring/review material.
+- Answer-key and independent-review reads are now restricted to those eligible candidate item IDs rather than scanning the complete proprietary scoring/review tables.
+- Candidate IDs are fetched in bounded 40-item chunks to avoid oversized query strings as the commercial bank grows.
+- Ordered review history is preserved inside each item chunk, so the latest-decision exact-hash approval gate for accuracy, alignment, editorial, bias/accessibility, and originality is unchanged.
+- `scripts/validate-diagnostic-bank-scope.mjs` fails the build if secure diagnostic planning regresses to broad answer-key/review-table scans or loses the bounded candidate loader.
+- `validate:diagnostic-scope` now runs in every production build; the first deployment containing the scoped runtime and validator passed Vercel.
 
 ### First-party measurement launch controls
 - `launch-gates.json` explicitly tracks `first_party_measurement`, which remains `disabled`.
@@ -75,6 +83,7 @@ The newest main-branch hardening improves commercial guided-practice rotation: a
 - Current questions whose answer keys have existed in public Git history are **not** suitable as the secure commercial diagnostic bank.
 - Commercial depth target remains at least **8 practice items and 6 diagnostic items per official skill**, with multiple difficulty levels, MCQ/SPR coverage where applicable, independent review, and later pilot calibration.
 - Diagnostic behavior remains assessment-only: no right/wrong teaching during the baseline assessment.
+- Secure diagnostic planning now limits answer-key/review reads to the exam-eligible candidate bank in bounded chunks before exact-hash approval filtering, improving privacy and scalability as the proprietary bank grows.
 - Commercial practice gives right/wrong feedback, the correct/accepted answer, and instructional explanations, with server-side scoring and durable resume.
 - New practice planning uses up to the learner's 50 most recent trusted server-scored responses as a recency signal. Within each adaptive target difficulty, unseen content is preferred first; if every suitable item has been seen, the least-recently-used item is preferred. Math SPR balancing uses the same freshness preference, reducing avoidable repetition while preserving the difficulty plan and best-effort format mix.
 - The adaptive-practice regression suite now covers the fresh-item preference and the least-recently-used fallback, and the production practice-security validator enforces that the runtime continues using trusted response history rather than silently regressing to random repeat selection.
@@ -85,7 +94,7 @@ The newest main-branch hardening improves commercial guided-practice rotation: a
 - First-party marketing measurement has independent browser/server launch locks and remains disabled; when later approved it is designed for public acquisition surfaces only and collects privacy-minimized events.
 - Youth signup includes browser defense-in-depth plus a pending database age-gate migration; under-13 learners are routed through the parent/guardian workflow.
 - Durable API abuse controls, privacy-request workflow, profile-privilege restrictions, content-integrity controls, secure diagnostic/practice sessions, and server-scored MCQ/SPR response protections are implemented in code/migrations.
-- Production builds validate security, SPR scoring, practice security, adaptive practice, youth privacy, privilege boundaries, private content workflow, SEO, marketing claims, accessibility, backend-contract syntax, launch state, and deterministic regression behavior.
+- Production builds validate security, diagnostic content-read scoping, SPR scoring, practice security, adaptive practice, youth privacy, privilege boundaries, private content workflow, SEO, marketing claims, accessibility, backend-contract syntax, launch state, and deterministic regression behavior.
 - Automated accessibility checks are in place, but manual keyboard/screen-reader/zoom/contrast/device testing remains a launch requirement.
 
 ## Infrastructure state
@@ -93,7 +102,7 @@ The newest main-branch hardening improves commercial guided-practice rotation: a
 - Supabase management access is intermittent. It was unavailable during the latest migration-reconciliation attempt, so pending migrations are still **not claimed live** and no other Supabase project was modified.
 - Pending migrations include the content/review system, practice sessions, MCQ/SPR response storage, calibration, marketing measurement and its explicit privilege lock, privacy requests, durable API rate limits, profile privilege locking, and student-signup age gate. They must be compared with the live migration history and applied only where missing.
 - GitHub repository is currently public. Fresh secure commercial question content should use the documented external private-review/import bridge and should ultimately live behind a dedicated private editorial/content boundary.
-- GitHub/Vercel deployment verification is working. The latest main commit containing least-recently-used practice rotation plus its updated security validator deployed successfully on Vercel.
+- GitHub/Vercel deployment verification is working. The latest substantive main commit scopes secure-diagnostic scoring/review reads to eligible candidate IDs and adds a build-enforced regression guard; that production build deployed successfully on Vercel.
 - Public indexing, live Stripe, ads, first-party measurement, public outbound email, affiliate/referral execution, Search Console submission, retargeting, social publishing, and final legal/privacy publication remain disabled.
 
 ## Highest-priority next actions
