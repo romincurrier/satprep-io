@@ -13,6 +13,9 @@ if(!/resolvedFile\.startsWith\(`\$\{repoRoot\}\$\{path\.sep\}`\)/.test(importer)
 if(!/SUPABASE_SERVICE_ROLE_KEY/.test(importer))fail('Private content importer must use the server-only Supabase credential.');
 if(!/PRIVATE_CONTENT_IMPORT_CONFIRM.*ACTIVATE_REVIEWED_CONTENT/.test(importer))fail('Private content activation must require an explicit confirmation environment value.');
 if(!/const REVIEW_TYPES=\['accuracy','alignment','editorial','bias_accessibility','originality'\]/.test(importer))fail('Private importer must require all five independent review dimensions.');
+if(!/MIN_INDEPENDENT_REVIEWERS=3/.test(importer)||!/MAX_DIMENSIONS_PER_REVIEWER=2/.test(importer))fail('Private importer must enforce at least three reviewers and no more than two review dimensions per reviewer.');
+if(!/`\$\{type\}_reviewer`/.test(importer))fail('Private importer must support reviewer identity by review dimension.');
+if(!/counts\.size<MIN_INDEPENDENT_REVIEWERS/.test(importer)||!/Math\.max\(\.\.\.counts\.values\(\)\)>MAX_DIMENSIONS_PER_REVIEWER/.test(importer))fail('Private importer must fail closed when reviewer diversity is insufficient.');
 if(!/createHash\('sha256'\)/.test(importer)||!/expected!==actual/.test(importer))fail('Private importer must recompute and verify the exact reviewed SHA-256 content hash.');
 if(!/function duplicateSignature\(c\)/.test(importer)||!/function nearDuplicate\(a,b\)/.test(importer))fail('Private importer must screen exact and near-duplicate question content before database writes.');
 const signatureFn=importer.match(/function duplicateSignature\(c\)\{([^\n]+)\}/)?.[1]||'';
@@ -33,9 +36,14 @@ else{
  if(!/const e=new Error\(`Supabase content import request failed \(\$\{r\.status\}\)\.`\)/.test(restFn))fail('Private importer REST errors must remain status-only and must not include database response content.');
 }
 
+const liveVerifier=read('scripts/verify-live-content-readiness.mjs');
+if(!/MIN_INDEPENDENT_REVIEWERS=3/.test(liveVerifier)||!/MAX_DIMENSIONS_PER_REVIEWER=2/.test(liveVerifier)||!/independentReviewSet/.test(liveVerifier))fail('Live content readiness must independently enforce commercial reviewer diversity.');
+if(!/process\.argv\.includes\('--strict'\).*invalidProduction\.length/s.test(liveVerifier))fail('Strict live content readiness must fail on production rows with invalid, stale, or non-independent approvals.');
+
 const doc=read('docs/PRIVATE_CONTENT_WORKFLOW.md');
 if(!/must not be treated as secret commercial assessment content/i.test(doc))fail('Private content documentation must explicitly treat previously public answer keys as exposed.');
 if(!/dedicated private content repository|dedicated private repository/i.test(doc))fail('Private content documentation must retain the long-term private repository/CMS requirement.');
+if(!/at least three distinct reviewer labels/i.test(doc)||!/no reviewer approving more than two dimensions/i.test(doc))fail('Private content documentation must state the enforced reviewer-independence rule.');
 
 if(errors.length){for(const e of errors)console.error(`Private content workflow validation error: ${e}`);process.exit(1)}
 console.log('Private proprietary-content workflow validation passed.');
