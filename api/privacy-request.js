@@ -1,4 +1,4 @@
-import {authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
+import {assertAppRequestOrigin,authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TYPES=new Set(['access','correction','deletion','account_closure','other_privacy']);
@@ -22,6 +22,7 @@ function safeRows(rows){return (rows||[]).map(r=>({id:r.id,target_student_id:r.t
 
 export default async function handler(req,res){
  try{
+  if(req.method==='POST')assertAppRequestOrigin(req);
   const auth=await requester(req);if(!auth)return json(res,401,{error:'Sign in required.'});
   if(req.method==='GET'){
    await enforceRateLimit(auth.user.id,'privacy/request-read',{limit:30,windowSeconds:3600});
