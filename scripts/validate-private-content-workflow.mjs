@@ -14,6 +14,10 @@ if(!/SUPABASE_SERVICE_ROLE_KEY/.test(importer))fail('Private content importer mu
 if(!/PRIVATE_CONTENT_IMPORT_CONFIRM.*ACTIVATE_REVIEWED_CONTENT/.test(importer))fail('Private content activation must require an explicit confirmation environment value.');
 if(!/const REVIEW_TYPES=\['accuracy','alignment','editorial','bias_accessibility','originality'\]/.test(importer))fail('Private importer must require all five independent review dimensions.');
 if(!/createHash\('sha256'\)/.test(importer)||!/expected!==actual/.test(importer))fail('Private importer must recompute and verify the exact reviewed SHA-256 content hash.');
+if(!/function duplicateSignature\(c\)/.test(importer)||!/function nearDuplicate\(a,b\)/.test(importer))fail('Private importer must screen exact and near-duplicate question content before database writes.');
+if(!/qa_status=eq\.production_approved&select=id,content_type,section,skill_key,format,stimulus,stem,choices/.test(importer))fail('Private importer must compare incoming reviewed items against the existing production-approved bank.');
+if(!/EXISTING_PAGE_SIZE=500/.test(importer)||!/offset=\$\{offset\}/.test(importer))fail('Private importer must paginate the existing reviewed-bank duplicate scan.');
+if(!/existingSignatures\.get\(duplicateSignature\(entry\.c\)\)/.test(importer)||!/nearDuplicate\(entry\.c,prior\)/.test(importer))fail('Private importer must fail closed on duplicate or near-duplicate existing commercial content.');
 if(!/body:\{active:false/.test(importer)||!/if\(activate\).*active:true/.test(importer))fail('Private importer must fail closed by deactivating existing content before replacement and activate only after successful writes.');
 if(/console\.log\([^\n]*(?:stem|choices|explanation|stimulus)/i.test(importer))fail('Private importer must not log proprietary question content.');
 if(/r\.text\(\).*Error\(/s.test(importer))fail('Private importer must not echo database response bodies that could contain proprietary content.');
