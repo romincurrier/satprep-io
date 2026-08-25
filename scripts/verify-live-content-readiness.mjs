@@ -6,6 +6,8 @@ import {databaseReviewContent} from '../content-integrity.js';
 import {answerSpec} from '../server/response-scoring.js';
 
 const REQUIRED_REVIEWS=['accuracy','alignment','editorial','bias_accessibility','originality'];
+const MIN_INDEPENDENT_REVIEWERS=3;
+const MAX_DIMENSIONS_PER_REVIEWER=2;
 const EXAMS=['SAT','PSAT/NMSQT','PSAT 10'];
 const url=String(process.env.SUPABASE_URL||process.env.VITE_SUPABASE_URL||'').replace(/\/$/,'');
 const serviceKey=String(process.env.SUPABASE_SERVICE_ROLE_KEY||'');
@@ -22,12 +24,24 @@ const [items,keys,reviews]=await Promise.all([
 ]);
 const keyMap=new Map((keys||[]).map(x=>[x.item_id,x])),reviewMap=new Map();
 for(const r of reviews||[]){if(!r.item_id||!REQUIRED_REVIEWS.includes(r.review_type))continue;const byType=reviewMap.get(r.item_id)||new Map();byType.set(r.review_type,r);reviewMap.set(r.item_id,byType)}
+function independentReviewSet(byType){
+ const approvedRows=REQUIRED_REVIEWS.map(type=>byType?.get(type)).filter(Boolean);
+ if(approvedRows.length!==REQUIRED_REVIEWS.length)return false;
+ const counts=new Map();
+ for(const row of approvedRows){
+  const label=String(row.reviewer_label||'').trim().toLowerCase();
+  if(!label)return false;
+  counts.set(label,(counts.get(label)||0)+1);
+ }
+ return counts.size>=MIN_INDEPENDENT_REVIEWERS&&Math.max(...counts.values())<=MAX_DIMENSIONS_PER_REVIEWER;
+}
 function approved(row){
  const key=keyMap.get(row.id),format=row.format||'mcq',spec=answerSpec(format,key?.answer);
  if(!spec||typeof key?.explanation!=='string'||row.origin!=='satprep_original')return false;
  if(format!=='mcq'&&!(format==='spr'&&row.section==='MATH'))return false;
  const hash=createHash('sha256').update(JSON.stringify(databaseReviewContent(row.content_type,row,key))).digest('hex'),byType=reviewMap.get(row.id);
- return REQUIRED_REVIEWS.every(type=>{const r=byType?.get(type);return r?.decision==='approve'&&!!String(r.reviewer_label||'').trim()&&r.content_hash===hash});
+ const exactApprovals=REQUIRED_REVIEWS.every(type=>{const r=byType?.get(type);return r?.decision==='approve'&&!!String(r.reviewer_label||'').trim()&&r.content_hash===hash});
+ return exactApprovals&&independentReviewSet(byType);
 }
 const approvedItems=(items||[]).filter(approved);
 const failures=[],rows=[];
@@ -44,10 +58,14 @@ for(const exam of EXAMS){
 }
 const invalidProduction=(items||[]).filter(x=>!approved(x));
 console.log(`Live SATprep.io content readiness — project ${projectRef}`);
-console.log(`Active production_approved rows: ${(items||[]).length}; exact-hash approved and runtime-usable: ${approvedItems.length}; invalid/stale/incomplete approvals: ${invalidProduction.length}.`);
+console.log(`Active production_approved rows: ${(items||[]).length}; exact-hash approved, independently reviewed and runtime-usable: ${approvedItems.length}; invalid/stale/incomplete/non-independent approvals: ${invalidProduction.length}.`);
+console.log(`Review independence: at least ${MIN_INDEPENDENT_REVIEWERS} distinct reviewer labels across the five required dimensions, with no reviewer covering more than ${MAX_DIMENSIONS_PER_REVIEWER} dimensions.`);
 console.log(`Policy: diagnostic ${COMMERCIAL_CONTENT_POLICY.diagnostic.minApprovedPerSkill}/skill with all three difficulty levels; practice ${COMMERCIAL_CONTENT_POLICY.practice.minApprovedPerSkill}/skill with adaptive minimum mix ${COMMERCIAL_CONTENT_POLICY.practice.minByDifficulty[1]}/${COMMERCIAL_CONTENT_POLICY.practice.minByDifficulty[2]}/${COMMERCIAL_CONTENT_POLICY.practice.minByDifficulty[3]} across difficulty 1/2/3.`);
 console.table(rows);
-if(invalidProduction.length)console.warn(`Production-approved rows that currently fail the exact runtime approval contract: ${invalidProduction.map(x=>x.id).join(', ')}`);
+if(invalidProduction.length)console.warn(`Production-approved rows that currently fail the exact commercial review/runtime contract: ${invalidProduction.map(x=>x.id).join(', ')}`);
 if(failures.length){console.warn(`\nCommercial content gaps (${failures.length} exam/type/skill checks):`);for(const f of failures)console.warn(`- ${f}`)}
-if(process.argv.includes('--strict')&&failures.length){console.error('\nLive content readiness FAILED. Do not claim full commercial content readiness.');process.exit(1)}
-console.log(failures.length?'\nReport complete. Use --strict for a launch-blocking result.':'\nLive content depth and exact-hash review readiness passed for all eligible exam/skill combinations.');
+if(process.argv.includes('--strict')&&(failures.length||invalidProduction.length)){
+ console.error('\nLive content readiness FAILED. Do not claim full commercial content readiness.');
+ process.exit(1);
+}
+console.log(failures.length?'\nReport complete. Use --strict for a launch-blocking result.':'\nLive content depth and independent exact-hash review readiness passed for all eligible exam/skill combinations.');
