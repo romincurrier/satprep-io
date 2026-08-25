@@ -1,4 +1,4 @@
-import {authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
+import {assertAppRequestOrigin,authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
 
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 async function studentContext(req){
@@ -12,6 +12,7 @@ async function studentContext(req){
 export default async function handler(req,res){
  if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
  try{
+  assertAppRequestOrigin(req);
   const ctx=await studentContext(req);if(!ctx?.user)return json(res,401,{error:'Sign in required.'});if(!ctx.student)return json(res,403,{error:'A student account is required.'});
   if(ctx.profile.household_id||ctx.student.household_id)return json(res,409,{error:'This student is already linked to a household.'});
   await enforceRateLimit(ctx.user.id,'student/parent-invitation-create',{limit:5,windowSeconds:86400});
