@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 
 const stripe=fs.readFileSync(new URL('../server/stripe-server.js',import.meta.url),'utf8');
-const endpoints=['create-checkout-session.js','confirm-checkout-session.js','create-portal-session.js'].map(name=>({name,src:fs.readFileSync(new URL(`../api/${name}`,import.meta.url),'utf8')}));
+const billingClient=fs.readFileSync(new URL('../billing.js',import.meta.url),'utf8');
+const endpointNames=['billing-overview.js','create-checkout-session.js','confirm-checkout-session.js','create-portal-session.js'];
+const endpoints=endpointNames.map(name=>({name,src:fs.readFileSync(new URL(`../api/${name}`,import.meta.url),'utf8')}));
 const failures=[];
 const requireStripe=(text,label)=>{if(!stripe.includes(text))failures.push(label)};
 
@@ -19,6 +21,19 @@ for(const {name,src} of endpoints){
  if(originCall<0||authCall<0||originCall>authCall)failures.push(`${name} must verify origin before loading authenticated billing context.`);
  if(!src.includes("req.method!=='POST'"))failures.push(`${name} must remain POST-only.`);
 }
+
+const overview=endpoints.find(x=>x.name==='billing-overview.js')?.src||'';
+for(const required of ["enforceRateLimit(auth.user.id,'billing/overview'","profile:{role:'parent',billing_owner:!!p.billing_owner}",'can_manage:!!sub.provider_customer_id']){
+ if(!overview.includes(required))failures.push(`Billing overview must retain minimized server-side billing state: ${required}`);
+}
+for(const forbidden of ['provider_subscription_id:','provider_customer_id:sub.provider_customer_id','billing_profile_id:']){
+ if(overview.includes(forbidden))failures.push(`Billing overview must not expose provider/internal identifiers: ${forbidden}`);
+}
+if(!billingClient.includes("authedPost('/api/billing-overview')"))failures.push('Billing browser must load account state through the trusted billing overview API.');
+for(const forbidden of ['supabase.from("profiles")','supabase.from("subscriptions")','supabase.from("students")',"supabase.from('profiles')","supabase.from('subscriptions')","supabase.from('students')"]){
+ if(billingClient.includes(forbidden))failures.push(`Billing browser must not directly read broad billing/account tables: ${forbidden}`);
+}
+if(!billingClient.includes('subscription?.can_manage'))failures.push('Billing browser must use the minimized can_manage flag instead of a provider customer identifier.');
 
 if(failures.length){
  console.error('Billing security validation failed:');
