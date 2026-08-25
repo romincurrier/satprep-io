@@ -21,6 +21,7 @@
     "validate:spr": "node scripts/validate-spr.mjs",
     "validate:practice-security": "node scripts/validate-practice-security.mjs",
     "validate:adaptive-practice": "node scripts/validate-adaptive-practice.mjs",
+    "validate:learning-authority": "node scripts/validate-learning-authority.mjs",
     "validate:parent-progress": "node scripts/validate-parent-progress.mjs",
     "validate:admin-operations": "node scripts/validate-admin-operations.mjs",
     "validate:billing-security": "node scripts/validate-billing-security.mjs",
@@ -38,7 +39,7 @@
     "verify:backend": "node scripts/verify-live-backend.mjs",
     "verify:live-content": "node scripts/verify-live-content-readiness.mjs",
     "verify:launch-content": "node scripts/verify-live-content-readiness.mjs --strict",
-    "build": "npm run validate:content && npm run validate:approvals && npm run validate:content-policy && npm run validate:seo && npm run validate:marketing-claims && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:app-origin && npm run validate:security && npm run validate:diagnostic-scope && npm run validate:spr && npm run validate:practice-security && npm run validate:adaptive-practice && npm run validate:parent-progress && npm run validate:admin-operations && npm run validate:billing-security && npm run validate:backend-contract && npm run validate:launch && npm run validate:regression && vite build",
+    "build": "npm run validate:content && npm run validate:approvals && npm run validate:content-policy && npm run validate:seo && npm run validate:marketing-claims && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:app-origin && npm run validate:security && npm run validate:diagnostic-scope && npm run validate:spr && npm run validate:practice-security && npm run validate:adaptive-practice && npm run validate:learning-authority && npm run validate:parent-progress && npm run validate:admin-operations && npm run validate:billing-security && npm run validate:backend-contract && npm run validate:launch && npm run validate:regression && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
