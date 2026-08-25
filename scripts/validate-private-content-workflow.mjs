@@ -20,7 +20,13 @@ if(!/EXISTING_PAGE_SIZE=500/.test(importer)||!/offset=\$\{offset\}/.test(importe
 if(!/existingSignatures\.get\(duplicateSignature\(entry\.c\)\)/.test(importer)||!/nearDuplicate\(entry\.c,prior\)/.test(importer))fail('Private importer must fail closed on duplicate or near-duplicate existing commercial content.');
 if(!/body:\{active:false/.test(importer)||!/if\(activate\).*active:true/.test(importer))fail('Private importer must fail closed by deactivating existing content before replacement and activate only after successful writes.');
 if(/console\.log\([^\n]*(?:stem|choices|explanation|stimulus)/i.test(importer))fail('Private importer must not log proprietary question content.');
-if(/r\.text\(\).*Error\(/s.test(importer))fail('Private importer must not echo database response bodies that could contain proprietary content.');
+const restStart=importer.indexOf('async function rest('),restEnd=importer.indexOf('async function existingReviewedContent');
+if(restStart<0||restEnd<=restStart)fail('Private importer REST helper could not be verified.');
+else{
+ const restFn=importer.slice(restStart,restEnd);
+ if(/new Error\([^)]*(?:text|r\.text)/s.test(restFn))fail('Private importer must not echo database response bodies that could contain proprietary content.');
+ if(!/const e=new Error\(`Supabase content import request failed \(\$\{r\.status\}\)\.`\)/.test(restFn))fail('Private importer REST errors must remain status-only and must not include database response content.');
+}
 
 const doc=read('docs/PRIVATE_CONTENT_WORKFLOW.md');
 if(!/must not be treated as secret commercial assessment content/i.test(doc))fail('Private content documentation must explicitly treat previously public answer keys as exposed.');
