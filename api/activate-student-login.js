@@ -1,4 +1,4 @@
-import {authenticatedUser,json,service,enforceRateLimit} from '../server/supabase-server.js';
+import {assertAppRequestOrigin,authenticatedUser,json,service,enforceRateLimit} from '../server/supabase-server.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -7,6 +7,7 @@ async function parentProfile(user){const rows=await service(`/rest/v1/profiles?i
 export default async function handler(req,res){
  if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
  try{
+  assertAppRequestOrigin(req);
   const auth=await authenticatedUser(req),user=auth?.user;if(!user)return json(res,401,{error:'Sign in required.'});const p=await parentProfile(user);if(!p||p.role!=='parent'||!p.household_id)return json(res,403,{error:'A parent or guardian must activate the student login.'});
   await enforceRateLimit(user.id,'account/student-activation',{limit:5,windowSeconds:3600});
   const studentId=String(req.body?.student_id||'').trim(),normalized=String(req.body?.email||'').trim().toLowerCase(),password=String(req.body?.password||'');if(!UUID.test(studentId)||!EMAIL.test(normalized)||normalized.length>254||!password)return json(res,400,{error:'Valid student, email and password are required.'});if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters.'});if(password.length>200)return json(res,400,{error:'Password is too long.'});
