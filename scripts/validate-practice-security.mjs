@@ -28,7 +28,8 @@ if(!/practice-selection-core\.js/.test(core)||!/selectAdaptiveItems/.test(core)|
 if(!/commercial-content-policy\.js/.test(core)||!core.includes("evaluateSkillCoverage(bank,'practice')")||!core.includes('COMMERCIAL_CONTENT_POLICY.practice.minApprovedPerSkill'))fail('Commercial practice must enforce the shared approved depth and difficulty-coverage policy before opening a new session.');
 if(!/response-scoring\.js/.test(core)||!/scoreResponse\(/.test(core))fail('Commercial practice runtime must use shared server-side MCQ/SPR response scoring.');
 if(!/masteryForSkill\(student\.id,skill\)/.test(core))fail('Commercial practice must read the current trusted skill mastery before planning a new session.');
-if(!/selectAdaptiveItems\(source,\{length,mastery,sprTarget,randomIntFn:randomInt\}\)/.test(core))fail('Commercial practice must apply mastery-adaptive difficulty and Math SPR selection to the approved fresh item pool.');
+if(!/selectAdaptiveItems\(bank,\{length,mastery,sprTarget,recentItemIds,randomIntFn:randomInt\}\)/.test(core))fail('Commercial practice must apply mastery-adaptive difficulty, Math SPR selection, and recent-item rotation to the approved bank.');
+if(!/practice_responses\?student_id=eq\./.test(core)||!/order=created_at\.desc&limit=50/.test(core)||!/recentItemIds=\(recent\|\|\[\]\)\.map/.test(core))fail('Commercial practice must use recent trusted response history to reduce unnecessary repetition.');
 if(!core.includes("sprTarget=meta.section==='MATH'?Math.max(1,Math.round(length*.25)):0"))fail('Math guided practice must target approximately 25% SPR when the approved pool supports it.');
 if(!/mastery_before:mastery,adaptive_band:band/.test(core))fail('New commercial practice sessions must persist the mastery baseline and adaptive band used to plan the immutable item set.');
 if(!/existing\.adaptive_band\|\|band/.test(core))fail('Resumed practice must report the adaptive band stored with the saved item plan rather than silently regenerating its planning provenance.');
@@ -51,6 +52,7 @@ const selection=read('practice-selection-core.js');
 for(const band of ['foundation','balanced','challenge'])if(!selection.includes(`'${band}'`))fail(`Adaptive practice selector must retain the ${band} instructional band.`);
 if(!/foundation:\[1,1,2,2,2\]/.test(selection)||!/balanced:\[1,2,2,2,3\]/.test(selection)||!/challenge:\[2,2,2,3,3\]/.test(selection))fail('Adaptive practice selector must retain the reviewed five-item difficulty mixes.');
 if(!/value===null\|\|value===undefined\|\|value===''/i.test(selection))fail('Missing mastery must remain distinct from 0% mastery so new learners receive balanced rather than foundation-by-coercion practice.');
+if(!/recentItemIds=\[\]/.test(selection)||!/recencyMap/.test(selection)||!/preferFresher/.test(selection))fail('Adaptive practice selection must prefer unseen and least-recently-used items within equivalent difficulty choices.');
 
 const learning=read('learning-v2.js'),guard=read('prelaunch-guard.js');
 for(const route of ['/api/practice-session-v3','/api/practice-item-v3','/api/practice-answer-v3'])if(!learning.includes(route))fail(`Student learning UI must use ${route} for commercial practice.`);
@@ -78,4 +80,4 @@ if(!/security definer/i.test(migration)||!/grant execute on function public\.fin
 if(!/on conflict\(student_id,skill_key\) do update/i.test(migration)||!/on conflict\(student_id,lesson_key\) do update/i.test(migration))fail('Practice finalization must update trusted mastery and lesson progress atomically.');
 
 if(errors.length){for(const e of errors)console.error(`Practice security validation error: ${e}`);process.exit(1)}
-console.log('Commercial MCQ/SPR practice security, adaptive selection, content-depth policy, provenance, and resume invariants passed.');
+console.log('Commercial MCQ/SPR practice security, adaptive selection, least-recently-used rotation, content-depth policy, provenance, and resume invariants passed.');
