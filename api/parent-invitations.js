@@ -1,9 +1,10 @@
-import {authenticatedUser,json,service,enforceRateLimit} from '../server/supabase-server.js';
+import {assertAppRequestOrigin,authenticatedUser,json,service,enforceRateLimit} from '../server/supabase-server.js';
 
 async function parentContext(user){const rows=await service(`/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=id,email,role,household_id,billing_owner`),p=rows?.[0];if(!p||p.role!=='parent')return null;return p}
 async function pendingFor(p){const email=String(p.email||'').trim().toLowerCase();if(!email)return[];const rows=await service(`/rest/v1/parent_invitations?parent_email=ilike.${encodeURIComponent(email)}&status=eq.pending&expires_at=gt.${encodeURIComponent(new Date().toISOString())}&select=id,student_profile_id,parent_email,expires_at,created_at&order=created_at.desc`);const out=[];for(const inv of rows||[]){const s=await service(`/rest/v1/students?profile_id=eq.${encodeURIComponent(inv.student_profile_id)}&select=id,first_name,last_name,display_name,household_id`),student=s?.[0];if(student)out.push({...inv,student:{id:student.id,name:student.display_name||[student.first_name,student.last_name].filter(Boolean).join(' ')||'Student'}})}return out}
 export default async function handler(req,res){
  try{
+  if(req.method==='POST')assertAppRequestOrigin(req);
   const auth=await authenticatedUser(req),user=auth?.user;if(!user)return json(res,401,{error:'Sign in required.'});const p=await parentContext(user);if(!p)return json(res,403,{error:'A parent or guardian account is required.'});
   if(req.method==='GET'){await enforceRateLimit(user.id,'parent/invitations/read',{limit:60,windowSeconds:60});return json(res,200,{invitations:await pendingFor(p)})}
   if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
