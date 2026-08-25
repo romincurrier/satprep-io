@@ -1,14 +1,125 @@
 import { supabase } from './supabase.js';
-const esc=s=>String(s??'').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[m]));
-let rendering=false;
-async function context(){const{data:{session}}=await supabase.auth.getSession();if(!session)return null;const{data:profile}=await supabase.from('profiles').select('id,email,first_name,last_name,role').eq('id',session.user.id).maybeSingle();return profile?.role==='admin'?{session,profile}:null}
-async function load(){const [profiles,students,households,subscriptions,diagnostics]=await Promise.all([
- supabase.from('profiles').select('id,email,first_name,last_name,role,household_id,created_at').order('created_at',{ascending:false}),
- supabase.from('students').select('id,profile_id,display_name,first_name,last_name,grade_level,target_exam,target_score,household_id,onboarding_complete,diagnostic_completed_at,created_at').order('created_at',{ascending:false}),
- supabase.from('households').select('id,name,plan_key,student_limit,is_test_household,created_at').order('created_at',{ascending:false}),
- supabase.from('subscriptions').select('id,household_id,plan_key,status,trial_ends_at,current_period_end,cancel_at_period_end,created_at').order('created_at',{ascending:false}),
- supabase.from('diagnostic_attempts').select('id,student_id,status,overall_score,recommended_start,completed_at,started_at').order('started_at',{ascending:false})
- ]);return{profiles:profiles.data||[],students:students.data||[],households:households.data||[],subscriptions:subscriptions.data||[],diagnostics:diagnostics.data||[],errors:[profiles.error,students.error,households.error,subscriptions.error,diagnostics.error].filter(Boolean)}}
-function statusBadge(x){const good=['active','trialing','completed'].includes(x);return `<span class="badge ${good?'good':'warn'}">${esc(x||'—')}</span>`}
-async function render(){if(rendering)return;const params=new URLSearchParams(location.search);if(params.get('app')!=='1'||params.get('openBilling')==='1')return;const ctx=await context();if(!ctx)return;const main=document.querySelector('main');if(!main||document.querySelector('#adminOpsDashboard'))return;rendering=true;try{const d=await load(),parents=d.profiles.filter(p=>p.role==='parent'),studentProfiles=d.profiles.filter(p=>p.role==='student'),activeSubs=d.subscriptions.filter(s=>['active','trialing'].includes(s.status)),completedDiag=d.diagnostics.filter(x=>x.status==='completed'),linked=d.students.filter(s=>s.profile_id),needsLogin=d.students.filter(s=>!s.profile_id);main.id='adminOpsDashboard';main.className='wrap';main.innerHTML=`<section class="hero"><div class="row" style="align-items:flex-start"><div><div class="eyebrow">ADMINISTRATOR</div><h1>SATprep.io Operations</h1><p>Monitor accounts, subscriptions, student activation and diagnostic progress from one place.</p></div><button class="btn secondary" id="adminRefresh">Refresh</button></div></section>${d.errors.length?`<div class="error">Some administrator data could not be loaded. ${esc(d.errors[0].message||'')}</div>`:''}<section class="grid"><div class="card c3"><div class="label">Households</div><div class="metric">${d.households.length}</div></div><div class="card c3"><div class="label">Parents</div><div class="metric">${parents.length}</div></div><div class="card c3"><div class="label">Students</div><div class="metric">${d.students.length}</div></div><div class="card c3"><div class="label">Active trials/plans</div><div class="metric">${activeSubs.length}</div></div><div class="card c6"><h2>Student activation</h2><div class="lesson"><span>Login activated</span><strong>${linked.length}</strong></div><div class="lesson"><span>Waiting for login activation</span><strong>${needsLogin.length}</strong></div><div class="lesson"><span>Diagnostics complete</span><strong>${completedDiag.length}</strong></div></div><div class="card c6"><h2>System readiness</h2><div class="lesson"><span>Stripe/Supabase billing records</span><strong>${d.subscriptions.length}</strong></div><div class="lesson"><span>Student auth profiles</span><strong>${studentProfiles.length}</strong></div><div class="lesson"><span>Latest code stage</span><strong>MVP 1 build</strong></div></div><div class="card c12"><h2>Recent households</h2>${d.households.length?d.households.slice(0,10).map(h=>{const sub=d.subscriptions.find(s=>s.household_id===h.id),count=d.students.filter(s=>s.household_id===h.id).length;return `<div class="lesson"><div><strong>${esc(h.name||'Household')}</strong><div class="small">${count} student${count===1?'':'s'} · limit ${h.student_limit} ${h.is_test_household?'· test household':''}</div></div><div class="right">${statusBadge(sub?.status)} <span class="small">${esc(sub?.plan_key||h.plan_key||'no plan')}</span></div></div>`}).join(''):'<p class="muted">No households yet.</p>'}</div><div class="card c12"><h2>Recent students</h2>${d.students.length?d.students.slice(0,12).map(s=>{const diag=d.diagnostics.find(x=>x.student_id===s.id&&x.status==='completed'),name=s.display_name||[s.first_name,s.last_name].filter(Boolean).join(' ')||'Student';return `<div class="lesson"><div><strong>${esc(name)}</strong><div class="small">Grade ${s.grade_level||'—'} · ${esc(s.target_exam||'PSAT')} · ${s.profile_id?'login active':'login not activated'}</div></div><div class="right">${diag?`<span class="badge good">Diagnostic ${Math.round(Number(diag.overall_score||0)*100)}%</span>`:'<span class="badge warn">Diagnostic pending</span>'}</div></div>`}).join(''):'<p class="muted">No students yet.</p>'}</div></section>`;document.querySelector('#adminRefresh').onclick=()=>{main.removeAttribute('id');render()}}finally{rendering=false}}
-const observer=new MutationObserver(()=>setTimeout(render,0));observer.observe(document.documentElement,{childList:true,subtree:true});setTimeout(render,200);supabase.auth.onAuthStateChange(()=>setTimeout(render,200));
+
+const esc = (value) => String(value ?? '').replace(/[&<>\"]/g, (match) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;'
+}[match]));
+
+let rendering = false;
+
+async function context() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id,email,first_name,last_name,role')
+    .eq('id', session.user.id)
+    .maybeSingle();
+  return profile?.role === 'admin' ? { session, profile } : null;
+}
+
+async function authedPost(url, body = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Please sign in again.');
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`
+    },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Request failed.');
+  return data;
+}
+
+async function load() {
+  return authedPost('/api/admin-overview');
+}
+
+function statusBadge(value) {
+  const good = ['active', 'trialing', 'completed'].includes(value);
+  return `<span class="badge ${good ? 'good' : 'warn'}">${esc(value || '—')}</span>`;
+}
+
+async function render() {
+  if (rendering) return;
+  const params = new URLSearchParams(location.search);
+  if (params.get('app') !== '1' || params.get('openBilling') === '1') return;
+
+  const ctx = await context();
+  if (!ctx) return;
+  const main = document.querySelector('main');
+  if (!main || document.querySelector('#adminOpsDashboard')) return;
+
+  rendering = true;
+  try {
+    let data;
+    try {
+      data = await load();
+    } catch (error) {
+      main.id = 'adminOpsDashboard';
+      main.className = 'wrap';
+      main.innerHTML = `<section class="hero"><div class="eyebrow">ADMINISTRATOR</div><h1>SATprep.io Operations</h1><p>Monitor commercial readiness and account operations from one place.</p></section><div class="error">Administrator data is temporarily unavailable. ${esc(error.message || '')}</div><button class="btn secondary" id="adminRefresh">Try again</button>`;
+      document.querySelector('#adminRefresh')?.addEventListener('click', () => {
+        main.removeAttribute('id');
+        render();
+      });
+      return;
+    }
+
+    const counts = data.counts || {};
+    const households = data.recent_households || [];
+    const students = data.recent_students || [];
+
+    main.id = 'adminOpsDashboard';
+    main.className = 'wrap';
+    main.innerHTML = `<section class="hero">
+      <div class="row" style="align-items:flex-start">
+        <div><div class="eyebrow">ADMINISTRATOR</div><h1>SATprep.io Operations</h1><p>Monitor accounts, subscriptions, student activation and diagnostic progress from one place.</p></div>
+        <button class="btn secondary" id="adminRefresh">Refresh</button>
+      </div>
+    </section>
+    <section class="grid">
+      <div class="card c3"><div class="label">Households</div><div class="metric">${counts.households ?? '—'}</div></div>
+      <div class="card c3"><div class="label">Parents</div><div class="metric">${counts.parents ?? '—'}</div></div>
+      <div class="card c3"><div class="label">Students</div><div class="metric">${counts.students ?? '—'}</div></div>
+      <div class="card c3"><div class="label">Active trials/plans</div><div class="metric">${counts.active_subscriptions ?? '—'}</div></div>
+      <div class="card c6">
+        <h2>Student activation</h2>
+        <div class="lesson"><span>Login activated</span><strong>${counts.linked_students ?? '—'}</strong></div>
+        <div class="lesson"><span>Waiting for login activation</span><strong>${counts.waiting_for_login ?? '—'}</strong></div>
+        <div class="lesson"><span>Diagnostics complete</span><strong>${counts.completed_diagnostics ?? '—'}</strong></div>
+      </div>
+      <div class="card c6">
+        <h2>System readiness</h2>
+        <div class="lesson"><span>Active billing records</span><strong>${counts.active_subscriptions ?? '—'}</strong></div>
+        <div class="lesson"><span>Student auth profiles</span><strong>${counts.student_auth_profiles ?? '—'}</strong></div>
+        <div class="lesson"><span>Operations data path</span><strong>Server mediated</strong></div>
+      </div>
+      <div class="card c12">
+        <h2>Recent households</h2>
+        ${households.length ? households.map((household) => `<div class="lesson"><div><strong>${esc(household.name || 'Household')}</strong><div class="small">${household.student_count || 0} student${household.student_count === 1 ? '' : 's'} · limit ${household.student_limit ?? '—'} ${household.is_test_household ? '· test household' : ''}</div></div><div class="right">${statusBadge(household.subscription_status)} <span class="small">${esc(household.plan_key || 'no plan')}</span></div></div>`).join('') : '<p class="muted">No households yet.</p>'}
+      </div>
+      <div class="card c12">
+        <h2>Recent students</h2>
+        ${students.length ? students.map((student) => `<div class="lesson"><div><strong>${esc(student.display_name || 'Student')}</strong><div class="small">Grade ${student.grade_level || '—'} · ${esc(student.target_exam || 'PSAT')} · ${student.login_active ? 'login active' : 'login not activated'}</div></div><div class="right">${student.diagnostic_complete ? '<span class="badge good">Diagnostic complete</span>' : '<span class="badge warn">Diagnostic pending</span>'}</div></div>`).join('') : '<p class="muted">No students yet.</p>'}
+      </div>
+    </section>`;
+
+    document.querySelector('#adminRefresh')?.addEventListener('click', () => {
+      main.removeAttribute('id');
+      render();
+    });
+  } finally {
+    rendering = false;
+  }
+}
+
+const observer = new MutationObserver(() => setTimeout(render, 0));
+observer.observe(document.documentElement, { childList: true, subtree: true });
+setTimeout(render, 200);
+supabase.auth.onAuthStateChange(() => setTimeout(render, 200));
