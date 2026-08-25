@@ -15,6 +15,11 @@ if(!/PRIVATE_CONTENT_IMPORT_CONFIRM.*ACTIVATE_REVIEWED_CONTENT/.test(importer))f
 if(!/const REVIEW_TYPES=\['accuracy','alignment','editorial','bias_accessibility','originality'\]/.test(importer))fail('Private importer must require all five independent review dimensions.');
 if(!/createHash\('sha256'\)/.test(importer)||!/expected!==actual/.test(importer))fail('Private importer must recompute and verify the exact reviewed SHA-256 content hash.');
 if(!/function duplicateSignature\(c\)/.test(importer)||!/function nearDuplicate\(a,b\)/.test(importer))fail('Private importer must screen exact and near-duplicate question content before database writes.');
+const signatureFn=importer.match(/function duplicateSignature\(c\)\{([^\n]+)\}/)?.[1]||'';
+if(!signatureFn||/type:c\.type/.test(signatureFn))fail('Duplicate signatures must be content-based across diagnostic and practice banks, not partitioned by content type.');
+const nearDuplicateFn=importer.match(/function nearDuplicate\(a,b\)\{([^\n]+)\}/)?.[1]||'';
+if(!nearDuplicateFn||/a\.type!==b\.type/.test(nearDuplicateFn))fail('Near-duplicate screening must protect diagnostic integrity across diagnostic and practice banks.');
+if(!/Diagnostic and practice banks must remain distinct\./.test(importer))fail('Private importer must explicitly fail closed on diagnostic/practice content overlap.');
 if(!/qa_status=eq\.production_approved&select=id,content_type,section,skill_key,format,stimulus,stem,choices/.test(importer))fail('Private importer must compare incoming reviewed items against the existing production-approved bank.');
 if(!/EXISTING_PAGE_SIZE=500/.test(importer)||!/offset=\$\{offset\}/.test(importer))fail('Private importer must paginate the existing reviewed-bank duplicate scan.');
 if(!/existingSignatures\.get\(duplicateSignature\(entry\.c\)\)/.test(importer)||!/nearDuplicate\(entry\.c,prior\)/.test(importer))fail('Private importer must fail closed on duplicate or near-duplicate existing commercial content.');
