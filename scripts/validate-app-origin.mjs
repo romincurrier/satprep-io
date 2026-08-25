@@ -8,7 +8,11 @@ const targets=new Map([
  ['student parent invitation',read('../api/student-parent-invitation.js')],
  ['parent invitation acceptance',read('../api/parent-invitations.js')],
  ['parent setup request',read('../api/parent-setup-request.js')],
- ['privacy request creation',read('../api/privacy-request.js')]
+ ['privacy request creation',read('../api/privacy-request.js')],
+ ['diagnostic session creation',read('../api/diagnostic-session-v3.js')],
+ ['diagnostic scoring',read('../api/diagnostic-answer-v3.js')],
+ ['guided-practice session creation',read('../api/practice-session-v3.js')],
+ ['guided-practice scoring',read('../api/practice-answer-v3.js')]
 ]);
 const failures=[];
 const requireText=(text,needle,label)=>{if(!text.includes(needle))failures.push(label)};
@@ -31,6 +35,13 @@ if(parentSetup.includes("endsWith('.vercel.app')"))failures.push('Parent setup m
 
 for(const [label,source] of [['parent invitation acceptance',targets.get('parent invitation acceptance')],['privacy request creation',targets.get('privacy request creation')]]){
  requireText(source,"if(req.method==='POST')assertAppRequestOrigin(req)",`${label} must guard the mutating POST without unnecessarily blocking the authenticated GET path.`);
+}
+
+for(const label of ['diagnostic session creation','diagnostic scoring','guided-practice session creation','guided-practice scoring']){
+ const source=targets.get(label);
+ const guardIndex=source.indexOf('assertAppRequestOrigin(req)');
+ const contextIndex=source.indexOf('studentContext(req)');
+ if(guardIndex<0||contextIndex<0||guardIndex>contextIndex)failures.push(`${label} must reject untrusted browser origins before loading student context or mutating trusted learning state.`);
 }
 
 if(failures.length){
