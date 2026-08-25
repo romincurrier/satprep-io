@@ -24,6 +24,17 @@ function assertPublicBillingMode(req,flag,label){
  if(mode!=='live'&&!enabled('ALLOW_PUBLIC_TEST_BILLING'))throw Object.assign(new Error('Public billing is not configured for live transactions.'),{status:503});
 }
 
+export function assertBillingRequestOrigin(req){
+ const rawOrigin=String(req?.headers?.origin||'').trim(),host=requestHost(req),fetchSite=String(req?.headers?.['sec-fetch-site']||'').trim().toLowerCase();
+ if(fetchSite&&!['same-origin','none'].includes(fetchSite))throw Object.assign(new Error('Billing requests must originate from the SATprep.io application.'),{status:403});
+ if(!rawOrigin){if(isPublicHost(req))throw Object.assign(new Error('Billing request origin could not be verified.'),{status:403});return}
+ try{
+  const origin=new URL(rawOrigin),local=['localhost','127.0.0.1'].includes(origin.hostname.toLowerCase());
+  if(origin.protocol!=='https:'&&!(origin.protocol==='http:'&&local))throw new Error('protocol');
+  if(origin.hostname.toLowerCase()!==host)throw new Error('host');
+ }catch{throw Object.assign(new Error('Billing request origin could not be verified.'),{status:403})}
+}
+
 // Server-side launch controls. The browser guard is UX only; these are the authority.
 // Preview/non-public hosts remain available for Stripe test-mode QA.
 export function assertCheckoutSurfaceEnabled(req){assertPublicBillingMode(req,'PUBLIC_BILLING_ENABLED','Checkout')}
