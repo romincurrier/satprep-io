@@ -1,13 +1,22 @@
 # SATprep.io Commercial Launch Status
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
 
 ## Current state
 SATprep.io is a **pre-launch commercial candidate**, not approved for public paying customers. The codebase includes student/parent/admin/onboarding/billing flows, prior-assessment ingestion, an assessment-only adaptive diagnostic, server-scored guided practice with explanations, mastery/progress tracking, content review and calibration tooling, SEO/trust content, marketing/measurement plans, privacy/security controls, youth-account safeguards, accessibility checks, durable API rate limiting, and launch runbooks.
 
-The newest main-branch hardening makes first-party acquisition measurement fail closed on both client and server, limits it to public marketing surfaces, requires an approved browser Origin, filters contact-like campaign values, applies durable anonymous-event throttling, and keeps hashed abuse-control counters short-lived. The changed JavaScript modules passed direct Node syntax checks. Full repository build/deployment verification is still required because the connected Vercel team/project context is not currently discoverable and this runtime cannot clone GitHub over the public network.
+The newest main-branch hardening adds an exact-project live-backend guard for the verified SATprep.io Supabase project, expands the read-only commercial schema contract to cover SPR, practice, marketing, and calibration objects, explicitly locks the marketing-event table/identity sequence to the service role, and wires backend-contract syntax validation into every production build. The latest Vercel deployment for main is green. Live database migration reconciliation is still pending because the Supabase management connector became unavailable during the current run; no alternate or unrelated Supabase project was touched.
 
 ## Most recent launch hardening
+
+### Live-backend reconciliation guard
+- `scripts/verify-live-backend.mjs` now refuses to run against any Supabase project other than the expected SATprep.io project reference `ataaiocpbjavmdpgmzlv` unless an explicit expected-ref override is supplied.
+- The live contract now checks the actual commercial schema names and fields, including `item_id` plan/response links, Math SPR `response_text`, full practice-session provenance, content version/origin/review fields, privacy/rate-limit objects, first-party measurement storage, and calibration views.
+- Browser-denial probes now include proprietary content tables, diagnostic plans, practice sessions/plans/responses, rate-limit counters, marketing events, and calibration views.
+- The verifier remains read-only: it does not restore projects, apply migrations, write student data, or invoke mutating RPCs.
+- `npm run verify:backend` runs the explicit live read-only verification when the required Supabase environment values are available.
+- `validate:backend-contract` performs a syntax check in every build without requiring production secrets.
+- The exact live SATprep.io project `ataaiocpbjavmdpgmzlv` was previously reconnected and verified healthy. During the latest automation run the Supabase management tool became unavailable before migration inspection, so no live database changes are claimed.
 
 ### First-party measurement launch controls
 - `launch-gates.json` explicitly tracks `first_party_measurement`, which remains `disabled`.
@@ -18,10 +27,11 @@ The newest main-branch hardening makes first-party acquisition measurement fail 
 - Event names are allowlisted and payload/field lengths are bounded.
 - Measurement remains privacy-minimized: no cookies, localStorage IDs, account IDs, learner IDs, age/DOB, school data, test scores, diagnostic responses, skill mastery, uploaded-report data, or parent-child linkage are included.
 - Email-like and phone-like values in campaign/referral fields are discarded server-side instead of being stored.
-- The anonymous event endpoint is protected by the durable database-backed limiter. Vercel documents that it overwrites `x-forwarded-for` at the edge to prevent ordinary spoofing; the raw address is used only transiently as a limiter subject and is SHA-256 hashed before database storage.
+- The anonymous event endpoint is protected by the durable database-backed limiter. The raw address is used only transiently as a limiter subject and is SHA-256 hashed before database storage.
 - The rate-limit migration opportunistically removes hashed limiter counters older than 24 hours, aligned with the proposed retention target.
-- Production launch validation now fails if measurement is activated accidentally, if the server fail-closed flag is removed, if public-surface/origin/contact-data boundaries disappear, if anonymous rate limiting is removed, or if the client can send while its launch gate is disabled.
-- `docs/API_ABUSE_CONTROLS.md` now documents the anonymous measurement threat model, route limit, raw-IP prohibition, short retention, and required QA cases.
+- `migrations/20260825_marketing_events_privilege_lock.sql` explicitly revokes the measurement table and its identity sequence from `public`, `anon`, and `authenticated`, granting only the minimum service-role privileges needed for trusted server ingestion. This migration is staged and **not claimed live** until database reconciliation succeeds.
+- Production launch validation fails if measurement is activated accidentally, if the server fail-closed flag is removed, if public-surface/origin/contact-data boundaries disappear, if anonymous rate limiting is removed, or if the client can send while its launch gate is disabled.
+- `docs/API_ABUSE_CONTROLS.md` documents the anonymous measurement threat model, route limit, raw-IP prohibition, short retention, and required QA cases.
 
 ### Explicit commercial launch gates
 - `launch-gates.json` is the repository-level source of truth for launch-sensitive state.
@@ -50,7 +60,7 @@ The newest main-branch hardening makes first-party acquisition measurement fail 
 - Exact-hash review canonicalization supports both MCQ answer indices and SPR accepted-response sets without invalidating the existing MCQ hash shape.
 - Review export includes response format and accepted SPR answers.
 - Private reviewed-content import supports MCQ or Math SPR, requiring five approvals: accuracy, alignment, editorial, bias/accessibility, and originality.
-- Response-storage migration adds mutually exclusive `selected_answer` / `response_text` fields to diagnostic and practice responses. It is committed but not live while Supabase remains inactive.
+- Response-storage migration adds mutually exclusive `selected_answer` / `response_text` fields to diagnostic and practice responses. It is committed but not claimed live until backend reconciliation verifies it.
 
 ### Marketing-claims build gate
 - `validate:marketing-claims` runs in every production build.
@@ -73,31 +83,31 @@ The newest main-branch hardening makes first-party acquisition measurement fail 
 - First-party marketing measurement has independent browser/server launch locks and remains disabled; when later approved it is designed for public acquisition surfaces only and collects privacy-minimized events.
 - Youth signup includes browser defense-in-depth plus a pending database age-gate migration; under-13 learners are routed through the parent/guardian workflow.
 - Durable API abuse controls, privacy-request workflow, profile-privilege restrictions, content-integrity controls, secure diagnostic/practice sessions, and server-scored MCQ/SPR response protections are implemented in code/migrations.
-- Production builds validate security, SPR scoring, practice security, adaptive practice, youth privacy, privilege boundaries, private content workflow, SEO, marketing claims, accessibility, launch state, and deterministic regression behavior.
+- Production builds validate security, SPR scoring, practice security, adaptive practice, youth privacy, privilege boundaries, private content workflow, SEO, marketing claims, accessibility, backend-contract syntax, launch state, and deterministic regression behavior.
 - Automated accessibility checks are in place, but manual keyboard/screen-reader/zoom/contrast/device testing remains a launch requirement.
 
 ## Infrastructure state
-- Supabase project `nrjqykfrnfrgyuvprwob` remains **INACTIVE** as of the latest check and was not restored automatically because restoration can affect hosted infrastructure/billing.
-- Pending migrations include the content/review system, practice sessions, MCQ/SPR response storage, calibration, marketing measurement, privacy requests, durable API rate limits, profile privilege locking, and student-signup age gate. They are committed but **not claimed live**.
+- The intended live Supabase backend is **SATprep.io**, project reference `ataaiocpbjavmdpgmzlv`; it was previously reconnected and verified healthy.
+- Supabase management access is intermittent. It was unavailable during the latest migration-reconciliation attempt, so pending migrations are still **not claimed live** and no other Supabase project was modified.
+- Pending migrations include the content/review system, practice sessions, MCQ/SPR response storage, calibration, marketing measurement and its explicit privilege lock, privacy requests, durable API rate limits, profile privilege locking, and student-signup age gate. They must be compared with the live migration history and applied only where missing.
 - GitHub repository is currently public. Fresh secure commercial question content should use the documented external private-review/import bridge and should ultimately live behind a dedicated private editorial/content boundary.
-- The connected Vercel deployment tool currently exposes no discoverable team/project context, so the latest commits are **not claimed deployed or build-verified** in this run. Direct Node syntax checks passed for the modified measurement client/server modules; full `npm run build` remains required through CI/deployment.
+- GitHub/Vercel deployment verification is working. The latest main commit containing the backend-contract build hook deployed successfully on Vercel.
 - Public indexing, live Stripe, ads, first-party measurement, public outbound email, affiliate/referral execution, Search Console submission, retargeting, social publishing, and final legal/privacy publication remain disabled.
 
 ## Highest-priority next actions
-1. Resolve the **brand/domain/trademark launch gate** through documented permission/legal review or a rebrand/domain transition before indexing or outbound marketing.
-2. Intentionally reactivate Supabase when approved; apply/reconcile pending migrations and test RLS, service-role, auth-trigger, rate-limit, privacy, content, MCQ/SPR diagnostic, practice, and measurement boundaries end to end.
-3. Establish a dedicated private proprietary-content repository/editorial system and import fresh independently reviewed diagnostic/practice content with exact hash approvals.
-4. Increase approved content depth/rotation/difficulty distribution and add a reviewed Math SPR mix toward the commercial targets.
-5. End-to-end test secure diagnostic and commercial practice: MCQ/SPR entry, resume, adaptive bands, revoked approvals, right/wrong practice feedback, idempotency, atomic mastery updates, 429/503 behavior, and cross-account isolation.
-6. Test direct teen signup versus parent-authorized under-13 activation after the age-gate migration is live.
-7. Remove/decommission browser-writable mastery/question-attempt authority from the commercial path after server practice is proven live.
-8. Complete full functional regression across student, parent, admin, onboarding, billing preview, prior uploads, progress/journey, privacy requests, support recovery, and disabled/enabled measurement states.
-9. Complete manual accessibility and privacy/legal/data-retention/processor reviews.
+1. Reconnect/obtain stable management access to the exact Supabase project `ataaiocpbjavmdpgmzlv`; compare live migration history, apply only missing migrations, run security/performance advisors, and execute `npm run verify:backend` plus account-boundary/RLS testing.
+2. Establish a dedicated private proprietary-content repository/editorial system and import fresh independently reviewed diagnostic/practice content with exact hash approvals.
+3. Increase approved content depth/rotation/difficulty distribution and add a reviewed Math SPR mix toward the commercial targets.
+4. End-to-end test secure diagnostic and commercial practice: MCQ/SPR entry, resume, adaptive bands, revoked approvals, right/wrong practice feedback, idempotency, atomic mastery updates, 429/503 behavior, and cross-account isolation.
+5. Test direct teen signup versus parent-authorized under-13 activation after the age-gate migration is live.
+6. Remove/decommission browser-writable mastery/question-attempt authority from the commercial path after server practice is proven live.
+7. Complete full functional regression across student, parent, admin, onboarding, billing preview, prior uploads, progress/journey, privacy requests, support recovery, and disabled/enabled measurement states.
+8. Complete manual accessibility and privacy/legal/data-retention/processor reviews.
+9. Resolve the brand/domain/trademark launch gate before indexing or outbound marketing.
 10. Only after explicit approval and all applicable gates: enable public indexing/billing/analytics and begin outbound marketing execution.
 
 ## Launch gates still open
-- College Board trademark/naming/domain resolution.
-- Active verified production database with pending migrations applied.
+- Stable verified production database with pending migrations reconciled/applied.
 - Dedicated private proprietary-content boundary and fresh secure diagnostic bank.
 - Independent review plus sufficient content depth/rotation/difficulty distribution, including Math SPR.
 - Commercial diagnostic/practice end-to-end verification and legacy browser-authority retirement.
@@ -106,5 +116,6 @@ The newest main-branch hardening makes first-party acquisition measurement fail 
 - Pilot calibration after adequate usage data.
 - Full functional/security/privacy regression.
 - Final legal/privacy/data-retention/processor review.
+- Brand/domain/trademark resolution before public indexing/outbound marketing.
 - Live billing/pricing/trial approval.
 - Approved analytics/attribution and outbound marketing activation.
