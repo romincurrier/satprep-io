@@ -1,6 +1,6 @@
 # Private Proprietary Content Workflow
 
-Last updated: 2026-08-24
+Last updated: 2026-08-25
 
 ## Why this boundary exists
 
@@ -20,20 +20,24 @@ The existing committed question banks are development/staging material and must 
 
    `node scripts/import-private-reviewed-content.mjs /absolute/private/path/content-review.csv`
 
-   The importer validates all five approval dimensions and the exact content hash before writing anything. By default, reviewed items are imported **inactive**, even though their QA status is production-approved.
-8. Perform content/runtime QA against inactive or controlled test content as appropriate.
-9. Only when activation is explicitly approved, run with both the activation flag and deliberate environment confirmation:
+   The importer validates all five approval dimensions and the exact content hash before writing anything. It also screens the incoming batch for exact duplicate content and very-high-similarity wording, then compares each incoming item against the existing production-approved commercial bank. Duplicate/near-duplicate failures identify item IDs only; proprietary question text is not printed. By default, reviewed items are imported **inactive**, even though their QA status is production-approved.
+8. If duplicate screening blocks an item, diversify the item materially, complete a fresh independent review of the revised version, and regenerate its exact content hash before importing again. Do not bypass the screen by assigning a new item ID to substantially identical content.
+9. Perform content/runtime QA against inactive or controlled test content as appropriate.
+10. Only when activation is explicitly approved, run with both the activation flag and deliberate environment confirmation:
 
    `PRIVATE_CONTENT_IMPORT_CONFIRM=ACTIVATE_REVIEWED_CONTENT node scripts/import-private-reviewed-content.mjs /absolute/private/path/content-review.csv --activate`
 
-10. The importer deactivates any existing item before replacing its prompt/key/reviews and only reactivates after all writes complete. The runtime independently recomputes the content hash and requires current approvals, providing another fail-closed layer.
+11. The importer deactivates any existing item before replacing its prompt/key/reviews and only reactivates after all writes complete. The runtime independently recomputes the content hash and requires current approvals, providing another fail-closed layer.
 
-## Security properties
+## Security and quality properties
 
 - Proprietary question text is never printed by the import script.
 - The import script requires an **absolute path**, making accidental use of a repo-local review artifact less likely.
 - The service-role key is read only from server/local environment variables and must never be placed in browser/Vite variables.
 - New content lands in server-only `content_items`, `content_answer_keys`, and `content_item_reviews` tables whose browser-role access is explicitly revoked by the content-system migration.
+- Incoming batches are screened for duplicate IDs, exact duplicate content, and very-high-similarity wording before any writes occur.
+- The importer paginates through existing production-approved content and checks incoming items against that bank, preventing duplicate content from being hidden under a different item ID.
+- Similarity screening is a fail-closed editorial safeguard, not a substitute for the required originality review. Reviewers remain responsible for substantive originality, source independence, and avoiding protected third-party test content.
 - An item can be `production_approved` but inactive; runtime delivery additionally requires `active=true`.
 - Any content change after review breaks the hash and causes secure diagnostic/practice delivery to fail closed until the changed version is reviewed again.
 
