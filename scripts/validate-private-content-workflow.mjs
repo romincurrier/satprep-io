@@ -36,6 +36,13 @@ else{
  if(!/const e=new Error\(`Supabase content import request failed \(\$\{r\.status\}\)\.`\)/.test(restFn))fail('Private importer REST errors must remain status-only and must not include database response content.');
 }
 
+const preflight=read('scripts/private-content-readiness-report.mjs');
+if(!/path\.isAbsolute\(file\)/.test(preflight)||!/resolved\.startsWith\(`\$\{root\}\$\{path\.sep\}`\)/.test(preflight))fail('Private readiness preflight must require an external absolute file path and refuse repo-local proprietary files.');
+if(!/evaluateSkillCoverage\(pool,kind\)/.test(preflight)||!/COMMERCIAL_CONTENT_POLICY/.test(preflight))fail('Private readiness preflight must use the shared commercial depth/difficulty policy.');
+if(!/MIN_INDEPENDENT_REVIEWERS=3/.test(preflight)||!/MAX_DIMENSIONS_PER_REVIEWER=2/.test(preflight))fail('Private readiness preflight must use the commercial reviewer-independence thresholds.');
+if(!/question text is intentionally not shown/i.test(preflight))fail('Private readiness preflight must explicitly avoid printing proprietary question text.');
+if(/console\.(?:log|warn|error)\([^\n]*(?:stem|choices|explanation|stimulus)/i.test(preflight))fail('Private readiness preflight must not log proprietary question content fields.');
+
 const liveVerifier=read('scripts/verify-live-content-readiness.mjs');
 if(!/MIN_INDEPENDENT_REVIEWERS=3/.test(liveVerifier)||!/MAX_DIMENSIONS_PER_REVIEWER=2/.test(liveVerifier)||!/independentReviewSet/.test(liveVerifier))fail('Live content readiness must independently enforce commercial reviewer diversity.');
 if(!/process\.argv\.includes\('--strict'\).*invalidProduction\.length/s.test(liveVerifier))fail('Strict live content readiness must fail on production rows with invalid, stale, or non-independent approvals.');
@@ -44,6 +51,7 @@ const doc=read('docs/PRIVATE_CONTENT_WORKFLOW.md');
 if(!/must not be treated as secret commercial assessment content/i.test(doc))fail('Private content documentation must explicitly treat previously public answer keys as exposed.');
 if(!/dedicated private content repository|dedicated private repository/i.test(doc))fail('Private content documentation must retain the long-term private repository/CMS requirement.');
 if(!/at least three distinct reviewer labels/i.test(doc)||!/no reviewer approving more than two dimensions/i.test(doc))fail('Private content documentation must state the enforced reviewer-independence rule.');
+if(!/content:private-readiness/.test(doc))fail('Private content documentation must include the metadata-only private readiness preflight step.');
 
 if(errors.length){for(const e of errors)console.error(`Private content workflow validation error: ${e}`);process.exit(1)}
 console.log('Private proprietary-content workflow validation passed.');
