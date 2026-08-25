@@ -34,11 +34,15 @@ SATprep.io is considered launch-ready only when it is a testable end-to-end lear
 ## Content launch gate
 - Diagnostic and practice content is SATprep.io-original and mapped to the current official SAT Suite domains/skills.
 - Automated validation passes for taxonomy, answer keys, explanations, duplicate IDs, diagnostic blueprints, exam eligibility, required skill coverage, and diagnostic/practice overlap.
-- The staged practice pool currently provides at least two authored items per official skill, but added content remains gated until human review.
+- The shared commercial content policy requires at least **6 hash-valid approved diagnostic items per skill** and **8 hash-valid approved practice items per skill** before full launch readiness can be claimed.
+- Approved diagnostic inventory for a skill must span difficulty levels 1, 2, and 3. Approved practice inventory must include at least 2 difficulty-1, 3 difficulty-2, and 2 difficulty-3 items, with at least 8 approved items total for rotation depth.
+- Five-item guided-practice sessions remain intentionally shorter than the eight-item per-skill inventory requirement; the extra approved depth exists for rotation, repeat-session freshness, and adaptive selection.
+- New commercial practice sessions fail closed unless the requested skill meets the shared approved depth/difficulty policy. Saved sessions may resume only while every persisted item remains currently approved and hash-valid.
+- Math guided practice targets approximately 25% student-produced response items when the approved pool supports that mix; Reading and Writing remains multiple choice.
 - Independent review covers accuracy, SAT/PSAT alignment, editorial quality, bias/accessibility, and originality.
 - Review decisions are bound to the exact reviewed question using a content hash; editing an item invalidates the old approval.
 - Only reviewed/approved content is eligible for commercial production sessions.
-- Question-bank depth/rotation is adequate to reduce memorization and repeated exposure.
+- The secure commercial diagnostic bank must be fresh content created after a private proprietary-content boundary is established; historical public-repository diagnostic items are not promoted into the secure bank merely by adding approvals later.
 - Internal mastery/readiness signals are not marketed as official SAT/PSAT scaled scores unless a separate calibration study supports that claim.
 - No score-increase, admission, scholarship, or comparative-superiority claims are published without adequate documented evidence.
 
@@ -70,17 +74,17 @@ SATprep.io is considered launch-ready only when it is a testable end-to-end lear
 ## SEO / marketing readiness gate
 - Indexable product and educational pages have unique titles/descriptions, canonical URLs, appropriate structured data, internal links, and accurate non-affiliation language.
 - XML sitemap/robots are valid; unknown routes return a real 404 rather than a soft-404 copy of the app.
-- Build validates content, SEO, and security invariants before deployment.
+- Build validates content, SEO, security, adaptive practice, the shared commercial content policy, and launch-state invariants before deployment.
 - Methodology and content-quality standards are public and accurately describe current behavior.
 - Search Console, analytics, email, ad, social, affiliate, and partnership accounts are connected only after explicit approval.
 - Campaign attribution avoids names, emails, DOB/age, school data, uploaded score data, diagnostic answers, or skill mastery.
 - Paid campaigns optimize toward meaningful activation/retention rather than clicks or raw account creation once sufficient lawful measurement exists.
 
 ## Current focus
-1. Verify secure diagnostic v3 end-to-end with fresh test accounts, including multi-window/device resume and duplicate-network retries.
-2. Complete independent question review and continue expanding production-quality question depth/rotation.
-3. Verify/apply committed Supabase content-system migrations when database management connectivity is stable, then rerun advisors.
-4. Complete end-to-end regression across parent, student, admin, onboarding, billing, assessment upload, diagnostic, learning, and progress flows.
-5. Complete privacy/minors data inventory, retention/deletion design, processor review, and qualified legal review.
-6. Continue SEO content clusters/internal linking and launch measurement design without activating unreviewed tracking.
-7. Finalize campaign assets and channel launch checklists while keeping spend/outbound/public-account actions behind explicit approval.
+1. Reconcile the committed Supabase migrations against the live `ataaiocpbjavmdpgmzlv` project when management connectivity is available; apply only missing migrations, then rerun security/performance advisors and the read-only backend contract verifier.
+2. Establish the private proprietary-content boundary and build the fresh secure diagnostic bank toward 6 fully approved items per official skill, with reviewed difficulty coverage and Math SPR representation where appropriate.
+3. Expand independently reviewed practice inventory toward 8 approved items per skill. Runtime now refuses to open a new commercial practice session below that rotation/depth threshold and targets Math SPR in the selected instructional mix when available.
+4. Verify secure diagnostic v3 and guided practice end-to-end with fresh test accounts, including multi-window/device resume, duplicate-network retries, revoked approvals, session immutability, and server-scored MCQ/SPR behavior.
+5. Complete end-to-end regression across parent, student, admin, onboarding, billing, assessment upload, diagnostic, learning, progress, privacy requests, and support recovery.
+6. Complete privacy/minors data inventory, retention/deletion design, processor review, and qualified legal review.
+7. Continue SEO content clusters/internal linking and launch measurement design without activating indexing, unreviewed tracking, paid media, outbound email, or public social/affiliate execution.
