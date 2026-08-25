@@ -5,7 +5,7 @@ Last updated: 2026-08-25
 ## Current state
 SATprep.io is a **pre-launch commercial candidate**, not approved for public paying customers. The codebase includes student/parent/admin/onboarding/billing flows, prior-assessment ingestion, an assessment-only adaptive diagnostic, server-scored guided practice with explanations, mastery/progress tracking, content review and calibration tooling, SEO/trust content, marketing/measurement plans, privacy/security controls, youth-account safeguards, accessibility checks, durable API rate limiting, and launch runbooks.
 
-The newest main-branch hardening adds an exact-project live-backend guard for the verified SATprep.io Supabase project, expands the read-only commercial schema contract to cover SPR, practice, marketing, and calibration objects, explicitly locks the marketing-event table/identity sequence to the service role, and wires backend-contract syntax validation into every production build. The latest Vercel deployment for main is green. Live database migration reconciliation is still pending because the Supabase management connector became unavailable during the current run; no alternate or unrelated Supabase project was touched.
+The newest main-branch hardening improves commercial guided-practice rotation: adaptive selection now uses recent trusted response history to prefer unseen items first and least-recently-used items when repetition is unavoidable, without sacrificing the reviewed difficulty targets or Math SPR mix. The security validator was updated to enforce that rotation contract, and the resulting main-branch Vercel deployment is green. Live database migration reconciliation is still pending because the Supabase management connector became unavailable during the current run; no alternate or unrelated Supabase project was touched.
 
 ## Most recent launch hardening
 
@@ -76,6 +76,8 @@ The newest main-branch hardening adds an exact-project live-backend guard for th
 - Commercial depth target remains at least **8 practice items and 6 diagnostic items per official skill**, with multiple difficulty levels, MCQ/SPR coverage where applicable, independent review, and later pilot calibration.
 - Diagnostic behavior remains assessment-only: no right/wrong teaching during the baseline assessment.
 - Commercial practice gives right/wrong feedback, the correct/accepted answer, and instructional explanations, with server-side scoring and durable resume.
+- New practice planning uses up to the learner's 50 most recent trusted server-scored responses as a recency signal. Within each adaptive target difficulty, unseen content is preferred first; if every suitable item has been seen, the least-recently-used item is preferred. Math SPR balancing uses the same freshness preference, reducing avoidable repetition while preserving the difficulty plan and best-effort format mix.
+- The adaptive-practice regression suite now covers the fresh-item preference and the least-recently-used fallback, and the production practice-security validator enforces that the runtime continues using trusted response history rather than silently regressing to random repeat selection.
 
 ## Security, privacy, accessibility, and billing state
 - Public checkout and checkout confirmation are server-gated and disabled on the public host unless explicit launch flags are enabled.
@@ -91,14 +93,14 @@ The newest main-branch hardening adds an exact-project live-backend guard for th
 - Supabase management access is intermittent. It was unavailable during the latest migration-reconciliation attempt, so pending migrations are still **not claimed live** and no other Supabase project was modified.
 - Pending migrations include the content/review system, practice sessions, MCQ/SPR response storage, calibration, marketing measurement and its explicit privilege lock, privacy requests, durable API rate limits, profile privilege locking, and student-signup age gate. They must be compared with the live migration history and applied only where missing.
 - GitHub repository is currently public. Fresh secure commercial question content should use the documented external private-review/import bridge and should ultimately live behind a dedicated private editorial/content boundary.
-- GitHub/Vercel deployment verification is working. The latest main commit containing the backend-contract build hook deployed successfully on Vercel.
+- GitHub/Vercel deployment verification is working. The latest main commit containing least-recently-used practice rotation plus its updated security validator deployed successfully on Vercel.
 - Public indexing, live Stripe, ads, first-party measurement, public outbound email, affiliate/referral execution, Search Console submission, retargeting, social publishing, and final legal/privacy publication remain disabled.
 
 ## Highest-priority next actions
 1. Reconnect/obtain stable management access to the exact Supabase project `ataaiocpbjavmdpgmzlv`; compare live migration history, apply only missing migrations, run security/performance advisors, and execute `npm run verify:backend` plus account-boundary/RLS testing.
 2. Establish a dedicated private proprietary-content repository/editorial system and import fresh independently reviewed diagnostic/practice content with exact hash approvals.
 3. Increase approved content depth/rotation/difficulty distribution and add a reviewed Math SPR mix toward the commercial targets.
-4. End-to-end test secure diagnostic and commercial practice: MCQ/SPR entry, resume, adaptive bands, revoked approvals, right/wrong practice feedback, idempotency, atomic mastery updates, 429/503 behavior, and cross-account isolation.
+4. End-to-end test secure diagnostic and commercial practice: MCQ/SPR entry, resume, adaptive bands, least-recently-used rotation, revoked approvals, right/wrong practice feedback, idempotency, atomic mastery updates, 429/503 behavior, and cross-account isolation.
 5. Test direct teen signup versus parent-authorized under-13 activation after the age-gate migration is live.
 6. Remove/decommission browser-writable mastery/question-attempt authority from the commercial path after server practice is proven live.
 7. Complete full functional regression across student, parent, admin, onboarding, billing preview, prior uploads, progress/journey, privacy requests, support recovery, and disabled/enabled measurement states.
