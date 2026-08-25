@@ -34,6 +34,7 @@ if(!core.includes("sprTarget=meta.section==='MATH'?Math.max(1,Math.round(length*
 if(!/mastery_before:mastery,adaptive_band:band/.test(core))fail('New commercial practice sessions must persist the mastery baseline and adaptive band used to plan the immutable item set.');
 if(!/existing\.adaptive_band\|\|band/.test(core))fail('Resumed practice must report the adaptive band stored with the saved item plan rather than silently regenerating its planning provenance.');
 if(!/content_type=eq\.practice&skill_key=eq\./.test(core)||!/qa_status=eq\.production_approved&active=eq\.true/.test(core))fail('Commercial practice selection must use active production-approved server practice content for the requested skill.');
+if(!core.includes('function candidateIdFilter')||!core.includes('content_answer_keys?select=item_id,answer,explanation&item_id=in.${itemFilter}')||!core.includes('content_item_reviews?select=id,item_id,review_type,reviewer_label,decision,content_hash,created_at&item_id=in.${itemFilter}'))fail('Commercial practice review/key reads must be scoped to the requested skill/exam candidate IDs rather than scanning the full proprietary content store.');
 if(!/row\?\.format==='spr'&&row\?\.section==='MATH'/.test(core))fail('Student-produced response content must be restricted to Math in commercial practice.');
 for(const review of ['accuracy','alignment','editorial','bias_accessibility','originality'])if(!core.includes(`'${review}'`))fail(`Commercial practice approval gate must require ${review} review.`);
 if(!/databaseReviewContent\('practice'/.test(core)||!/createHash\('sha256'\)/.test(core)||!/r\.content_hash===hash/.test(core))fail('Commercial practice runtime must enforce exact SHA-256 hash-pinned review approval.');
@@ -80,4 +81,4 @@ if(!/security definer/i.test(migration)||!/grant execute on function public\.fin
 if(!/on conflict\(student_id,skill_key\) do update/i.test(migration)||!/on conflict\(student_id,lesson_key\) do update/i.test(migration))fail('Practice finalization must update trusted mastery and lesson progress atomically.');
 
 if(errors.length){for(const e of errors)console.error(`Practice security validation error: ${e}`);process.exit(1)}
-console.log('Commercial MCQ/SPR practice security, adaptive selection, least-recently-used rotation, content-depth policy, provenance, and resume invariants passed.');
+console.log('Commercial MCQ/SPR practice security, adaptive selection, scoped review reads, least-recently-used rotation, content-depth policy, provenance, and resume invariants passed.');
