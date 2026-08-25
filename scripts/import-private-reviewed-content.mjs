@@ -6,6 +6,8 @@ import {canonicalReviewContent} from '../content-integrity.js';
 import {sprSpecFrom} from '../server/response-scoring.js';
 
 const REVIEW_TYPES=['accuracy','alignment','editorial','bias_accessibility','originality'];
+const NEAR_DUPLICATE_THRESHOLD=.96;
+const EXISTING_PAGE_SIZE=500;
 const args=process.argv.slice(2),file=args.find(x=>!x.startsWith('--'));
 const activate=args.includes('--activate');
 if(!file){console.error('Usage: node scripts/import-private-reviewed-content.mjs /absolute/private/content-review.csv [--activate]');process.exit(2)}
@@ -31,6 +33,11 @@ function parsedRow(row){
  return{...base,answer:{accepted,display}};
 }
 function hash(c){return createHash('sha256').update(JSON.stringify(canonicalReviewContent(c.type,c))).digest('hex')}
+function compact(v){return norm(v).normalize('NFKC').toLowerCase().replace(/\s+/g,' ')}
+function duplicateSignature(c){return createHash('sha256').update(JSON.stringify({type:c.type,section:c.section,skill:c.skill,format:c.format,stimulus:compact(typeof c.stimulus==='string'?c.stimulus:JSON.stringify(c.stimulus??'')),stem:compact(c.stem),choices:(c.choices||[]).map(compact)})).digest('hex')}
+function similarityTokens(c){return compact([c.stem,...(c.choices||[])].join(' ')).replace(/[^\p{L}\p{N}]+/gu,' ').split(' ').filter(Boolean)}
+function tokenJaccard(a,b){const A=new Set(a),B=new Set(b);if(!A.size||!B.size)return 0;let common=0;for(const token of A)if(B.has(token))common++;return common/(A.size+B.size-common)}
+function nearDuplicate(a,b){if(a.type!==b.type||a.section!==b.section||a.skill!==b.skill||a.format!==b.format)return false;const A=similarityTokens(a),B=similarityTokens(b);if(Math.min(A.length,B.length)<12)return false;return tokenJaccard(A,B)>=NEAR_DUPLICATE_THRESHOLD}
 const prepared=[];
 for(const [i,row] of rows.entries()){
  const line=i+2,c=parsedRow(row),expected=norm(row.content_hash).toLowerCase();
@@ -47,14 +54,22 @@ for(const [i,row] of rows.entries()){
  prepared.push({c,hash:actual,reviewer,reviewedAt,notes:norm(row.review_notes)});
 }
 if(new Set(prepared.map(x=>x.c.id)).size!==prepared.length){console.error('Review file contains duplicate item IDs.');process.exit(2)}
+const incomingSignatures=new Map();
+for(const entry of prepared){const signature=duplicateSignature(entry.c),prior=incomingSignatures.get(signature);if(prior&&prior!==entry.c.id)throw new Error(`Reviewed import contains duplicate question content under item IDs ${prior} and ${entry.c.id}.`);incomingSignatures.set(signature,entry.c.id)}
+for(let i=0;i<prepared.length;i++)for(let j=i+1;j<prepared.length;j++)if(nearDuplicate(prepared[i].c,prepared[j].c))throw new Error(`Reviewed import contains near-duplicate question wording under item IDs ${prepared[i].c.id} and ${prepared[j].c.id}; diversify and re-review before import.`);
 
 async function rest(route,{method='GET',body,prefer}={}){
  const r=await fetch(`${projectUrl}${route}`,{method,headers:{apikey:serviceKey,Authorization:`Bearer ${serviceKey}`,'Content-Type':'application/json',...(prefer?{Prefer:prefer}:{})},body:body===undefined?undefined:JSON.stringify(body)});
  if(!r.ok){const e=new Error(`Supabase content import request failed (${r.status}).`);e.status=r.status;throw e}
  if(r.status===204)return null;const text=await r.text();return text?JSON.parse(text):null;
 }
+async function existingReviewedContent(){const all=[];for(let offset=0;offset<10000;offset+=EXISTING_PAGE_SIZE){const page=await rest(`/rest/v1/content_items?qa_status=eq.production_approved&select=id,content_type,section,skill_key,format,stimulus,stem,choices&order=id.asc&limit=${EXISTING_PAGE_SIZE}&offset=${offset}`)||[];all.push(...page);if(page.length<EXISTING_PAGE_SIZE)return all}throw new Error('Existing reviewed-content scan exceeded the 10,000-item safety limit; update the importer pagination limit before continuing.')}
+function existingShape(row){return{type:row.content_type,id:row.id,section:row.section,skill:row.skill_key,format:row.format||'mcq',stimulus:row.stimulus??null,stem:row.stem,choices:Array.isArray(row.choices)?row.choices:null}}
+const existing=(await existingReviewedContent()).map(existingShape),existingSignatures=new Map();
+for(const item of existing)existingSignatures.set(duplicateSignature(item),item.id);
+for(const entry of prepared){const exact=existingSignatures.get(duplicateSignature(entry.c));if(exact&&exact!==entry.c.id)throw new Error(`Item ${entry.c.id}: reviewed content exactly duplicates existing production-approved item ${exact}.`);for(const prior of existing){if(prior.id!==entry.c.id&&nearDuplicate(entry.c,prior))throw new Error(`Item ${entry.c.id}: wording is too similar to existing production-approved item ${prior.id}; diversify and re-review before import.`)}}
 
-console.log(`Validated ${prepared.length} exact hash-pinned reviewed items. No proprietary question text will be printed.`);
+console.log(`Validated ${prepared.length} exact hash-pinned reviewed items and screened them against duplicate/near-duplicate commercial content. No proprietary question text will be printed.`);
 for(const {c,hash:contentHash,reviewer,reviewedAt,notes} of prepared){
  await rest(`/rest/v1/content_items?id=eq.${encodeURIComponent(c.id)}`,{method:'PATCH',body:{active:false,updated_at:new Date().toISOString()},prefer:'return=minimal'});
  const item={id:c.id,content_type:c.type,section:c.section,domain_key:c.domain,skill_key:c.skill,difficulty:c.difficulty,format:c.format,stimulus:c.stimulus,stem:c.stem,choices:c.format==='mcq'?c.choices:null,exams:c.exams.length?c.exams:['SAT','PSAT/NMSQT','PSAT 10'],origin:'satprep_original',qa_status:'production_approved',active:false,updated_at:new Date().toISOString()};
