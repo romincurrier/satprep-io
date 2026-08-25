@@ -19,7 +19,7 @@
     "validate:spr": "node scripts/validate-spr.mjs",
     "validate:practice-security": "node scripts/validate-practice-security.mjs",
     "validate:adaptive-practice": "node scripts/validate-adaptive-practice.mjs",
-    "validate:backend-contract": "node --check scripts/verify-live-backend.mjs",
+    "validate:backend-contract": "node --check scripts/verify-live-backend.mjs && node --check scripts/verify-live-content-readiness.mjs",
     "validate:launch": "node scripts/validate-launch.mjs",
     "validate:regression": "node scripts/validate-regression.mjs",
     "brand:inventory": "node scripts/brand-inventory.mjs",
@@ -30,6 +30,8 @@
     "content:private-import": "node scripts/import-private-reviewed-content.mjs",
     "content:calibration": "node scripts/content-calibration-report.mjs",
     "verify:backend": "node scripts/verify-live-backend.mjs",
+    "verify:live-content": "node scripts/verify-live-content-readiness.mjs",
+    "verify:launch-content": "node scripts/verify-live-content-readiness.mjs --strict",
     "build": "npm run validate:content && npm run validate:approvals && npm run validate:content-policy && npm run validate:seo && npm run validate:marketing-claims && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:security && npm run validate:spr && npm run validate:practice-security && npm run validate:adaptive-practice && npm run validate:backend-contract && npm run validate:launch && npm run validate:regression && vite build",
     "preview": "vite preview"
   },
