@@ -1,4 +1,4 @@
-import {json,studentContext,enforceRateLimit} from '../server/supabase-server.js';
+import {assertAppRequestOrigin,json,studentContext,enforceRateLimit} from '../server/supabase-server.js';
 import {scoreDiagnosticAnswer} from '../server/diagnostic-core.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -6,6 +6,7 @@ const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 export default async function handler(req,res){
  if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
  try{
+  assertAppRequestOrigin(req);
   const raw=req.body&&typeof req.body==='object'?req.body:{};
   if(JSON.stringify(raw).length>1000)return json(res,413,{error:'Diagnostic answer payload is too large.'});
   const attemptId=String(raw.attempt_id||'').trim(),position=Number(raw.position),responseMs=Number(raw.response_ms),hasChoice=raw.selected_answer!==undefined&&raw.selected_answer!==null,hasText=raw.response_text!==undefined&&raw.response_text!==null;
