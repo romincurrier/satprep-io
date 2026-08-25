@@ -20,8 +20,8 @@ The existing committed question banks are development/staging material and must 
 
    `node scripts/import-private-reviewed-content.mjs /absolute/private/path/content-review.csv`
 
-   The importer validates all five approval dimensions and the exact content hash before writing anything. It also screens the incoming batch for exact duplicate content and very-high-similarity wording, then compares each incoming item against the existing production-approved commercial bank. Duplicate/near-duplicate failures identify item IDs only; proprietary question text is not printed. By default, reviewed items are imported **inactive**, even though their QA status is production-approved.
-8. If duplicate screening blocks an item, diversify the item materially, complete a fresh independent review of the revised version, and regenerate its exact content hash before importing again. Do not bypass the screen by assigning a new item ID to substantially identical content.
+   The importer validates all five approval dimensions and the exact content hash before writing anything. It also screens the incoming batch for exact duplicate content and very-high-similarity wording, then compares each incoming item against the existing production-approved commercial bank. The screen deliberately spans **both diagnostic and practice content types**: a practice question cannot be reintroduced as a diagnostic item (or vice versa) merely by assigning another item ID. Duplicate/near-duplicate failures identify item IDs only; proprietary question text is not printed. By default, reviewed items are imported **inactive**, even though their QA status is production-approved.
+8. If duplicate screening blocks an item, diversify the item materially, complete a fresh independent review of the revised version, and regenerate its exact content hash before importing again. Do not bypass the screen by assigning a new item ID or moving substantially identical content between the diagnostic and practice banks.
 9. Perform content/runtime QA against inactive or controlled test content as appropriate.
 10. Only when activation is explicitly approved, run with both the activation flag and deliberate environment confirmation:
 
@@ -37,6 +37,7 @@ The existing committed question banks are development/staging material and must 
 - New content lands in server-only `content_items`, `content_answer_keys`, and `content_item_reviews` tables whose browser-role access is explicitly revoked by the content-system migration.
 - Incoming batches are screened for duplicate IDs, exact duplicate content, and very-high-similarity wording before any writes occur.
 - The importer paginates through existing production-approved content and checks incoming items against that bank, preventing duplicate content from being hidden under a different item ID.
+- Duplicate signatures and near-duplicate comparisons span diagnostic and practice content so exposure through guided practice cannot silently compromise a supposedly unseen diagnostic item.
 - Similarity screening is a fail-closed editorial safeguard, not a substitute for the required originality review. Reviewers remain responsible for substantive originality, source independence, and avoiding protected third-party test content.
 - An item can be `production_approved` but inactive; runtime delivery additionally requires `active=true`.
 - Any content change after review breaks the hash and causes secure diagnostic/practice delivery to fail closed until the changed version is reviewed again.
