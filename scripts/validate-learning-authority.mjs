@@ -12,7 +12,7 @@ assert.doesNotMatch(client,/\.from\(['"]students['"]\)\.update/,'Browser learnin
 assert.doesNotMatch(client,/\.from\(['"]skill_mastery['"]\).*?(insert|update|upsert|delete)/s,'Browser learning-model code must not mutate mastery authority.');
 assert.match(endpoint,/assertAppRequestOrigin\(req\)/,'Learning-model mutation must enforce same-application origin.');
 assert.match(endpoint,/studentContext\(req\)/,'Learning-model mutation must resolve the authenticated student server-side.');
-assert.match(endpoint,/enforceRateLimit\(ctx\.user\.id,'learning-model rebuild must be rate limited.');
+assert.match(endpoint,/enforceRateLimit\(ctx\.user\.id,/,'Learning-model rebuild must be rate limited.');
 assert.match(endpoint,/rebuildLearningModel\(ctx\.student\)/,'Endpoint must delegate composition to the trusted server core.');
 assert.match(core,/student_skill_evidence/,'Server composition must include prior-assessment evidence.');
 assert.match(core,/diagnostic_attempts/,'Server composition must include trusted diagnostic evidence.');
