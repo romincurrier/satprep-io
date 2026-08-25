@@ -23,7 +23,7 @@ for(const {name,src} of endpoints){
 }
 
 const overview=endpoints.find(x=>x.name==='billing-overview.js')?.src||'';
-for(const required of ["enforceRateLimit(auth.user.id,'billing/overview'","profile:{role:'parent',billing_owner:!!p.billing_owner}",'can_manage:!!sub.provider_customer_id']){
+for(const required of ["enforceRateLimit(auth.user.id,'billing/overview'","profile:{role:'parent',billing_owner:!!p.billing_owner}",'can_manage:!!sub.provider_customer_id',"p.role!=='parent'","billing_owner:false"]){
  if(!overview.includes(required))failures.push(`Billing overview must retain minimized server-side billing state: ${required}`);
 }
 for(const forbidden of ['provider_subscription_id:','provider_customer_id:sub.provider_customer_id','billing_profile_id:']){
@@ -34,6 +34,7 @@ for(const forbidden of ['supabase.from("profiles")','supabase.from("subscription
  if(billingClient.includes(forbidden))failures.push(`Billing browser must not directly read broad billing/account tables: ${forbidden}`);
 }
 if(!billingClient.includes('subscription?.can_manage'))failures.push('Billing browser must use the minimized can_manage flag instead of a provider customer identifier.');
+if(!billingClient.includes('!["parent","admin"].includes(profile?.role)'))failures.push('Billing controls must remain hidden from non-billing roles in the browser.');
 
 if(failures.length){
  console.error('Billing security validation failed:');
