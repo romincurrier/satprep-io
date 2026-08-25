@@ -1,4 +1,4 @@
-import {authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
+import {assertAppRequestOrigin,authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
 
 const EXAMS=new Set(['PSAT','PSAT/NMSQT','SAT']);
 const NAME=/^[\p{L}\p{M}' .-]{1,80}$/u;
@@ -12,6 +12,7 @@ async function parentContext(req){
 export default async function handler(req,res){
  if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
  try{
+  assertAppRequestOrigin(req);
   const ctx=await parentContext(req);if(!ctx)return json(res,401,{error:'A parent or guardian account is required.'});if(!ctx.profile.household_id)return json(res,409,{error:'Finish creating the household before adding a student.'});
   await enforceRateLimit(ctx.user.id,'parent/student-create',{limit:10,windowSeconds:86400});
   const raw=req.body&&typeof req.body==='object'?req.body:{};if(JSON.stringify(raw).length>1500)return json(res,413,{error:'Request payload is too large.'});
