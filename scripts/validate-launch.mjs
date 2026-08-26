@@ -5,12 +5,12 @@ const index = read('index.html');
 const marketing = read('marketing.js');
 const marketingEvents = read('marketing-events.js');
 const guard = read('prelaunch-guard.js');
+const disclosure = read('independence-disclosure.js');
 const vercel = read('vercel.json');
 const accessibility = read('public/accessibility.css');
 const marketingEventApi = read('api/marketing-event.js');
 const envExample = read('env.example');
 const gates = JSON.parse(read('launch-gates.json'));
-const trademarkGate = read('docs/TRADEMARK_LAUNCH_GATE.md');
 const errors = [];
 const requireText = (haystack, needle, label) => { if(!haystack.includes(needle)) errors.push(label); };
 const forbid = (haystack, pattern, label) => { if(pattern.test(haystack)) errors.push(label); };
@@ -32,13 +32,12 @@ requireText(guard,'age < 13','Teen signup must reject an entered date of birth i
 requireText(guard,"#billingBtn,.billing-checkout,#manageSubscription",'Public-host billing controls must be blocked during prelaunch.');
 requireText(guard,"Public pricing and trial terms will be posted only after those launch checks are complete.",'Prelaunch pricing section must not imply unverified public billing terms.');
 
-if(gates.college_board_trademark_review==='unresolved'){
-  if(gates.public_indexing!=='disabled') errors.push('Public indexing must remain disabled until the College Board trademark launch gate is resolved.');
-  if(gates.outbound_marketing!=='disabled') errors.push('Outbound marketing must remain disabled until the College Board trademark launch gate is resolved.');
-  if(gates.public_billing!=='disabled') errors.push('Public billing must remain disabled until the College Board trademark launch gate is resolved.');
-  requireText(trademarkGate,'current product name and domain contain `SAT`','Trademark launch-gate documentation must preserve the current naming/domain issue.');
-  requireText(trademarkGate,'Do not copy or republish official College Board test questions','Trademark/content launch-gate documentation must preserve the official-content boundary.');
-}
+if(gates.college_board_independence_disclosure!=='required') errors.push('College Board independence disclosure must remain a required launch control.');
+requireText(index,'src="/independence-disclosure.js"','The application shell must load the College Board independence disclosure.');
+requireText(disclosure,"SATprep.io is an independent test-preparation service and is not sponsored by, endorsed by, or associated with College Board.",'Homepage must carry the approved College Board independence disclosure.');
+requireText(disclosure,"params.get('app') !== '1'",'The College Board independence disclosure must target the public marketing surface rather than authenticated application pages.');
+requireText(disclosure,"footer.insertAdjacentElement('beforebegin', disclosure)",'The College Board independence disclosure must be visibly rendered adjacent to the homepage footer.');
+
 if(gates.live_payments!=='disabled') errors.push('Live payments must remain disabled in the committed prelaunch gate file.');
 if(gates.first_party_measurement!=='disabled') errors.push('First-party marketing measurement must remain disabled until explicit privacy/analytics launch approval.');
 requireText(envExample,'MARKETING_MEASUREMENT_ENABLED=false','env.example must keep first-party marketing measurement disabled by default.');
@@ -88,4 +87,4 @@ if(errors.length){
   for(const error of errors) console.error(`- ${error}`);
   process.exit(1);
 }
-console.log('Launch validation passed: public billing/indexing/outbound marketing/measurement remain gated, the unresolved trademark gate is enforced, youth setup uses the protected flow, first-party measurement is inert until explicitly enabled, public-surface only, origin-restricted, contact-like attribution values are discarded, anonymous measurement is rate-limited server-side, browser security headers are present, and baseline accessibility safeguards are loaded.');
+console.log('Launch validation passed: the required College Board independence disclosure is enforced, public billing/indexing/outbound marketing/measurement remain gated, youth setup uses the protected flow, first-party measurement is inert until explicitly enabled and restricted to public marketing surfaces, anonymous measurement is origin-restricted and rate-limited, browser security headers are present, and baseline accessibility safeguards are loaded.');
