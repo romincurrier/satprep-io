@@ -1,0 +1,217 @@
+# SATprep.io Commercial Launch Readiness Checklist
+
+Updated: 2026-08-25
+
+This file is the single operating checklist for commercial launch readiness. `docs/COMMERCIAL_LAUNCH_RUNBOOK.md` remains the detailed procedure; this checklist tracks what is actually complete and what still blocks launch.
+
+**Launch-ready definition:** every item in **BLOCKING BEFORE COMMERCIAL LAUNCH** must be complete, all owner/manual activation items must be intentionally approved, and the release-candidate build plus production-equivalent end-to-end regression must be green. Items under **IMPORTANT BEFORE/IMMEDIATELY AFTER LAUNCH** should be completed unless explicitly accepted as a documented launch exception.
+
+## Current launch controls
+
+- [x] College Board independence disclosure is required and implemented on the public homepage.
+- [x] Production build validation fails if the independence disclosure disappears.
+- [x] Public indexing remains disabled.
+- [x] Public billing remains disabled.
+- [x] Live payments remain disabled.
+- [x] First-party marketing measurement remains disabled.
+- [x] Outbound marketing remains disabled.
+- [x] Unreviewed proprietary questions remain inactive/unapproved.
+
+# BLOCKING BEFORE COMMERCIAL LAUNCH
+
+## 1. Commercial content bank
+
+- [ ] Reach the commercial depth target for every exam-eligible skill: at least 6 approved diagnostic items and 8 approved practice items per skill, with required difficulty distribution.
+- [ ] Maintain sufficient Math student-produced-response representation in the reviewed bank.
+- [ ] Complete independent review for every launch item across accuracy, alignment, editorial, bias/accessibility, and originality.
+- [ ] Satisfy reviewer-independence policy: at least three distinct reviewer labels across the five dimensions and no reviewer approving more than two dimensions on one item.
+- [ ] Generate exact content hashes for the reviewed versions and ensure no item changed after review.
+- [ ] Pass duplicate/near-duplicate screening across both diagnostic and practice pools.
+- [ ] Import independently reviewed content into production **inactive first**.
+- [ ] Run `npm run verify:launch-content` successfully against the exact production project.
+- [ ] Perform controlled runtime QA against the inactive reviewed bank.
+- [ ] Activate only items that pass review, hash, duplicate, taxonomy, answer/explanation, and runtime checks.
+
+**Human-review dependency:** independent content approval cannot be self-certified by the authoring automation.
+
+## 2. Secure-v3 full journey acceptance
+
+- [ ] Create fresh synthetic parent and student test accounts for production-equivalent acceptance.
+- [ ] Verify parent signup creates exactly one household and correct billing-owner state.
+- [ ] Verify direct student signup age gate and parent-authorized under-13 flow.
+- [ ] Verify email confirmation/sign-in/sign-out/password-recovery behavior.
+- [ ] Verify parent-created student login and parent/student linking authorization.
+- [ ] Verify invitation expiration/reuse behavior.
+- [ ] Verify prior-assessment upload flow with supported file types and representative synthetic/redacted reports.
+- [ ] Verify a fresh learner starts secure-v3 diagnostic.
+- [ ] Verify diagnostic item payload never contains answer keys, explanations, or distractor rationales.
+- [ ] Verify diagnostic question order cannot be skipped or forged.
+- [ ] Verify duplicate answer submissions are idempotent.
+- [ ] Verify refresh, new tab, and new-device resume behavior.
+- [ ] Verify temporary network failure does not lose saved answers.
+- [ ] Verify diagnostic feedback remains withheld until assessment completion.
+- [ ] Verify diagnostic completion updates the learning model exactly once.
+- [ ] Verify recommended learning path reflects prior evidence plus diagnostic evidence.
+- [ ] Verify guided practice uses the secure server-scored bank and cannot fall back to browser scoring in commercial mode.
+- [ ] Verify MCQ and Math SPR practice scoring.
+- [ ] Verify every practice response returns appropriate instructional feedback only after scoring.
+- [ ] Verify practice completion updates mastery/lesson progress exactly once.
+- [ ] Verify parent progress accurately reflects trusted server-scored learning state.
+- [ ] Verify administrator overview remains role-restricted and presentation-minimized.
+
+## 3. Final trusted-learning authority lock
+
+- [ ] Complete secure-v3 end-to-end acceptance before changing legacy authority.
+- [ ] Apply `trusted_learning_authority` migration to production.
+- [ ] Verify browser roles can no longer insert/update/delete `skill_mastery`, `lesson_progress`, or legacy `question_attempts`.
+- [ ] Verify secure diagnostic/practice server paths still update mastery and lesson progress correctly after the lock.
+- [ ] Re-run Supabase security/performance advisors and production build validation.
+
+## 4. Authentication/security launch acceptance
+
+- [x] Public email/account enumeration RPC removed from browser access.
+- [x] Browser profile authority restricted to non-privileged name fields.
+- [x] Same-origin protection covers privileged student/parent/diagnostic/practice/billing paths.
+- [x] Durable service-only API rate limiting is live.
+- [x] Proprietary content, answer keys, diagnostic plans, secure practice responses, rate-limit counters, and marketing events are not browser-readable.
+- [ ] Enable Supabase Auth leaked-password protection.
+- [ ] Run final security advisor review and document the intentional `is_admin()` SECURITY DEFINER exception or refactor it safely.
+- [ ] Verify no service-role/secret key is present in browser bundles or repository history relevant to launch.
+- [ ] Run a release-candidate dependency/security review.
+- [ ] Verify production security headers on the final public candidate.
+- [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
+
+## 5. Billing and entitlement acceptance
+
+- [ ] Confirm approved public plan names, prices, trial length, household limits, cancellation language, and refund policy.
+- [ ] Confirm Stripe test-mode product/price IDs match the approved plans.
+- [ ] Run same-origin test-mode checkout from an authorized parent/billing owner.
+- [ ] Verify cross-origin checkout requests are rejected.
+- [ ] Verify checkout confirmation is server-side and ownership-bound.
+- [ ] Verify duplicate checkout/subscription creation is prevented.
+- [ ] Verify Stripe webhook signature validation and duplicate-event idempotency.
+- [ ] Verify entitlement changes only from trusted billing state.
+- [ ] Verify Individual plan cannot cover an over-limit household and Family plan respects the household limit.
+- [ ] Verify billing portal opens only for the authorized purchaser.
+- [ ] Verify cancellation, trial-end, active, past-due, failed-payment, and cancelled states render correctly.
+- [ ] Verify test and live Stripe configurations cannot be mixed.
+- [ ] Complete final test-mode billing regression before requesting live-payments approval.
+
+**Owner approval required before activation:** live Stripe mode, public billing, or changes to public pricing/terms.
+
+## 6. Privacy, youth, retention, and deletion readiness
+
+- [x] Authenticated privacy-request queue is live.
+- [x] Marketing-event storage is separated from learner-performance data and unavailable to browsers.
+- [x] Under-13 direct student signup is technically blocked in favor of parent-authorized account creation.
+- [ ] Review/finalize Privacy Policy against actual production data flows.
+- [ ] Review/finalize Terms of Service and subscription/cancellation disclosures.
+- [ ] Review/finalize parental consent flow and consent-version recordkeeping for intended youth use.
+- [ ] Approve data-retention schedule.
+- [ ] Implement and test operational account/data deletion procedure, including uploaded reports and billing dependencies.
+- [ ] Test access, correction, deletion, and account-closure privacy-request handling.
+- [ ] Confirm storage-bucket privacy and deletion behavior for prior-assessment uploads.
+- [ ] Confirm vendor/subprocessor register is accurate for launch.
+- [ ] Confirm security/privacy incident escalation contacts and procedure.
+
+**Owner/legal review dependency:** final legal-policy publication and youth/privacy legal determinations require explicit approval.
+
+## 7. Accessibility, browser, and device acceptance
+
+- [x] Automated accessibility validation is part of every production build.
+- [x] Keyboard focus, skip-link, reduced-motion, contrast-preference, and baseline touch-target safeguards are committed.
+- [ ] Manually test primary public, parent, student, diagnostic, practice, billing-preview, and admin flows with keyboard only.
+- [ ] Verify visible focus order and modal/overlay focus behavior.
+- [ ] Verify mobile layout on representative iPhone/Android viewport sizes.
+- [ ] Verify tablet/iPad layout.
+- [ ] Verify current Chrome, Safari, Edge, and Firefox behavior for critical flows.
+- [ ] Verify screen-reader labels/announcements on authentication, diagnostic answer controls, SPR inputs, errors, and modal dialogs.
+- [ ] Resolve all launch-blocking accessibility defects found during acceptance.
+
+## 8. Support and operational readiness
+
+- [ ] Confirm real support email/contact route displayed to users.
+- [ ] Assign ownership for access, billing, content, privacy, and technical support queues.
+- [ ] Prepare standard responses for password/access, billing/cancellation/refund, report parsing, and content-error issues.
+- [ ] Document content-error reporting and rapid item retirement process.
+- [ ] Document account access/reset escalation.
+- [ ] Document billing/refund escalation.
+- [ ] Document security/privacy incident escalation separately from ordinary support.
+- [ ] Confirm support instructions never request passwords or full payment-card details.
+- [ ] Perform at least one synthetic support/privacy incident drill before launch.
+
+## 9. Monitoring, recovery, and release operations
+
+- [ ] Confirm production error monitoring for API 5xx and front-end fatal errors.
+- [ ] Confirm authentication failure/spike monitoring.
+- [ ] Confirm diagnostic start/completion and practice failure visibility.
+- [ ] Confirm database/storage error visibility.
+- [ ] Confirm Stripe webhook failure visibility before live billing.
+- [ ] Document severity levels and escalation path for SEV-1 through SEV-4 incidents.
+- [ ] Document database backup/PITR capability for the actual Supabase plan.
+- [ ] Document and test a reasonable restore/recovery procedure using non-destructive/synthetic methods.
+- [ ] Record the final launch-candidate commit SHA and production migration state.
+- [ ] Run full production build validation on the frozen candidate.
+- [ ] Review production runtime errors/logs immediately before launch approval.
+
+## 10. Public website and trust readiness
+
+- [x] Required College Board independence disclosure is a machine-enforced homepage control.
+- [x] Public indexing remains disabled until final approval.
+- [ ] Verify final public pricing/FAQ/How It Works/Content Quality copy exactly matches launch behavior.
+- [ ] Verify Privacy, Terms, support/contact, accessibility, and account/privacy-request routes are accessible from the public product.
+- [ ] Verify canonical URLs, sitemap, robots behavior, 404 behavior, titles, descriptions, H1s, and structured data for the final candidate.
+- [ ] Verify no unsubstantiated score guarantees, fabricated testimonials, rankings, or outcome claims appear anywhere public.
+- [ ] Verify no live diagnostic item is reused as a public worked example or marketing asset.
+
+# OWNER / MANUAL ACTIVATION ITEMS
+
+These should remain disabled until the blocking checklist is green and the user explicitly authorizes launch activation.
+
+- [ ] Owner approves final launch candidate.
+- [ ] Owner approves final public pricing/trial/refund/cancellation terms.
+- [ ] Owner approves final Privacy Policy and Terms publication.
+- [ ] Enable Supabase leaked-password protection in Auth settings if not exposed through automation tooling.
+- [ ] Switch approved Stripe configuration to live mode.
+- [ ] Set public billing/live-payment launch gates to enabled.
+- [ ] Remove prelaunch `noindex` protection and enable public indexing.
+- [ ] Enable first-party measurement only after privacy approval and measurement acceptance.
+- [ ] Enable outbound marketing only after the product is commercially live and support/measurement systems are ready.
+
+# IMPORTANT BEFORE / IMMEDIATELY AFTER LAUNCH
+
+- [ ] Establish first-party marketing measurement baseline before scaling acquisition.
+- [ ] Exclude internal/test traffic from acquisition reporting.
+- [ ] Lock activation/conversion definitions before campaign reporting.
+- [ ] Confirm item-calibration reporting works once sufficient real response volume exists.
+- [ ] Review RLS performance warnings and missing foreign-key indexes that affect scale but do not change authorization correctness.
+- [ ] Establish dependency update cadence.
+- [ ] Prepare first-72-hours launch monitoring cadence and rollback decision rules.
+
+# POST-LAUNCH OPERATING CHECKLIST
+
+- [ ] Monitor authentication, onboarding, diagnostic, practice, parent reporting, and payment funnels closely for the first 72 hours.
+- [ ] Review support tickets for recurring failure patterns.
+- [ ] Retire questionable content rapidly rather than leaving disputed items active.
+- [ ] Do not scale paid acquisition until activation, billing reliability, and support capacity are demonstrated.
+- [ ] Review content calibration only at meaningful sample sizes.
+- [ ] Run weekly commercial operating review covering uptime/errors, funnel conversion, retention, content QA, parent engagement, billing, support, privacy/security incidents, and acquisition efficiency.
+
+# Current safest autonomous work order
+
+1. Expand fresh private commercial authoring inventory toward exact skill/depth/difficulty gaps without approving or activating it.
+2. Add/strengthen automated acceptance checks that do not require reviewed proprietary content.
+3. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
+4. Improve monitoring/recovery/support readiness documentation and testable operational controls.
+5. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
+6. Prepare secure-v3 end-to-end test harness/data prerequisites so reviewed content can be tested immediately after import.
+7. Keep the final trusted-learning-authority lock staged until secure-v3 acceptance passes with reviewed content.
+
+# Hard stop rules for autonomous work
+
+- Do not enable live payments or incur new spending.
+- Do not enable public billing, indexing, marketing measurement, outbound marketing, public social publishing, or external campaigns.
+- Do not production-approve or activate content without the required independent human review.
+- Do not weaken authentication, RLS, origin validation, content secrecy, rate limits, or age/parent authorization controls to make a test pass.
+- Do not change public pricing, legal policies, or consent representations without owner approval.
+- Do not restore/replace a different Supabase project; production is `ataaiocpbjavmdpgmzlv`.
