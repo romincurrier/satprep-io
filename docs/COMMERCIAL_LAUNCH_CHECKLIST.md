@@ -26,6 +26,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Production enforces at most one `in_progress` diagnostic attempt per learner, preventing concurrent refresh/new-tab/new-device session races from forking assessment state.
 - [x] A production parent/student/admin RLS authorization-equivalence baseline is captured in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md` and has been verified with authenticated-role, cross-household, and read-only-parent checks before any RLS performance rewrite.
 - [x] The profile-backed administrator RLS helper is no longer exposed as a public SECURITY DEFINER RPC: all 19 dependent policies use a pinned-search-path helper in the non-Data-API `private` schema, and a fresh production security-advisor review reports no executable SECURITY DEFINER warning.
+- [x] Prior-assessment reports use a private Storage bucket, uploader/student-scoped immutable object identity, and a server-mediated deletion path that removes the file through the Supabase Storage API before service-only transactional metadata cleanup.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
@@ -106,7 +107,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
 
-**Current advisor status (2026-08-26):** production remains healthy. Migration `private_admin_rls_helper` moved the profile-backed recursive-safe administrator predicate from exposed `public.is_admin()` to `private.is_admin()` with an empty pinned search path, removed the public helper, and rewired all 19 dependent RLS policies through `(select private.is_admin())` without changing policy role targets or commands. Live privilege checks show `anon` cannot use the private schema or execute the helper, while `authenticated` can execute it only for policy evaluation and `service_role` retains trusted access. Parent/student/admin role-emulation checks preserved the recorded authorization-equivalence baseline. A fresh security-advisor review no longer reports the executable SECURITY DEFINER warning; the only remaining actionable security warning is that leaked-password protection is disabled. Service-only RLS-with-no-policy findings remain informational and fail-closed by design.
+**Current advisor status (2026-08-26):** production remains healthy. Migration `private_admin_rls_helper` moved the profile-backed recursive-safe administrator predicate from exposed `public.is_admin()` to `private.is_admin()` with an empty pinned search path, removed the public helper, and rewired all 19 dependent RLS policies through `(select private.is_admin())` without changing policy role targets or commands. Live privilege checks show `anon` cannot use the private schema or execute the helper, while `authenticated` can execute it only for policy evaluation and `service_role` retains trusted access. Parent/student/admin role-emulation checks preserved the recorded authorization-equivalence baseline. A fresh security-advisor review after the prior-assessment storage hardening still reports no executable SECURITY DEFINER warning; the only remaining actionable security warning is that leaked-password protection is disabled. Service-only RLS-with-no-policy findings remain informational and fail-closed by design.
 
 **Authorization-equivalence status (2026-08-26):** production role-emulation checks verified that the current parent can see the linked learner and linked diagnostic state but not an unrelated learner or unrelated diagnostic; the parent cannot directly update diagnostic attempts; a student can see self-owned learner/diagnostic state but not another learner; and the administrator retains the intended complete operational view. The same baseline was re-run after `private_admin_rls_helper`: parent/student cross-tenant isolation remained intact and the administrator retained the complete intended operational view. The reusable baseline and safe-change rules are recorded in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md`. This baseline must be re-run before and after any RLS initialization-plan or policy-consolidation migration.
 
@@ -141,9 +142,11 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Approve data-retention schedule.
 - [ ] Implement and test operational account/data deletion procedure, including uploaded reports and billing dependencies.
 - [ ] Test access, correction, deletion, and account-closure privacy-request handling.
-- [ ] Confirm storage-bucket privacy and deletion behavior for prior-assessment uploads.
+- [x] Confirm storage-bucket privacy and deletion behavior for prior-assessment uploads.
 - [ ] Confirm vendor/subprocessor register is accurate for launch.
 - [ ] Confirm security/privacy incident escalation contacts and procedure.
+
+**Prior-assessment storage/deletion status (2026-08-26):** production bucket `assessment-reports` is private and contains one existing report object. The live database row and Storage object have matching uploader/student ownership. Migration `prior_assessment_storage_privacy` is recorded in the production migration ledger and adds a validated uploader/student path-identity constraint plus an immutable-field trigger covering `student_id`, `created_by`, `source_method`, and `file_path`. The deletion cleanup RPC is `SECURITY INVOKER` with an empty pinned search path and is executable by `service_role` only (`anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE`). The server deletion endpoint authorizes only the learner, a linked parent, or an administrator, validates the immutable object path, removes the file through the Supabase Storage API rather than SQL, then transactionally removes the prior-assessment row and its derived recommended-path signal. A rollback-only production-schema test verified the cleanup RPC removes both database references and leaves no test data; the real production row and object remain present. The production build privacy validator now guards these invariants. Full account/privacy-request deletion orchestration remains separately BLOCKING above because it must also cover account and billing dependencies.
 
 **Owner/legal review dependency:** final legal-policy publication and youth/privacy legal determinations require explicit approval.
 
@@ -233,14 +236,13 @@ These remain disabled until the blocking checklist is green and the user explici
 
 # Current safest autonomous work order
 
-1. Continue only narrow RLS initialization-plan optimizations on remaining simple self/parent predicates in small batches and re-run the recorded parent/student/admin authorization-equivalence baseline before and after each production change; do not consolidate permissive policies until equivalence is proven separately.
-2. Confirm storage-bucket privacy and deletion behavior for prior-assessment uploads and harden the service path if needed without weakening browser access.
-3. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
-4. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
-5. Improve monitoring/recovery/support readiness documentation and testable operational controls.
-6. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
-7. Prepare secure-v3 browser/fault-injection acceptance data prerequisites so refresh/new-tab/new-device/network recovery can be tested immediately after reviewed content is imported.
-8. Keep the final trusted-learning-authority lock staged until secure-v3 acceptance passes with reviewed content.
+1. Continue only narrow RLS initialization-plan optimizations on remaining simple self/parent predicates in small batches and re-run the recorded parent/student/admin authorization-equivalence baseline before and after each production change; the six `prior_assessments` student/parent initplan findings are the next contained tranche.
+2. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
+3. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
+4. Improve monitoring/recovery/support readiness documentation and testable operational controls.
+5. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
+6. Prepare secure-v3 browser/fault-injection acceptance data prerequisites so refresh/new-tab/new-device/network recovery can be tested immediately after reviewed content is imported.
+7. Keep the final trusted-learning-authority lock staged until secure-v3 acceptance passes with reviewed content.
 
 # Hard stop rules for autonomous work
 
