@@ -16,7 +16,7 @@ if(resolved===root||resolved.startsWith(`${root}${path.sep}`)){console.error('Re
 
 const workbook=XLSX.readFile(resolved,{cellDates:false});
 const sheet=workbook.Sheets[workbook.SheetNames[0]];
-const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
+const rows=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
 if(!rows.length){console.error('Private review file has no rows.');process.exit(2)}
 const norm=value=>String(value??'').trim();
 const approvedDecision=value=>norm(value).toUpperCase()==='APPROVE';
