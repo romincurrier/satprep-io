@@ -18,12 +18,13 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Unreviewed proprietary questions remain inactive/unapproved.
 - [x] Production backend identity is reconciled to Supabase project `ataaiocpbjavmdpgmzlv` using live schema inspection.
 - [x] Production CSP permits only the active Supabase HTTPS/WSS origin, rejects the retired project origin, and is enforced by a production build validator.
+- [x] Production builds now fail if browser source or built output exposes server-only environment names, privileged Supabase JWTs, or credential-shaped Stripe/OpenAI/GitHub/AWS secrets.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
 ## 1. Commercial content bank
 
-**Staging progress (2026-08-26):** the private Google Drive staging bank now contains **94 assistant-staged, unapproved drafts: 47 diagnostic and 47 practice items**. All **31 official skill keys** represented by the current taxonomy now have at least one diagnostic draft and one practice draft. The newest 62-item expansion added one difficulty-1 diagnostic and one difficulty-1 practice draft for every skill and includes **10 Math SPR items**. This is authoring inventory only: every row remains `production_approved=FALSE`, and live inspection of production project `ataaiocpbjavmdpgmzlv` confirms `public.content_items` currently contains **0 rows and 0 production-approved active proprietary items**. The next autonomous authoring passes should fill difficulty-2 and difficulty-3/depth gaps; independent human review remains mandatory before any production import, approval, or activation.
+**Staging progress (2026-08-26):** the private Google Drive staging bank now contains **94 assistant-staged, unapproved drafts: 47 diagnostic and 47 practice items**. All **31 official skill keys** represented by the current taxonomy now have at least one diagnostic draft and one practice draft. The newest 62-item expansion added one difficulty-1 diagnostic and one difficulty-1 practice draft for every skill and includes **10 Math SPR items**. This is authoring inventory only: every row remains `production_approved=FALSE`, and live inspection of production project `ataaiocpbjavmdpgmzlv` confirms `public.content_items` currently contains **0 rows, 0 active items, and 0 items with `qa_status='production_approved'`**. The next autonomous authoring passes should fill difficulty-2 and difficulty-3/depth gaps; independent human review remains mandatory before any production import, approval, or activation.
 
 - [ ] Reach the commercial depth target for every exam-eligible skill: at least 6 approved diagnostic items and 8 approved practice items per skill, with required difficulty distribution.
 - [ ] Maintain sufficient Math student-produced-response representation in the reviewed bank.
@@ -79,14 +80,15 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Durable service-only API rate limiting is live.
 - [x] Proprietary content, answer keys, diagnostic plans, secure practice responses, rate-limit counters, and marketing events are not browser-readable.
 - [x] Repository deployment guard now rejects a retired/wrong Supabase CSP endpoint, Supabase wildcard origins, `unsafe-eval`, premature removal of `noindex`, and weakened baseline permissions controls.
+- [x] Current worktree and production browser bundle are protected by a build-time secret-boundary validator; the validated Vercel build for commit `fe4f68547b75409af579792a6ef90ab3644a8bc5` passed.
+- [ ] Complete a launch-relevant repository-history secret scan and rotate/revoke any credential if historical exposure is found; the current connector can validate the present tree/build but does not certify every historical Git object.
 - [ ] Enable Supabase Auth leaked-password protection.
 - [ ] Run final security advisor review and document the intentional `is_admin()` SECURITY DEFINER exception or refactor it safely.
-- [ ] Verify no service-role/secret key is present in browser bundles or repository history relevant to launch.
 - [ ] Run a release-candidate dependency/security review.
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
 
-**Current advisor status (2026-08-26):** production remains healthy. Supabase reports leaked-password protection disabled and warns that authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design. The performance advisor also reports a broad backlog of unindexed foreign keys and RLS initialization-plan/multiple-permissive-policy warnings; these should be addressed incrementally with authorization-preserving migrations rather than by weakening policy logic.
+**Current advisor status (2026-08-26):** production remains healthy. A fresh Supabase advisor review reports leaked-password protection disabled and warns that authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design. The performance advisor also reports a broad backlog of unindexed foreign keys and RLS initialization-plan/multiple-permissive-policy warnings; these should be addressed incrementally with authorization-preserving migrations rather than by weakening policy logic.
 
 ## 5. Billing and entitlement acceptance
 
