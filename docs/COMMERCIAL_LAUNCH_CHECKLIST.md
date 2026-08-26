@@ -20,6 +20,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Production CSP permits only the active Supabase HTTPS/WSS origin, rejects the retired project origin, and is enforced by a production build validator.
 - [x] Production builds now fail if browser source or built output exposes server-only environment names, privileged Supabase JWTs, or credential-shaped Stripe/OpenAI/GitHub/AWS secrets.
 - [x] First production database performance-hardening tranche is applied and reconciled: ten secure-v3/household foreign-key paths now have covering indexes with no RLS, grant, content, or application-authority changes.
+- [x] Parent invitation acceptance is now atomic and service-role-only: household/profile/student/link/invitation/consent changes commit in one row-locked database transaction with no new browser grants.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
@@ -65,6 +66,8 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify parent progress accurately reflects trusted server-scored learning state.
 - [ ] Verify administrator overview remains role-restricted and presentation-minimized.
 
+**Invitation hardening status (2026-08-26):** production migration `atomic_parent_invitation_acceptance` is applied. Invitation acceptance now locks the parent, invitation, student, and existing household as applicable and performs household creation/linking, invitation consumption, and the existing consent-record write in one transaction. The RPC is `SECURITY INVOKER`, has a fixed search path, and live privilege checks confirm `anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE` for execution. The application now calls only this trusted RPC for acceptance, and the production build contract checks enforce that architecture. Runtime synthetic expiration/reuse acceptance remains open and must still be tested before launch.
+
 ## 3. Final trusted-learning authority lock
 
 - [ ] Complete secure-v3 end-to-end acceptance before changing legacy authority.
@@ -89,7 +92,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
 
-**Current advisor status (2026-08-26):** production remains healthy. A fresh security advisor review after the database-index migration reports the same two actionable warnings as before: leaked-password protection is disabled and authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design. No new security warning was introduced by the index migration.
+**Current advisor status (2026-08-26):** production remains healthy. A fresh security advisor review after the atomic invitation migration reports the same two actionable warnings as before: leaked-password protection is disabled and authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design. The new invitation RPC introduced no security-advisor warning and is independently verified as service-role-only.
 
 **Performance hardening status (2026-08-26):** migration `core_secure_v3_fk_indexes` is recorded in the production migration ledger and adds covering indexes for ten high-value secure-v3/household foreign keys: diagnostic attempt items, diagnostic attempts, diagnostic responses (content item and student), practice responses (item and student), practice session items, parent-student links, and profile/student household links. Live `pg_indexes` verification confirms all ten indexes exist. A fresh Supabase performance advisor no longer reports those ten as unindexed foreign keys, reducing the outstanding unindexed-FK findings from **24 to 14**. Remaining RLS initialization-plan and multiple-permissive-policy warnings are intentionally deferred to authorization-equivalent migrations rather than changing policy semantics casually. The new indexes appear as unused in the prelaunch zero-traffic advisor, which is expected and is not a basis for removing them before representative production use.
 
