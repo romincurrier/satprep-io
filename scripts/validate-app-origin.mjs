@@ -10,8 +10,10 @@ const targets=new Map([
  ['parent setup request',read('../api/parent-setup-request.js')],
  ['privacy request creation',read('../api/privacy-request.js')],
  ['diagnostic session creation',read('../api/diagnostic-session-v3.js')],
+ ['diagnostic item read',read('../api/diagnostic-item-v3.js')],
  ['diagnostic scoring',read('../api/diagnostic-answer-v3.js')],
  ['guided-practice session creation',read('../api/practice-session-v3.js')],
+ ['guided-practice item read',read('../api/practice-item-v3.js')],
  ['guided-practice scoring',read('../api/practice-answer-v3.js')]
 ]);
 const failures=[];
@@ -37,11 +39,11 @@ for(const [label,source] of [['parent invitation acceptance',targets.get('parent
  requireText(source,"if(req.method==='POST')assertAppRequestOrigin(req)",`${label} must guard the mutating POST without unnecessarily blocking the authenticated GET path.`);
 }
 
-for(const label of ['diagnostic session creation','diagnostic scoring','guided-practice session creation','guided-practice scoring']){
+for(const label of ['diagnostic session creation','diagnostic item read','diagnostic scoring','guided-practice session creation','guided-practice item read','guided-practice scoring']){
  const source=targets.get(label);
  const guardIndex=source.indexOf('assertAppRequestOrigin(req)');
  const contextIndex=source.indexOf('studentContext(req)');
- if(guardIndex<0||contextIndex<0||guardIndex>contextIndex)failures.push(`${label} must reject untrusted browser origins before loading student context or mutating trusted learning state.`);
+ if(guardIndex<0||contextIndex<0||guardIndex>contextIndex)failures.push(`${label} must reject untrusted browser origins before loading student context or trusted learning content/state.`);
 }
 
 if(failures.length){
