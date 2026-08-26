@@ -11,6 +11,7 @@ const practiceSession=read('api/practice-session-v3.js');
 const practiceItem=read('api/practice-item-v3.js');
 const practiceAnswer=read('api/practice-answer-v3.js');
 const practiceCore=read('server/practice-core.js');
+const practiceMigration=read('migrations/20260826_atomic_practice_response_submission.sql');
 
 for(const [label,source] of [
  ['diagnostic session',diagSession],['diagnostic item',diagItem],['diagnostic answer',diagAnswer],
@@ -29,7 +30,9 @@ assert.match(diagMigration,/dr\.student_id = p_student_id/,`Atomic diagnostic re
 assert.match(practiceItem,/questionForPractice\(ctx\.student\.id,sessionId,position/,`Practice item reads must pass the authenticated student's server-resolved ID.`);
 assert.match(practiceAnswer,/scorePracticeAnswer\(ctx\.student,sessionId,position/,`Practice scoring must pass the authenticated server-resolved student.`);
 assert.match(practiceCore,/practice_sessions\?id=eq\.\$\{encodeURIComponent\(sessionId\)\}&student_id=eq\.\$\{encodeURIComponent\(studentId\)\}/,`Practice core must scope session lookup by both session and student.`);
-assert.match(practiceCore,/student_id:student\.id,item_id:item\.id,position:p/,`New trusted practice responses must persist the authenticated student ID rather than a client-provided identity.`);
+assert.match(practiceCore,/p_student_id:student\.id/,`Trusted practice submission must pass the authenticated server-resolved student ID to the atomic database boundary.`);
+assert.match(practiceMigration,/where id = p_session_id and student_id = p_student_id\s+for update;/,`Atomic practice submission must independently bind the session to the supplied trusted student ID under a row lock.`);
+assert.match(practiceMigration,/pr\.student_id = p_student_id/,`Atomic practice response counting/idempotency must remain student-bound.`);
 
 assert.doesNotMatch(diagAnswer,/student_id\s*[:=]\s*raw\./,`Diagnostic endpoint must never accept a client-provided student identity.`);
 assert.doesNotMatch(practiceAnswer,/student_id\s*[:=]\s*raw\./,`Practice endpoint must never accept a client-provided student identity.`);
