@@ -1,9 +1,9 @@
 {
-  "college_board_trademark_review": "unresolved",
+  "college_board_independence_disclosure": "required",
   "public_indexing": "disabled",
   "public_billing": "disabled",
   "live_payments": "disabled",
   "first_party_measurement": "disabled",
   "outbound_marketing": "disabled",
-  "note": "Change launch gates only after the corresponding legal, commercial, security, privacy, analytics, and operational approvals are complete."
+  "note": "The College Board independence disclosure is a required launch control, not a launch blocker. Change remaining commercial gates only after the corresponding commercial, security, privacy, analytics, content-quality, and operational approvals are complete."
 }
