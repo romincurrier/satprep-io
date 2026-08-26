@@ -16,12 +16,14 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] First-party marketing measurement remains disabled.
 - [x] Outbound marketing remains disabled.
 - [x] Unreviewed proprietary questions remain inactive/unapproved.
+- [x] Production backend identity is reconciled to Supabase project `ataaiocpbjavmdpgmzlv` using live schema inspection.
+- [x] Production CSP permits only the active Supabase HTTPS/WSS origin, rejects the retired project origin, and is enforced by a production build validator.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
 ## 1. Commercial content bank
 
-**Staging progress (2026-08-26):** the private Google Drive staging bank now contains **94 assistant-staged, unapproved drafts: 47 diagnostic and 47 practice items**. All **31 official skill keys** represented by the current taxonomy now have at least one diagnostic draft and one practice draft. The newest 62-item expansion added one difficulty-1 diagnostic and one difficulty-1 practice draft for every skill and includes **10 Math SPR items**. This is authoring inventory only: every row remains `production_approved=FALSE`, and the production content bank currently has **0 production-approved items**. The next autonomous authoring passes should fill difficulty-2 and difficulty-3/depth gaps; independent human review remains mandatory before any production import, approval, or activation.
+**Staging progress (2026-08-26):** the private Google Drive staging bank now contains **94 assistant-staged, unapproved drafts: 47 diagnostic and 47 practice items**. All **31 official skill keys** represented by the current taxonomy now have at least one diagnostic draft and one practice draft. The newest 62-item expansion added one difficulty-1 diagnostic and one difficulty-1 practice draft for every skill and includes **10 Math SPR items**. This is authoring inventory only: every row remains `production_approved=FALSE`, and live inspection of production project `ataaiocpbjavmdpgmzlv` confirms `public.content_items` currently contains **0 rows and 0 production-approved active proprietary items**. The next autonomous authoring passes should fill difficulty-2 and difficulty-3/depth gaps; independent human review remains mandatory before any production import, approval, or activation.
 
 - [ ] Reach the commercial depth target for every exam-eligible skill: at least 6 approved diagnostic items and 8 approved practice items per skill, with required difficulty distribution.
 - [ ] Maintain sufficient Math student-produced-response representation in the reviewed bank.
@@ -76,6 +78,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Same-origin protection covers privileged student/parent/diagnostic/practice/billing paths.
 - [x] Durable service-only API rate limiting is live.
 - [x] Proprietary content, answer keys, diagnostic plans, secure practice responses, rate-limit counters, and marketing events are not browser-readable.
+- [x] Repository deployment guard now rejects a retired/wrong Supabase CSP endpoint, Supabase wildcard origins, `unsafe-eval`, premature removal of `noindex`, and weakened baseline permissions controls.
 - [ ] Enable Supabase Auth leaked-password protection.
 - [ ] Run final security advisor review and document the intentional `is_admin()` SECURITY DEFINER exception or refactor it safely.
 - [ ] Verify no service-role/secret key is present in browser bundles or repository history relevant to launch.
@@ -83,7 +86,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
 
-**Current advisor status (2026-08-26):** production remains healthy. Supabase reports leaked-password protection disabled and warns that authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design.
+**Current advisor status (2026-08-26):** production remains healthy. Supabase reports leaked-password protection disabled and warns that authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design. The performance advisor also reports a broad backlog of unindexed foreign keys and RLS initialization-plan/multiple-permissive-policy warnings; these should be addressed incrementally with authorization-preserving migrations rather than by weakening policy logic.
 
 ## 5. Billing and entitlement acceptance
 
@@ -205,11 +208,12 @@ These should remain disabled until the blocking checklist is green and the user 
 
 1. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
 2. Add/strengthen automated acceptance checks that do not require reviewed proprietary content.
-3. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
-4. Improve monitoring/recovery/support readiness documentation and testable operational controls.
-5. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
-6. Prepare secure-v3 end-to-end test harness/data prerequisites so reviewed content can be tested immediately after import.
-7. Keep the final trusted-learning-authority lock staged until secure-v3 acceptance passes with reviewed content.
+3. Add high-value missing foreign-key indexes and address low-risk RLS performance warnings through authorization-preserving migrations.
+4. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
+5. Improve monitoring/recovery/support readiness documentation and testable operational controls.
+6. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
+7. Prepare secure-v3 end-to-end test harness/data prerequisites so reviewed content can be tested immediately after import.
+8. Keep the final trusted-learning-authority lock staged until secure-v3 acceptance passes with reviewed content.
 
 # Hard stop rules for autonomous work
 
