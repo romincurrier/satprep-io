@@ -15,12 +15,14 @@ const journey=read('journey.js');
 const admin=read('admin-dashboard.js');
 const parentStudent=read('api/parent-student.js');
 const activation=read('api/activate-student-login.js');
+const parentInvitations=read('api/parent-invitations.js');
 const parentProgress=read('api/parent-progress.js');
 const adminOverview=read('api/admin-overview.js');
 const diagnosticSession=read('api/diagnostic-session-v3.js');
 const diagnosticAnswer=read('api/diagnostic-answer-v3.js');
 const practiceSession=read('api/practice-session-v3.js');
 const practiceAnswer=read('api/practice-answer-v3.js');
+const invitationMigration=read('migrations/20260826_atomic_parent_invitation_acceptance.sql');
 const gates=JSON.parse(read('launch-gates.json'));
 
 // Parent onboarding and billing handoff.
@@ -36,6 +38,14 @@ has(parentDashboard,'/api/activate-student-login','Parent dashboard must activat
 has(activation,'assertAppRequestOrigin(req)','Student activation must enforce application origin.');
 has(activation,'parent_students?parent_profile_id=eq.','Student activation must verify the parent-student link.');
 has(activation,'household_id=eq.','Student activation must constrain the student to the parent household.');
+
+// Parent invitation acceptance must be same-origin, atomic, and service-only.
+has(parentInvitations,'assertAppRequestOrigin(req)','Invitation acceptance must enforce application origin.');
+has(parentInvitations,"/rest/v1/rpc/accept_parent_invitation_atomic",'Invitation acceptance must execute through the atomic trusted RPC.');
+has(invitationMigration,'security invoker','Invitation acceptance RPC must not use SECURITY DEFINER.');
+has(invitationMigration,'for update','Invitation acceptance RPC must serialize mutable acceptance state.');
+has(invitationMigration,'revoke all on function public.accept_parent_invitation_atomic(uuid, uuid, text) from authenticated','Authenticated browser users must not execute the invitation acceptance RPC directly.');
+has(invitationMigration,'grant execute on function public.accept_parent_invitation_atomic(uuid, uuid, text) to service_role','Only the service path should receive application execute authority for invitation acceptance.');
 
 // Prior evidence ingestion remains part of the acceptance path.
 has(prior,"storage.from('assessment-reports').upload",'Prior assessment flow must persist uploaded reports in private storage.');
