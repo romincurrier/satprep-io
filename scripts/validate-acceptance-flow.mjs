@@ -9,6 +9,8 @@ const billing=read('billing.js');
 const parentDashboard=read('parent-dashboard.js');
 const prior=read('prior-assessments-v3.js');
 const diagnostic=read('diagnostic-router.js');
+const diagnosticCore=read('server/diagnostic-core.js');
+const diagnosticItem=read('api/diagnostic-item-v3.js');
 const learningModel=read('learning-model.js');
 const practice=read('learning-v2.js');
 const journey=read('journey.js');
@@ -23,6 +25,7 @@ const diagnosticAnswer=read('api/diagnostic-answer-v3.js');
 const practiceSession=read('api/practice-session-v3.js');
 const practiceAnswer=read('api/practice-answer-v3.js');
 const invitationMigration=read('migrations/20260826_atomic_parent_invitation_acceptance.sql');
+const diagnosticResumeMigration=read('migrations/20260826_diagnostic_resume_single_active_attempt.sql');
 const gates=JSON.parse(read('launch-gates.json'));
 
 // Parent onboarding and billing handoff.
@@ -53,13 +56,24 @@ has(prior,'parseAssessmentReport','Prior assessment flow must parse the uploaded
 has(prior,"from('prior_assessments').insert",'Prior assessment metadata must be stored for recovery/audit.');
 has(prior,'updateSignals(student,data)','Processed prior reports must feed learner evidence signals.');
 
-// Assessment-only diagnostic with durable resume.
+// Assessment-only diagnostic with durable resume/recovery.
 has(diagnostic,'Resume your diagnostic','Diagnostic UI must expose durable resume.');
 has(diagnostic,'answers and explanations are intentionally withheld','Diagnostic must remain assessment-only.');
 has(diagnostic,'/api/diagnostic-session-v3','Diagnostic must use trusted session creation/resume.');
 has(diagnostic,'/api/diagnostic-answer-v3','Diagnostic responses must be server scored/saved.');
+has(diagnostic,'recoverAnswerSubmit','Diagnostic UI must reconcile uncertain answer submissions against durable server state.');
+has(diagnostic,'Retry the same answer when the connection returns','Recovery must permit an idempotent retry when save state cannot be confirmed.');
+has(diagnostic,'state.attempt_id===attemptId','Recovery must stay bound to the same diagnostic attempt.');
 has(diagnosticSession,'assertAppRequestOrigin(req)','Diagnostic session mutations must enforce application origin.');
-has(diagnosticAnswer,'assertAppRequestOrigin(req)','Diagnostic answer mutations must enforce application origin.');
+has(diagnosticSession,'attempt_id:state.attempt.id','Diagnostic session resume must return the durable existing attempt identifier.');
+has(diagnosticSession,'answered:state.completed','Diagnostic session resume must return the trusted saved-answer position.');
+has(diagnosticCore,'const existing=await latestOpenAttempt(student.id)','Diagnostic session creation must reuse an existing open attempt before creating another.');
+has(diagnosticCore,"serverScored:true",'Secure diagnostic resume must count trusted server-scored answers.');
+has(diagnosticItem,'{enforceCurrent:true}','Diagnostic item loading must enforce the next unanswered position.');
+has(diagnosticCore,'export function safeQuestion','Diagnostic payloads must pass through a safe-question projection.');
+assert.ok(!diagnosticCore.match(/safeQuestion\([^)]*\)\s*\{[^}]*answer/i),'Safe diagnostic question projection must not expose answer material.');
+has(diagnosticResumeMigration,'create unique index if not exists diagnostic_attempts_one_in_progress_per_student_idx','Database must enforce one active diagnostic attempt per learner.');
+has(diagnosticResumeMigration,"where status = 'in_progress'",'Single-active-attempt invariant must apply specifically to in-progress diagnostics.');
 
 // Combined model and guided practice authority.
 has(learningModel,"/api/learning-model-v3",'Combined learning-model refresh must use the trusted server endpoint.');
