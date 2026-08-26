@@ -19,6 +19,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Production backend identity is reconciled to Supabase project `ataaiocpbjavmdpgmzlv` using live schema inspection.
 - [x] Production CSP permits only the active Supabase HTTPS/WSS origin, rejects the retired project origin, and is enforced by a production build validator.
 - [x] Production builds now fail if browser source or built output exposes server-only environment names, privileged Supabase JWTs, or credential-shaped Stripe/OpenAI/GitHub/AWS secrets.
+- [x] First production database performance-hardening tranche is applied and reconciled: ten secure-v3/household foreign-key paths now have covering indexes with no RLS, grant, content, or application-authority changes.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
@@ -88,7 +89,9 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
 
-**Current advisor status (2026-08-26):** production remains healthy. A fresh Supabase advisor review reports leaked-password protection disabled and warns that authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design. The performance advisor also reports a broad backlog of unindexed foreign keys and RLS initialization-plan/multiple-permissive-policy warnings; these should be addressed incrementally with authorization-preserving migrations rather than by weakening policy logic.
+**Current advisor status (2026-08-26):** production remains healthy. A fresh security advisor review after the database-index migration reports the same two actionable warnings as before: leaked-password protection is disabled and authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design. No new security warning was introduced by the index migration.
+
+**Performance hardening status (2026-08-26):** migration `core_secure_v3_fk_indexes` is recorded in the production migration ledger and adds covering indexes for ten high-value secure-v3/household foreign keys: diagnostic attempt items, diagnostic attempts, diagnostic responses (content item and student), practice responses (item and student), practice session items, parent-student links, and profile/student household links. Live `pg_indexes` verification confirms all ten indexes exist. A fresh Supabase performance advisor no longer reports those ten as unindexed foreign keys, reducing the outstanding unindexed-FK findings from **24 to 14**. Remaining RLS initialization-plan and multiple-permissive-policy warnings are intentionally deferred to authorization-equivalent migrations rather than changing policy semantics casually. The new indexes appear as unused in the prelaunch zero-traffic advisor, which is expected and is not a basis for removing them before representative production use.
 
 ## 5. Billing and entitlement acceptance
 
@@ -193,7 +196,8 @@ These should remain disabled until the blocking checklist is green and the user 
 - [ ] Exclude internal/test traffic from acquisition reporting.
 - [ ] Lock activation/conversion definitions before campaign reporting.
 - [ ] Confirm item-calibration reporting works once sufficient real response volume exists.
-- [ ] Review RLS performance warnings and missing foreign-key indexes that affect scale but do not change authorization correctness.
+- [x] Add covering indexes for the first ten highest-value secure-v3/household foreign-key paths without altering authorization semantics; production migration and advisor reconciliation completed 2026-08-26.
+- [ ] Continue the remaining 14 unindexed-foreign-key findings and RLS performance warnings only through authorization-preserving changes with equivalent-policy verification.
 - [ ] Establish dependency update cadence.
 - [ ] Prepare first-72-hours launch monitoring cadence and rollback decision rules.
 
@@ -210,7 +214,7 @@ These should remain disabled until the blocking checklist is green and the user 
 
 1. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
 2. Add/strengthen automated acceptance checks that do not require reviewed proprietary content.
-3. Add high-value missing foreign-key indexes and address low-risk RLS performance warnings through authorization-preserving migrations.
+3. Continue the remaining 14 missing foreign-key indexes and only then address RLS initialization-plan/multiple-policy performance warnings with authorization-equivalent verification.
 4. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
 5. Improve monitoring/recovery/support readiness documentation and testable operational controls.
 6. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
