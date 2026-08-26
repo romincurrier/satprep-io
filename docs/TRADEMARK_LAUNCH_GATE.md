@@ -1,51 +1,29 @@
-# College Board Trademark Launch Gate
+# College Board Independence Disclosure and Content Boundary
 
-Last reviewed: 2026-08-24
+Last updated: 2026-08-25
 
-## Purpose
-SATprep.io is still pre-launch and globally blocked from search indexing. Before public indexing, advertising, paid acquisition, affiliate promotion, or broad commercial release is enabled, the current brand/domain and all uses of College Board marks need explicit legal/trademark review.
+## Launch decision
 
-This is a launch-governance control, not a legal conclusion. The repository should not treat trademark clearance as implied merely because the product is technically ready.
+The project owner has determined that College Board trademark review is not a commercial-launch blocker for SATprep.io. The required public-facing control is a clear independence disclosure on the homepage stating that SATprep.io is not sponsored by, endorsed by, or associated with College Board.
 
-## Current risk to resolve
-The current product name and domain contain `SAT`. College Board's current published trademark guidance identifies SAT® as a registered trademark and states that third parties should avoid uses that imply affiliation. The guidance also states that College Board marks should not be used in company, product, service, social-page, Internet-domain, website-address, or meta-tag names without permission, and that websites using College Board marks should carry visible attribution/non-affiliation language on pages where the marks appear.
+The approved homepage disclosure is:
 
-College Board also states that official SAT test materials are not available for commercial test-prep licensing and that reproduction of official test materials in commercial test-prep settings is not allowed. Its published guidance separately states that College Board copyrighted content may not be used to train generative-AI systems or applications.
+> SATprep.io is an independent test-preparation service and is not sponsored by, endorsed by, or associated with College Board.
 
-Because the current SATprep.io brand/domain itself contains the SAT mark, this issue is broader than simply adding a footer disclaimer. It must be resolved before public launch.
-
-## Required decision before public indexing or outbound marketing
-Document one of the following before changing `launch-gates.json`:
-
-1. Written permission/approval sufficient for the intended brand/domain, website, advertising, social, and product uses; or
-2. A legal review concluding that the planned uses may proceed, with any required changes to naming, marks, symbols, disclaimers, metadata, or campaign creative; or
-3. A rebrand/domain transition plan that removes the unresolved issue before indexing and promotion.
-
-Record the decision, reviewer, date, scope, and any restrictions in a non-secret launch record before changing `college_board_trademark_review` from `unresolved`.
+This disclosure is implemented by `independence-disclosure.js` and is enforced by `scripts/validate-launch.mjs`. `launch-gates.json` records the disclosure as a required launch control rather than an unresolved legal blocker.
 
 ## Product-content boundary
-Regardless of branding outcome:
+
+The launch decision does not change the product's content-integrity rules:
 
 - Do not copy or republish official College Board test questions in the commercial question bank.
-- Do not use official College Board test items as training data for any generative question-authoring system.
-- Proprietary questions must be independently authored and reviewed against public test specifications without copying protected wording.
-- Linking students to official College Board/Bluebook resources is preferable to reproducing official content.
-- SATprep.io diagnostics and mastery estimates must not be described as official College Board scores, equated scores, or psychometrically validated score predictions unless that claim is independently substantiated.
+- Do not use official College Board test items as training data for generative question-authoring systems.
+- Proprietary questions must be independently authored and reviewed against public SAT/PSAT specifications without copying protected wording.
+- Linking students to official College Board or Bluebook resources is preferable to reproducing official content.
+- SATprep.io diagnostics, mastery estimates, readiness indicators, and target-score planning must not be described as official College Board scores or official College Board predictions.
 
-## Prelaunch technical controls that must remain in place while unresolved
+## Launch controls
 
-- `launch-gates.json` keeps `college_board_trademark_review` set to `unresolved`.
-- Vercel continues sending `X-Robots-Tag: noindex, nofollow, noarchive`.
-- Public billing remains disabled.
-- Live payments remain disabled.
-- Outbound marketing remains disabled.
-- No paid ads, affiliate promotion, public search submission, or broad lifecycle marketing should begin.
+The College Board independence disclosure must remain visible on the public homepage when public indexing, billing, live payments, marketing measurement, or outbound marketing are later enabled. Removal of the disclosure should fail the production launch validator.
 
-## Official source record
-Reviewed against current College Board pages on 2026-08-24:
-
-- Guidelines for Using College Board Trademarks: https://privacy.collegeboard.org/copyright-trademark/guidelines
-- College Board Copyright and Trademark Permission Request Instructions: https://privacy.collegeboard.org/copyright-trademark/request-instructions
-- College Board Trademarks: https://privacy.collegeboard.org/copyright-trademark/college-board
-
-Recheck these sources immediately before launch because policies can change.
+The disclosure requirement is independent from the remaining launch gates for commercial content depth and review, payment activation, privacy/analytics approval, security verification, indexing, and outbound marketing.
