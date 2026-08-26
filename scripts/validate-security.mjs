@@ -83,6 +83,7 @@ if(!/revoke all on function public\.consume_api_rate_limit\(text,text,integer,in
 if(!/updated_at < v_now - interval '24 hours'/i.test(rateMigration))fail('Hashed abuse-control counters must retain the prelaunch target of approximately 24 hours or less.');
 
 const core=read('server/diagnostic-core.js');
+const diagnosticSubmissionMigration=read('migrations/20260826_atomic_diagnostic_response_submission.sql');
 if(/question-bank-production|question-bank\.js|answerIndex\s*\}/i.test(core))fail('Secure diagnostic runtime must not source scoring content from the committed JavaScript question bank.');
 if(/correct_answer\s*:\s*item\.answerIndex/.test(core))fail('Secure diagnostic must not persist the real answer key in browser-readable legacy response fields.');
 if(!/response-scoring\.js/.test(core)||!/scoreResponse\(/.test(core))fail('Secure diagnostic runtime must use shared server-side MCQ/SPR scoring.');
@@ -103,9 +104,11 @@ if(!/r\?\.content_hash===contentHash/.test(core))fail('Secure diagnostic approva
 if(!/function approvedContent/.test(core)||!/changed after review/.test(core))fail('Secure diagnostic item delivery/scoring must fail closed when content changes after review.');
 if(!/diagnostic_attempt_items/.test(core)||!/assertPersistedPlanItem/.test(core))fail('Secure diagnostic must persist and verify the server-selected item plan.');
 if(!/content_answer_keys\?item_id=eq\./.test(core)||!/answer:key\.answer/.test(core))fail('Secure diagnostic scoring must retrieve scoring material through the server-only answer-key table.');
-if(!/content_item_id:item\.id/.test(core))fail('Secure diagnostic responses must be linked to the server-selected content item.');
-if(!/selected_answer:scored\.selectedAnswer/.test(core)||!/response_text:scored\.responseText/.test(core))fail('Secure diagnostic must persist one server-validated MCQ or SPR response shape.');
-if(!/scored_by_server:true/.test(core))fail('Secure diagnostic response writes must be explicitly marked as server-scored.');
+if(!/\/rest\/v1\/rpc\/submit_diagnostic_response_secure_v3/.test(core))fail('Secure diagnostic responses must be persisted through the atomic trusted submission RPC.');
+if(!/p_question_key:item\.id/.test(core))fail('Secure diagnostic response submission must bind the server-selected content item to the trusted RPC.');
+if(!/p_selected_answer:scored\.selectedAnswer/.test(core)||!/p_response_text:scored\.responseText/.test(core))fail('Secure diagnostic must pass one server-validated MCQ or SPR response shape to the trusted RPC.');
+if(!/content_item_id[\s\S]*p_question_key[\s\S]*scored_by_server[\s\S]*true/i.test(diagnosticSubmissionMigration))fail('Atomic diagnostic response submission must link the content item and mark the persisted response server-scored.');
+if(!/revoke all on function public\.submit_diagnostic_response_secure_v3[\s\S]*from public, anon, authenticated/i.test(diagnosticSubmissionMigration)||!/grant execute on function public\.submit_diagnostic_response_secure_v3[\s\S]*to service_role/i.test(diagnosticSubmissionMigration))fail('Atomic diagnostic response submission must remain service-role only.');
 if(!/scored_by_server=eq\.true/.test(core))fail('Secure diagnostic progress/finalization must filter to server-scored rows.');
 if(!/r\.content_item_id===r\.question_key/.test(core))fail('Secure diagnostic finalization must verify response/content-item identity.');
 
