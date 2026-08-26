@@ -28,12 +28,16 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] The profile-backed administrator RLS helper is no longer exposed as a public SECURITY DEFINER RPC; all 19 dependent policies use a pinned-search-path helper in the non-Data-API `private` schema.
 - [x] Prior-assessment reports use a private Storage bucket, immutable uploader/student-scoped object identity, and a server-mediated deletion path.
 - [x] All six `prior_assessments` student/parent `auth_rls_initplan` findings are resolved in production without changing policy commands, roles, or authorization predicates; the recorded parent/student/admin/cross-account baseline remained unchanged before and after.
+- [x] All three `privacy_requests` `auth_rls_initplan` findings are resolved in production without changing policy commands, role targets, target-student authorization, or permissiveness; rollback-only parent/unrelated/admin equivalence checks remained unchanged before and after.
+- [x] Private content review tooling preserves spreadsheet display values so reviewed fractions, percentages, currency, and similar formatted answer text are not silently replaced by numeric/date serials during readiness or import.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
 ## 1. Commercial content bank
 
 **Staging progress (2026-08-26):** the private Google Drive staging bank contains **94 assistant-staged, unapproved drafts: 47 diagnostic and 47 practice items**. All rows remain `production_approved=FALSE`. A fresh production query confirms `public.content_items` still contains **0 rows, 0 active items, and 0 items with `qa_status='production_approved'`**. Independent human review remains mandatory before any production import, approval, or activation.
+
+**Staging serialization integrity (2026-08-26):** a source-value audit found that Google Sheets had auto-coerced 12 fraction-like MCQ choice cells in three unapproved Math drafts into date serials while displaying the intended fraction text. Those cells were normalized to literal TEXT values and re-read from the sheet to confirm string storage. The private readiness/import scripts now parse spreadsheet display values (`raw:false`) and the production build validates that requirement, preventing reviewed fractions, percentages, currency, and similar formatted content from being silently changed by spreadsheet serialization. No item was approved, imported, or activated as part of this repair.
 
 - [ ] Reach the commercial depth target for every exam-eligible skill: at least 6 approved diagnostic items and 8 approved practice items per skill, with required difficulty distribution.
 - [ ] Maintain sufficient Math student-produced-response representation in the reviewed bank.
@@ -98,6 +102,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Enable Supabase Auth leaked-password protection.
 - [x] Refactor the exposed `public.is_admin()` SECURITY DEFINER helper into a non-Data-API private helper, preserve RLS authorization equivalence, and eliminate the advisor warning.
 - [x] Resolve the six `prior_assessments` student/parent `auth_rls_initplan` findings through InitPlan-only policy rewrites and verify authorization equivalence before and after production application.
+- [x] Resolve the three `privacy_requests` `auth_rls_initplan` findings through InitPlan-only policy rewrites and verify privacy-request authorization equivalence before and after production application.
 - [ ] Run the final release-candidate Supabase security-advisor review after remaining launch migrations/configuration are frozen.
 - [ ] Run a release-candidate dependency/security review.
 - [ ] Verify production security headers on the final public candidate.
@@ -105,9 +110,9 @@ This file is the single operating checklist for commercial launch readiness. `do
 
 **Current advisor status (2026-08-26):** a fresh production security-advisor review reports no executable SECURITY DEFINER warning. The only remaining actionable security warning is that leaked-password protection is disabled; service-only RLS-with-no-policy findings remain informational and fail-closed by design. Enabling leaked-password protection remains an owner/manual activation item because the current automation tooling does not expose the required Auth setting.
 
-**Authorization-equivalence status (2026-08-26):** the recorded parent/student/admin role-emulation baseline was re-run before and after the `prior_assessments` InitPlan rewrite. Parent access remained limited to the linked learner and linked prior-assessment state, unrelated learner/report access remained zero, student access remained self-only, and the administrator retained the intended complete operational view. The reusable baseline and safe-change rules remain recorded in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md`.
+**Authorization-equivalence status (2026-08-26):** the reusable parent/student/admin baseline remains recorded in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md`. For the `prior_assessments` tranche, parent access remained limited to the linked learner/report, unrelated learner/report access remained zero, student access remained self-only, and the administrator retained the intended operational view. For the `privacy_requests` tranche, rollback-only production tests before and after the rewrite confirmed that a parent could create/read a request targeting the linked learner, an unrelated authenticated profile could not read that request, and an administrator could read it. The test row was rolled back each time; production `privacy_requests` remains empty.
 
-**Performance hardening status (2026-08-26):** production migrations `core_secure_v3_fk_indexes` and `remaining_secure_v3_fk_indexes` cover all **24** foreign-key paths previously reported as unindexed. Migration `prior_assessments_rls_initplan` is recorded in the production migration ledger and converts every raw `auth.uid()` call in the six student/parent prior-assessment policies to `(select auth.uid())` without changing policy roles, commands, uploader checks, learner ownership, linked-parent scope, or update `WITH CHECK` semantics. A fresh performance-advisor run reports **zero `auth_rls_initplan` findings for `public.prior_assessments`**. Other InitPlan and multiple-permissive-policy warnings remain and must be addressed only in small authorization-equivalent tranches. Expected prelaunch `unused_index` informational results are not a reason to remove required indexes.
+**Performance hardening status (2026-08-26):** production migrations `core_secure_v3_fk_indexes` and `remaining_secure_v3_fk_indexes` cover all **24** foreign-key paths previously reported as unindexed. Migration `prior_assessments_rls_initplan` is recorded in the production migration ledger and a fresh advisor reports **zero `auth_rls_initplan` findings for `public.prior_assessments`**. Migration `privacy_requests_rls_initplan` is also recorded and converts every raw `auth.uid()` call in `privacy_request_admin_read`, `privacy_request_self_insert`, and `privacy_request_self_read` to `(select auth.uid())` without changing policy commands, role targets, requester ownership, submitted-state checks, student/linked-parent target scope, or permissiveness. A fresh advisor reports **zero `auth_rls_initplan` findings for `public.privacy_requests`**. The existing `privacy_requests` multiple-permissive SELECT warning remains intentionally unchanged because policy consolidation was outside this authorization-equivalent tranche. Other InitPlan and multiple-permissive-policy warnings remain and must be addressed only in small authorization-equivalent tranches. Expected prelaunch `unused_index` informational results are not a reason to remove required indexes.
 
 ## 5. Billing and entitlement acceptance
 
@@ -215,7 +220,7 @@ These remain disabled until the blocking checklist is green and the user explici
 - [ ] Lock activation/conversion definitions before campaign reporting.
 - [ ] Confirm item-calibration reporting works once sufficient real response volume exists.
 - [x] Add covering indexes for all foreign keys reported as unindexed by the production Supabase advisor without altering authorization semantics; **24/24 covered and 0 `unindexed_foreign_keys` findings remain as of 2026-08-26**.
-- [ ] Address remaining `auth_rls_initplan` and `multiple_permissive_policies` performance warnings only through authorization-preserving changes with policy-equivalence verification; the six `prior_assessments` InitPlan findings are complete.
+- [ ] Address remaining `auth_rls_initplan` and `multiple_permissive_policies` performance warnings only through authorization-preserving changes with policy-equivalence verification; the six `prior_assessments` and three `privacy_requests` InitPlan findings are complete.
 - [ ] Establish dependency update cadence.
 - [ ] Prepare first-72-hours launch monitoring cadence and rollback decision rules.
 
@@ -232,7 +237,7 @@ These remain disabled until the blocking checklist is green and the user explici
 
 # Current safest autonomous work order
 
-1. Continue narrow RLS initialization-plan optimization in small, authorization-equivalent batches. The next contained candidate is the three `privacy_requests` policies currently flagged for raw `auth.uid()` evaluation; capture privacy-request-specific parent/student/admin authorization behavior before and after any production rewrite, and do not change policy role targets or permissiveness in the same tranche.
+1. Continue narrow RLS initialization-plan optimization in small, authorization-equivalent batches. The next contained candidate is the single `admin_parent_setup_request_read` InitPlan finding on `public.parent_setup_requests`; capture administrator/non-administrator read behavior before and after, and do not change the existing public insert policy or policy permissiveness in the same tranche.
 2. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
 3. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
 4. Improve monitoring/recovery/support readiness documentation and testable operational controls.
