@@ -1,4 +1,4 @@
-import {authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
+import {assertAppRequestOrigin,authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -14,6 +14,7 @@ function finite(value){const n=Number(value);return Number.isFinite(n)?n:null}
 export default async function handler(req,res){
  if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
  try{
+  assertAppRequestOrigin(req);
   const ctx=await parentContext(req);if(!ctx)return json(res,401,{error:'A parent or guardian account is required.'});
   await enforceRateLimit(ctx.user.id,'parent/progress',{limit:60,windowSeconds:60});
   const raw=req.body&&typeof req.body==='object'?req.body:{};if(JSON.stringify(raw).length>500)return json(res,413,{error:'Request payload is too large.'});
