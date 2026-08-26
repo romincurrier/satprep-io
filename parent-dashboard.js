@@ -12,22 +12,14 @@ let rendering = false;
 async function getContext() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id,email,first_name,last_name,role,household_id")
-    .eq("id", session.user.id)
-    .maybeSingle();
-
-  if (!profile || profile.role !== "parent" || !profile.household_id) return null;
-
-  const { data: students } = await supabase
-    .from("students")
-    .select("id,profile_id,first_name,last_name,display_name,grade_level,target_exam,target_score,onboarding_complete,diagnostic_completed_at,created_at")
-    .eq("household_id", profile.household_id)
-    .order("created_at", { ascending: true });
-
-  return { session, profile, students: students || [] };
+  try {
+    const data = await authedPost("/api/parent-household-overview", {});
+    if (!data?.profile || data.profile.role !== "parent") return null;
+    return { session, profile: data.profile, students: data.students || [] };
+  } catch (error) {
+    console.warn("parent household overview unavailable", error?.message || error);
+    return null;
+  }
 }
 
 async function authedPost(url, body) {
