@@ -41,6 +41,10 @@ if(!/new\.raw_user_meta_data->>['"]date_of_birth['"]/.test(migration))fail('Data
 if(!/current_date - interval ['"]13 years['"]/.test(migration))fail('Database age gate must enforce the under-13 parent/guardian boundary.');
 if(!/requested_role = ['"]student['"] and not parent_authorized/.test(migration))fail('Database age gate must apply to direct student creation while allowing trusted parent-authorized creation.');
 if(!/security definer/.test(migration)||!/set search_path = ['"]['"]/.test(migration))fail('Auth trigger age gate must retain a locked-down security-definer search path.');
+if(!/if requested_role=['"]parent['"] then/.test(migration))fail('Database age-gate migration must preserve the established parent signup branch.');
+if(!/insert into public\.households\(name,student_limit\)/.test(migration)||!/returning id into new_household/.test(migration))fail('Parent signup must continue creating a household inside the auth trigger.');
+if(!/household_id,billing_owner/.test(migration)||!/new_household,true/.test(migration))fail('Parent signup must continue linking the parent profile to the new household as billing owner.');
+if(!/insert into public\.profiles\(id,email,first_name,last_name,role,date_of_birth\)/.test(migration))fail('Student signup must retain date-of-birth persistence on the profile.');
 
 if(errors.length){for(const e of errors)console.error(`Youth privacy validation error: ${e}`);process.exit(1)}
-console.log('Youth-account privacy boundary validation passed.');
+console.log('Youth-account privacy boundary validation passed, including preservation of parent household creation while direct under-13 student signup remains blocked.');
