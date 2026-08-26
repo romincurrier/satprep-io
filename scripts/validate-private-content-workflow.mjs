@@ -12,6 +12,7 @@ if(!/path\.isAbsolute\(file\)/.test(importer))fail('Private content importer mus
 if(!/resolvedFile\.startsWith\(`\$\{repoRoot\}\$\{path\.sep\}`\)/.test(importer))fail('Private content importer must refuse proprietary files located inside the public repository root.');
 if(!/SUPABASE_SERVICE_ROLE_KEY/.test(importer))fail('Private content importer must use the server-only Supabase credential.');
 if(!/PRIVATE_CONTENT_IMPORT_CONFIRM.*ACTIVATE_REVIEWED_CONTENT/.test(importer))fail('Private content activation must require an explicit confirmation environment value.');
+if(!/sheet_to_json\(sheet,\{defval:'',raw:false\}\)/.test(importer))fail('Private importer must parse spreadsheet display values so fractions, percentages, currency, and other reviewed text are not replaced by spreadsheet serials.');
 if(!/const REVIEW_TYPES=\['accuracy','alignment','editorial','bias_accessibility','originality'\]/.test(importer))fail('Private importer must require all five independent review dimensions.');
 if(!/MIN_INDEPENDENT_REVIEWERS=3/.test(importer)||!/MAX_DIMENSIONS_PER_REVIEWER=2/.test(importer))fail('Private importer must enforce at least three reviewers and no more than two review dimensions per reviewer.');
 if(!/`\$\{type\}_reviewer`/.test(importer))fail('Private importer must support reviewer identity by review dimension.');
@@ -38,6 +39,7 @@ else{
 
 const preflight=read('scripts/private-content-readiness-report.mjs');
 if(!/path\.isAbsolute\(file\)/.test(preflight)||!/resolved\.startsWith\(`\$\{root\}\$\{path\.sep\}`\)/.test(preflight))fail('Private readiness preflight must require an external absolute file path and refuse repo-local proprietary files.');
+if(!/sheet_to_json\(sheet,\{defval:'',raw:false\}\)/.test(preflight))fail('Private readiness preflight must parse spreadsheet display values consistently with the reviewed-content importer.');
 if(!/evaluateSkillCoverage\(pool,kind\)/.test(preflight)||!/COMMERCIAL_CONTENT_POLICY/.test(preflight))fail('Private readiness preflight must use the shared commercial depth/difficulty policy.');
 if(!/MIN_INDEPENDENT_REVIEWERS=3/.test(preflight)||!/MAX_DIMENSIONS_PER_REVIEWER=2/.test(preflight))fail('Private readiness preflight must use the commercial reviewer-independence thresholds.');
 if(!/question text is intentionally not shown/i.test(preflight))fail('Private readiness preflight must explicitly avoid printing proprietary question text.');
