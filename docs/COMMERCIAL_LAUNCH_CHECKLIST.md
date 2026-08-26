@@ -25,6 +25,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Secure-v3 diagnostic finalization is atomic and service-role-only: attempt completion, learner diagnostic/path state, and diagnostic-derived mastery now commit in one row-locked transaction, incomplete attempts are rejected, and repeated finalization is idempotent.
 - [x] Production enforces at most one `in_progress` diagnostic attempt per learner, preventing concurrent refresh/new-tab/new-device session races from forking assessment state.
 - [x] A production parent/student/admin RLS authorization-equivalence baseline is captured in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md` and has been verified with authenticated-role, cross-household, and read-only-parent checks before any RLS performance rewrite.
+- [x] The profile-backed administrator RLS helper is no longer exposed as a public SECURITY DEFINER RPC: all 19 dependent policies use a pinned-search-path helper in the non-Data-API `private` schema, and a fresh production security-advisor review reports no executable SECURITY DEFINER warning.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
@@ -99,16 +100,17 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Establish and record the production parent/student/admin authorization-equivalence baseline before any RLS performance rewrites.
 - [ ] Complete a launch-relevant repository-history secret scan and rotate/revoke any credential if historical exposure is found; the current connector can validate the present tree/build but does not certify every historical Git object.
 - [ ] Enable Supabase Auth leaked-password protection.
-- [ ] Run final security advisor review and document the intentional `is_admin()` SECURITY DEFINER exception or refactor it safely.
+- [x] Refactor the exposed `public.is_admin()` SECURITY DEFINER helper into a non-Data-API private helper, preserve RLS authorization equivalence, and eliminate the advisor warning.
+- [ ] Run the final release-candidate Supabase security-advisor review after remaining launch migrations/configuration are frozen.
 - [ ] Run a release-candidate dependency/security review.
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
 
-**Current advisor status (2026-08-26):** production remains healthy. A fresh security-advisor review after the diagnostic resume migration reports the same two actionable warnings: leaked-password protection is disabled and authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Service-only tables with RLS and no browser policy continue to appear as informational lints and remain fail-closed by design. The diagnostic resume index introduced no new security-advisor warning.
+**Current advisor status (2026-08-26):** production remains healthy. Migration `private_admin_rls_helper` moved the profile-backed recursive-safe administrator predicate from exposed `public.is_admin()` to `private.is_admin()` with an empty pinned search path, removed the public helper, and rewired all 19 dependent RLS policies through `(select private.is_admin())` without changing policy role targets or commands. Live privilege checks show `anon` cannot use the private schema or execute the helper, while `authenticated` can execute it only for policy evaluation and `service_role` retains trusted access. Parent/student/admin role-emulation checks preserved the recorded authorization-equivalence baseline. A fresh security-advisor review no longer reports the executable SECURITY DEFINER warning; the only remaining actionable security warning is that leaked-password protection is disabled. Service-only RLS-with-no-policy findings remain informational and fail-closed by design.
 
-**Authorization-equivalence status (2026-08-26):** production role-emulation checks verified that the current parent can see the linked learner and linked diagnostic state but not an unrelated learner or unrelated diagnostic; the parent cannot directly update diagnostic attempts; a student can see self-owned learner/diagnostic state but not another learner; and the administrator retains the intended complete operational view. The reusable baseline and safe-change rules are recorded in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md`. This baseline must be re-run before and after any RLS initialization-plan or policy-consolidation migration.
+**Authorization-equivalence status (2026-08-26):** production role-emulation checks verified that the current parent can see the linked learner and linked diagnostic state but not an unrelated learner or unrelated diagnostic; the parent cannot directly update diagnostic attempts; a student can see self-owned learner/diagnostic state but not another learner; and the administrator retains the intended complete operational view. The same baseline was re-run after `private_admin_rls_helper`: parent/student cross-tenant isolation remained intact and the administrator retained the complete intended operational view. The reusable baseline and safe-change rules are recorded in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md`. This baseline must be re-run before and after any RLS initialization-plan or policy-consolidation migration.
 
-**Performance hardening status (2026-08-26):** production migrations `core_secure_v3_fk_indexes` and `remaining_secure_v3_fk_indexes` are recorded in the migration ledger. Together they add narrow covering indexes for all **24** foreign-key paths that the Supabase advisor previously reported as unindexed. A fresh performance-advisor run reports **0 `unindexed_foreign_keys` warnings**. The remaining performance findings are `auth_rls_initplan` and `multiple_permissive_policies` warnings plus expected prelaunch `unused_index` informational results. Newly created indexes are expected to appear unused before representative traffic and should not be removed on that basis. Future RLS-performance work must preserve authorization semantics and be verified against the now-recorded equivalence baseline before production application.
+**Performance hardening status (2026-08-26):** production migrations `core_secure_v3_fk_indexes` and `remaining_secure_v3_fk_indexes` are recorded in the migration ledger. Together they add narrow covering indexes for all **24** foreign-key paths that the Supabase advisor previously reported as unindexed. A fresh performance-advisor run reports **0 `unindexed_foreign_keys` warnings**. The private admin-helper rewrite also removed the targeted admin-policy initialization-plan findings; remaining performance findings are on other `auth_rls_initplan` predicates and legacy/multiple-permissive policy families plus expected prelaunch `unused_index` informational results. Newly created indexes are expected to appear unused before representative traffic and should not be removed on that basis. Future RLS-performance work must preserve authorization semantics and be verified against the now-recorded equivalence baseline before production application.
 
 ## 5. Billing and entitlement acceptance
 
@@ -231,13 +233,13 @@ These remain disabled until the blocking checklist is green and the user explici
 
 # Current safest autonomous work order
 
-1. Apply only narrow RLS initialization-plan optimizations in small batches and re-run the recorded parent/student/admin authorization-equivalence baseline before and after each production change; do not consolidate permissive policies until equivalence is proven separately.
-2. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
-3. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
-4. Improve monitoring/recovery/support readiness documentation and testable operational controls.
-5. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
-6. Prepare secure-v3 browser/fault-injection acceptance data prerequisites so refresh/new-tab/new-device/network recovery can be tested immediately after reviewed content is imported.
-7. Continue reducing RLS performance warnings only through authorization-preserving migrations measured against the baseline.
+1. Continue only narrow RLS initialization-plan optimizations on remaining simple self/parent predicates in small batches and re-run the recorded parent/student/admin authorization-equivalence baseline before and after each production change; do not consolidate permissive policies until equivalence is proven separately.
+2. Confirm storage-bucket privacy and deletion behavior for prior-assessment uploads and harden the service path if needed without weakening browser access.
+3. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
+4. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
+5. Improve monitoring/recovery/support readiness documentation and testable operational controls.
+6. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
+7. Prepare secure-v3 browser/fault-injection acceptance data prerequisites so refresh/new-tab/new-device/network recovery can be tested immediately after reviewed content is imported.
 8. Keep the final trusted-learning-authority lock staged until secure-v3 acceptance passes with reviewed content.
 
 # Hard stop rules for autonomous work
