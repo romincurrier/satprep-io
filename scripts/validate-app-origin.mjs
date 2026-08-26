@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {assertAppRequestOrigin,assertAppReadOrigin} from '../server/supabase-server.js';
 
 const read=(path)=>fs.readFileSync(new URL(path,import.meta.url),'utf8');
 const server=read('../server/supabase-server.js');
@@ -20,6 +21,9 @@ const readTargets=new Map([
 ]);
 const failures=[];
 const requireText=(text,needle,label)=>{if(!text.includes(needle))failures.push(label)};
+const expectAllowed=(fn,req,label)=>{try{fn(req)}catch(e){failures.push(`${label}: unexpectedly rejected (${e.message}).`)}};
+const expectRejected=(fn,req,label)=>{try{fn(req);failures.push(`${label}: unexpectedly allowed.`)}catch(e){if(e.status!==403)failures.push(`${label}: rejected with ${e.status||'unknown'} instead of 403.`)}};
+const req=(headers={})=>({headers});
 
 requireText(server,"const PUBLIC_APP_HOSTS=new Set(['satprep.io','www.satprep.io'])",'Shared origin guards must explicitly identify the public application hosts.');
 requireText(server,"['same-origin','none'].includes(fetchSite)",'Shared origin verification must reject cross-site Sec-Fetch-Site values.');
@@ -60,6 +64,16 @@ for(const [label,source] of readTargets){
  const contextIndex=source.indexOf('studentContext(req)');
  if(guardIndex<0||contextIndex<0||guardIndex>contextIndex)failures.push(`${label} must reject untrusted browser origins before loading student context or proprietary learning content.`);
 }
+
+expectRejected(assertAppRequestOrigin,req({host:'satprep.io','sec-fetch-site':'same-origin'}),'Public mutation without Origin');
+expectAllowed(assertAppRequestOrigin,req({host:'satprep.io',origin:'https://satprep.io','sec-fetch-site':'same-origin'}),'Public mutation with matching HTTPS Origin');
+expectRejected(assertAppRequestOrigin,req({host:'satprep.io',origin:'https://evil.example','sec-fetch-site':'cross-site'}),'Cross-site public mutation');
+expectAllowed(assertAppReadOrigin,req({host:'satprep.io','sec-fetch-site':'same-origin'}),'Same-origin public GET without Origin');
+expectAllowed(assertAppReadOrigin,req({host:'satprep.io',origin:'https://satprep.io','sec-fetch-site':'same-origin'}),'Same-origin public GET with Origin');
+expectRejected(assertAppReadOrigin,req({host:'satprep.io','sec-fetch-site':'cross-site'}),'Cross-site public GET');
+expectRejected(assertAppReadOrigin,req({host:'satprep.io'}),'Signal-less public GET');
+expectRejected(assertAppReadOrigin,req({host:'satprep.io',origin:'https://evil.example','sec-fetch-site':'same-origin'}),'Mismatched explicit public GET Origin');
+expectAllowed(assertAppReadOrigin,req({host:'localhost:5173','sec-fetch-site':'same-origin'}),'Local same-origin GET');
 
 if(failures.length){
  console.error('Application origin validation failed:');
