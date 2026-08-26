@@ -23,6 +23,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Parent invitation acceptance is atomic and service-role-only: household/profile/student/link/invitation/consent changes commit in one row-locked database transaction with no new browser grants.
 - [x] Secure-v3 diagnostic answer submission is atomic and service-role-only: each attempt is row-locked, the persisted question plan/current position is verified, changed retries are rejected, and identical retries are idempotent before finalization.
 - [x] Secure-v3 diagnostic finalization is atomic and service-role-only: attempt completion, learner diagnostic/path state, and diagnostic-derived mastery now commit in one row-locked transaction, incomplete attempts are rejected, and repeated finalization is idempotent.
+- [x] Production enforces at most one `in_progress` diagnostic attempt per learner, preventing concurrent refresh/new-tab/new-device session races from forking assessment state.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
@@ -53,11 +54,11 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Verify invitation expiration/reuse behavior.
 - [ ] Verify prior-assessment upload flow with supported file types and representative synthetic/redacted reports.
 - [ ] Verify a fresh learner starts secure-v3 diagnostic.
-- [ ] Verify diagnostic item payload never contains answer keys, explanations, or distractor rationales.
-- [ ] Verify diagnostic question order cannot be skipped or forged.
+- [x] Verify diagnostic item payload never contains answer keys, explanations, or distractor rationales.
+- [x] Verify diagnostic question order cannot be skipped or forged at the secure API/trusted-database boundaries.
 - [x] Verify duplicate answer submissions are idempotent at the trusted production database boundary and that changed/out-of-sequence retries are rejected.
-- [ ] Verify refresh, new tab, and new-device resume behavior.
-- [ ] Verify temporary network failure does not lose saved answers.
+- [ ] Verify refresh, new tab, and new-device resume behavior in production-equivalent browser acceptance.
+- [ ] Verify temporary network failure does not lose saved answers in production-equivalent fault-injection acceptance.
 - [ ] Verify diagnostic feedback remains withheld until assessment completion.
 - [x] Verify atomic/idempotent diagnostic finalization at the trusted database boundary: incomplete attempts do not finalize, a complete attempt writes learner diagnostic/mastery state once, and a repeated finalization is a no-op.
 - [ ] Verify full browser/API secure-v3 diagnostic completion updates the learning model exactly once with independently reviewed content.
@@ -72,6 +73,8 @@ This file is the single operating checklist for commercial launch readiness. `do
 **Invitation hardening status (2026-08-26):** production migration `atomic_parent_invitation_acceptance` is applied. Invitation acceptance locks the parent, invitation, student, and existing household as applicable and performs household creation/linking, invitation consumption, and the existing consent-record write in one transaction. The RPC is `SECURITY INVOKER`, has a fixed search path, and live privilege checks confirm `anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE` for execution. The application calls only this trusted RPC for acceptance, and the production build contract checks enforce that architecture. A rollback-only synthetic transaction against the actual production schema verifies that an expired invitation returns `invitation_expired` and is marked expired, a valid invitation is accepted exactly once, reuse returns `invitation_unavailable`, and no duplicate parent/student link or consent row is created. Post-test queries confirm no synthetic profile or student rows persisted.
 
 **Diagnostic-answer hardening status (2026-08-26):** production migration `atomic_diagnostic_response_submission` is applied and the secure-v3 server path now calls `submit_diagnostic_response_secure_v3` rather than inserting diagnostic responses directly. The RPC is `SECURITY INVOKER`, row-locks the attempt, verifies the secure-v3 persisted plan and current question position, derives content metadata from an active production-approved item, and is executable by `service_role` only (`anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE`). A rollback-only synthetic transaction against the production schema verified that an out-of-sequence response is rejected, the first valid response is recorded once, an identical retry returns idempotently without creating another row, a changed retry is rejected, and the next valid response advances exactly once. Post-test queries confirmed **0 synthetic students, 0 synthetic content rows, and 0 synthetic response rows persisted**; production proprietary content remains **0 total / 0 active / 0 production-approved**. A dedicated build regression guard fails if the application stops using the atomic RPC, restores direct response inserts, loses row locking/sequence enforcement, weakens identical-retry idempotency, or grants browser execution authority.
+
+**Diagnostic resume/recovery hardening status (2026-08-26):** production migration `diagnostic_resume_single_active_attempt` is applied. A partial unique index now guarantees at most one `in_progress` diagnostic attempt per learner; a rollback-only production-schema test confirmed a second active attempt for the same learner is rejected while the first remains intact and no synthetic active attempt persists after rollback. The secure-v3 session endpoint reuses the latest open attempt and returns its trusted server-scored answer count; the item endpoint enforces the next unanswered position; diagnostic payloads are projected through an allowlist that omits scoring keys/explanations/rationales; and the browser recovery path reconciles an uncertain answer POST against durable server progress before permitting the same idempotent answer to be retried. The production build acceptance-flow validator now fails if these resume, recovery, safe-payload, sequence, or single-active-attempt invariants are removed. Live browser refresh/new-tab/new-device and network fault-injection acceptance remain explicitly open until a reviewed secure-v3 content bank is available.
 
 **Diagnostic-finalization hardening status (2026-08-26):** production migration `atomic_diagnostic_finalization` is applied and the secure-v3 server path now calls `finalize_diagnostic_attempt_secure_v3` rather than performing sequential attempt/student/mastery writes. The RPC is `SECURITY INVOKER`, row-locks the attempt and learner, verifies every planned response is present and server-scored before completion, preserves pre-existing recommended-path state while merging diagnostic results, and is executable by `service_role` only (`anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE`). A rollback-only synthetic transaction against the production schema verified that an incomplete attempt remains in progress, a fully answered attempt commits diagnostic/path/mastery state, and a repeated finalization cannot change or double-count mastery. Post-test queries confirmed **0 synthetic students, 0 synthetic content rows, and 0 synthetic attempts persisted**. A dedicated build regression guard now fails if the application stops using the atomic RPC or reintroduces sequential mastery finalization. Full browser/API diagnostic completion remains blocked by the independent reviewed-content requirement and is tracked separately above.
 
@@ -224,13 +227,13 @@ These remain disabled until the blocking checklist is green and the user explici
 
 # Current safest autonomous work order
 
-1. Add/strengthen secure-v3 acceptance checks that do not require independently reviewed proprietary content, especially resume/recovery, temporary-network-failure recovery, and parent/student authorization equivalence.
+1. Build parent/student authorization-equivalence acceptance checks before making any RLS performance changes; preserve exact access semantics for parent, student, admin, and anonymous roles.
 2. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
-3. Address RLS initialization-plan/multiple-policy performance warnings only after creating authorization-equivalence checks that prove no access expansion or contraction.
+3. Address RLS initialization-plan/multiple-policy performance warnings only after authorization-equivalence checks prove no access expansion or contraction.
 4. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
 5. Improve monitoring/recovery/support readiness documentation and testable operational controls.
 6. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
-7. Prepare secure-v3 end-to-end test harness/data prerequisites so reviewed content can be tested immediately after import.
+7. Prepare secure-v3 browser/fault-injection acceptance data prerequisites so refresh/new-tab/new-device/network recovery can be tested immediately after reviewed content is imported.
 8. Keep the final trusted-learning-authority lock staged until secure-v3 acceptance passes with reviewed content.
 
 # Hard stop rules for autonomous work
