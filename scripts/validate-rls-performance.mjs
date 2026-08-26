@@ -4,6 +4,7 @@ import fs from 'node:fs';
 const read=path=>fs.readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 const tranche1=read('migrations/20260826_rls_initplan_self_policy_optimization.sql');
 const tranche2=read('migrations/20260826_rls_initplan_parent_read_optimization.sql');
+const adminHelper=read('migrations/20260826_private_admin_rls_helper.sql');
 
 for(const policy of ['profile_self_read','profile_self_update','student_self_read','student_self_update']){
  assert.match(tranche1,new RegExp(`alter policy ["']${policy}["']`,'i'),`${policy} must remain explicitly covered by the self-policy InitPlan migration.`);
@@ -24,4 +25,25 @@ assert.match(tranche2,/parent_profile_id = \(select auth\.uid\(\)\)/i,'Parent li
 assert.match(tranche2,/p\.id = \(select auth\.uid\(\)\)[\s\S]*p\.role = 'parent'[\s\S]*p\.household_id = students\.household_id/i,'Household student reads must preserve the parent-role and household-match predicates.');
 assert.match(tranche2,/ps\.student_id = students\.id[\s\S]*ps\.parent_profile_id = \(select auth\.uid\(\)\)/i,'Explicit parent-student link reads must preserve the linked-student predicate.');
 
-console.log('RLS InitPlan performance-boundary checks passed.');
+const adminPolicies=[
+ 'diagnostic_admin_all','diagnostic_response_admin_all','journey_event_admin_all','lesson_admin_read',
+ 'reward_admin_all','parent_link_admin_all','prior_assessment_admin_all','profile_admin_read',
+ 'profile_admin_update','attempt_admin_read','skill_admin_read','achievement_admin_all',
+ 'journey_admin_all','mission_admin_all','skill_evidence_admin_all','student_admin_all',
+ 'subscription_admin_all','weekly_goal_admin_all','assessment_reports_admin_read'
+];
+for(const policy of adminPolicies){
+ assert.match(adminHelper,new RegExp(`alter\\s+policy\\s+${policy}\\b[\\s\\S]*?using\\s*\\([^;]*?select\\s+private\\.is_admin\\(\\)`,'i'),`${policy} must use the private admin helper through an InitPlan.`);
+}
+assert.match(adminHelper,/create schema if not exists private/i,'Admin helper must live in a private schema.');
+assert.match(adminHelper,/security definer[\s\S]*set search_path\s*=\s*''/i,'Private admin helper must pin an empty search_path.');
+assert.match(adminHelper,/where id = \(select auth\.uid\(\)\)[\s\S]*role = 'admin'/i,'Private admin helper must preserve the profile-backed admin predicate and cache auth.uid().');
+assert.match(adminHelper,/revoke all on schema private from public, anon/i,'Private schema must not be generally usable by public/anonymous roles.');
+assert.match(adminHelper,/revoke all on function private\.is_admin\(\) from public, anon, authenticated, service_role/i,'Private admin helper must reset default execute privileges before granting the minimum roles.');
+assert.match(adminHelper,/grant execute on function private\.is_admin\(\) to authenticated, service_role/i,'Authenticated policy evaluation and trusted service operations must retain helper execution.');
+assert.doesNotMatch(adminHelper,/grant execute on function private\.is_admin\(\) to[^;]*\banon\b/i,'Anonymous callers must not gain helper execution.');
+assert.match(adminHelper,/drop function public\.is_admin\(\)/i,'The exposed public SECURITY DEFINER helper must be removed after all policy rewrites.');
+assert.doesNotMatch(adminHelper,/drop\s+policy|create\s+policy/i,'Admin-helper hardening must alter existing policies rather than replacing them.');
+assert.doesNotMatch(adminHelper,/grant\s+(select|insert|update|delete|all)\s+on\s+(table\s+)?(public|storage)\./i,'Admin-helper hardening must not broaden table privileges.');
+
+console.log('RLS InitPlan and private-admin-helper boundary checks passed.');
