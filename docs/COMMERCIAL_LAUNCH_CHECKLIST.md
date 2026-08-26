@@ -1,6 +1,6 @@
 # SATprep.io Commercial Launch Readiness Checklist
 
-Updated: 2026-08-25
+Updated: 2026-08-26
 
 This file is the single operating checklist for commercial launch readiness. `docs/COMMERCIAL_LAUNCH_RUNBOOK.md` remains the detailed procedure; this checklist tracks what is actually complete and what still blocks launch.
 
@@ -20,6 +20,8 @@ This file is the single operating checklist for commercial launch readiness. `do
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
 ## 1. Commercial content bank
+
+**Staging progress (2026-08-26):** the private Google Drive staging bank now contains **94 assistant-staged, unapproved drafts: 47 diagnostic and 47 practice items**. All **31 official skill keys** represented by the current taxonomy now have at least one diagnostic draft and one practice draft. The newest 62-item expansion added one difficulty-1 diagnostic and one difficulty-1 practice draft for every skill and includes **10 Math SPR items**. This is authoring inventory only: every row remains `production_approved=FALSE`, and the production content bank currently has **0 production-approved items**. The next autonomous authoring passes should fill difficulty-2 and difficulty-3/depth gaps; independent human review remains mandatory before any production import, approval, or activation.
 
 - [ ] Reach the commercial depth target for every exam-eligible skill: at least 6 approved diagnostic items and 8 approved practice items per skill, with required difficulty distribution.
 - [ ] Maintain sufficient Math student-produced-response representation in the reviewed bank.
@@ -80,6 +82,8 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Run a release-candidate dependency/security review.
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
+
+**Current advisor status (2026-08-26):** production remains healthy. Supabase reports leaked-password protection disabled and warns that authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design.
 
 ## 5. Billing and entitlement acceptance
 
@@ -199,7 +203,7 @@ These should remain disabled until the blocking checklist is green and the user 
 
 # Current safest autonomous work order
 
-1. Expand fresh private commercial authoring inventory toward exact skill/depth/difficulty gaps without approving or activating it.
+1. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
 2. Add/strengthen automated acceptance checks that do not require reviewed proprietary content.
 3. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
 4. Improve monitoring/recovery/support readiness documentation and testable operational controls.
