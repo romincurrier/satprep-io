@@ -48,7 +48,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify direct student signup age gate and parent-authorized under-13 flow.
 - [ ] Verify email confirmation/sign-in/sign-out/password-recovery behavior.
 - [ ] Verify parent-created student login and parent/student linking authorization.
-- [ ] Verify invitation expiration/reuse behavior.
+- [x] Verify invitation expiration/reuse behavior.
 - [ ] Verify prior-assessment upload flow with supported file types and representative synthetic/redacted reports.
 - [ ] Verify a fresh learner starts secure-v3 diagnostic.
 - [ ] Verify diagnostic item payload never contains answer keys, explanations, or distractor rationales.
@@ -66,7 +66,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify parent progress accurately reflects trusted server-scored learning state.
 - [ ] Verify administrator overview remains role-restricted and presentation-minimized.
 
-**Invitation hardening status (2026-08-26):** production migration `atomic_parent_invitation_acceptance` is applied. Invitation acceptance locks the parent, invitation, student, and existing household as applicable and performs household creation/linking, invitation consumption, and the existing consent-record write in one transaction. The RPC is `SECURITY INVOKER`, has a fixed search path, and live privilege checks confirm `anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE` for execution. The application calls only this trusted RPC for acceptance, and the production build contract checks enforce that architecture. Runtime synthetic expiration/reuse acceptance remains open and must still be tested before launch.
+**Invitation hardening status (2026-08-26):** production migration `atomic_parent_invitation_acceptance` is applied. Invitation acceptance locks the parent, invitation, student, and existing household as applicable and performs household creation/linking, invitation consumption, and the existing consent-record write in one transaction. The RPC is `SECURITY INVOKER`, has a fixed search path, and live privilege checks confirm `anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE` for execution. The application calls only this trusted RPC for acceptance, and the production build contract checks enforce that architecture. A rollback-only synthetic transaction against the actual production schema now verifies that an expired invitation returns `invitation_expired` and is marked expired, a valid invitation is accepted exactly once, reuse returns `invitation_unavailable`, and no duplicate parent/student link or consent row is created. Post-test queries confirm no synthetic profile or student rows persisted.
 
 ## 3. Final trusted-learning authority lock
 
@@ -218,7 +218,7 @@ These remain disabled until the blocking checklist is green and the user explici
 # Current safest autonomous work order
 
 1. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
-2. Add/strengthen automated secure-v3 acceptance checks that do not require independently reviewed proprietary content, especially invitation expiry/reuse and idempotency/resume behavior.
+2. Add/strengthen automated secure-v3 acceptance checks that do not require independently reviewed proprietary content, especially parent/student lifecycle, idempotency, and resume behavior.
 3. Address RLS initialization-plan/multiple-policy performance warnings only after creating authorization-equivalence checks that prove no access expansion or contraction.
 4. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
 5. Improve monitoring/recovery/support readiness documentation and testable operational controls.
