@@ -43,8 +43,11 @@ const safe=core.match(/function safeQuestion\([^)]*\)\{([^}]+)\}/s)?.[1]||'';
 if(!safe)fail('Could not verify safe commercial practice question projection.');
 else if(/answerIndex|correctIndex|explanation|distractor/i.test(safe))fail('Practice item delivery must not expose the scoring key or explanation before submission.');
 if(!/content_answer_keys\?item_id=eq\./.test(core)||!/answer:key\.answer/.test(core)||!/explanation:key\.explanation/.test(core))fail('Commercial practice scoring must retrieve scoring material from the server-only answer-key store.');
-if(!/response_text:scored\.responseText/.test(core)||!/selected_answer:scored\.selectedAnswer/.test(core))fail('Commercial practice must persist mutually exclusive MCQ/SPR response fields after server validation.');
-if(!/scored_by_server:true/.test(core)||!/scored_by_server=eq\.true/.test(core))fail('Commercial practice responses must be explicitly server-scored and progress must count only trusted rows.');
+if(!/p_response_text:scored\.responseText/.test(core)||!/p_selected_answer:scored\.selectedAnswer/.test(core))fail('Commercial practice must pass mutually exclusive validated MCQ/SPR response fields to the atomic trusted submission RPC.');
+if(!/submit_practice_response_secure_v3/.test(core))fail('Commercial practice response persistence must use the atomic service-only submission RPC.');
+if(/service\('\/rest\/v1\/practice_responses',\{method:'POST'/.test(core))fail('Commercial practice must not directly insert response rows outside the atomic database boundary.');
+if(!/scored_by_server=eq\.true/.test(core))fail('Commercial practice progress must count only trusted server-scored response rows.');
+if(!/idempotent:written\.idempotent===true/.test(core))fail('Commercial practice scoring must surface atomic identical-retry idempotency.');
 if(!/finalize_practice_session/.test(core))fail('Commercial practice completion must use the atomic server-side finalization RPC.');
 if(!/latestOpen\(/.test(core)||!/practice_session_items/.test(core)||!/resumed:true/.test(core))fail('Commercial practice engine must support durable server-side resume from a persisted item plan.');
 if(!/correct_answer_index/.test(core)||!/correct_answer:/.test(core)||!/explanation/.test(core))fail('Practice submission feedback must return correctness, the correct answer, and an explanation after scoring.');
@@ -80,5 +83,13 @@ if(!/create or replace function public\.finalize_practice_session\(p_session_id 
 if(!/security definer/i.test(migration)||!/grant execute on function public\.finalize_practice_session\(uuid\) to service_role/i.test(migration))fail('Practice finalization RPC must be service-role controlled.');
 if(!/on conflict\(student_id,skill_key\) do update/i.test(migration)||!/on conflict\(student_id,lesson_key\) do update/i.test(migration))fail('Practice finalization must update trusted mastery and lesson progress atomically.');
 
+const atomic=read('migrations/20260826_atomic_practice_response_submission.sql');
+if(!/create or replace function public\.submit_practice_response_secure_v3/.test(atomic))fail('Atomic practice submission migration must create the trusted response RPC.');
+if(!/security invoker/.test(atomic)||!/where id = p_session_id and student_id = p_student_id[\s\S]*for update;/.test(atomic))fail('Atomic practice response submission must be security-invoker, owner-bound, and row-locked.');
+if(!/p_position <> v_answered/.test(atomic)||!/already submitted and cannot be changed/.test(atomic))fail('Atomic practice response submission must enforce sequence and reject changed retries.');
+if(!/return query select true, true, v_answered, v_total/.test(atomic))fail('Atomic practice response submission must make identical retries idempotent.');
+if(!/scored_by_server[\s\S]*true/.test(atomic))fail('Atomic practice response submission must persist trusted server-scored provenance.');
+if(!/revoke all on function public\.submit_practice_response_secure_v3/.test(atomic)||!/grant execute on function public\.submit_practice_response_secure_v3[\s\S]*to service_role/.test(atomic))fail('Atomic practice response submission must be executable only by the service role.');
+
 if(errors.length){for(const e of errors)console.error(`Practice security validation error: ${e}`);process.exit(1)}
-console.log('Commercial MCQ/SPR practice security, adaptive selection, scoped review reads, least-recently-used rotation, content-depth policy, provenance, and resume invariants passed.');
+console.log('Commercial MCQ/SPR practice security, atomic submission, adaptive selection, scoped review reads, least-recently-used rotation, content-depth policy, provenance, and resume invariants passed.');
