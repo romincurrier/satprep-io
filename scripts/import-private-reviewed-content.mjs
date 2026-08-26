@@ -21,7 +21,7 @@ const serviceKey=String(process.env.SUPABASE_SERVICE_ROLE_KEY||'');
 if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(projectUrl)||!serviceKey){console.error('SUPABASE_URL (or VITE_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY are required.');process.exit(2)}
 if(activate&&process.env.PRIVATE_CONTENT_IMPORT_CONFIRM!=='ACTIVATE_REVIEWED_CONTENT'){console.error('Activation requires PRIVATE_CONTENT_IMPORT_CONFIRM=ACTIVATE_REVIEWED_CONTENT. Omit --activate to import approved content inactive.');process.exit(2)}
 
-const workbook=XLSX.readFile(resolvedFile,{cellDates:false}),sheet=workbook.Sheets[workbook.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
+const workbook=XLSX.readFile(resolvedFile,{cellDates:false}),sheet=workbook.Sheets[workbook.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
 if(!rows.length){console.error('Review file has no content rows.');process.exit(2)}
 const norm=v=>String(v??'').trim();
 const decision=v=>norm(v).toLowerCase();
