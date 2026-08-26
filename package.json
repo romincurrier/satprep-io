@@ -27,6 +27,7 @@
     "validate:diagnostic-recovery": "node scripts/validate-diagnostic-recovery.mjs",
     "validate:spr": "node scripts/validate-spr.mjs",
     "validate:practice-security": "node scripts/validate-practice-security.mjs",
+    "validate:practice-recovery": "node scripts/validate-practice-recovery.mjs",
     "validate:adaptive-practice": "node scripts/validate-adaptive-practice.mjs",
     "validate:learning-authority": "node scripts/validate-learning-authority.mjs",
     "validate:acceptance-flow": "node scripts/validate-acceptance-flow.mjs",
@@ -47,7 +48,7 @@
     "verify:backend": "node scripts/verify-live-backend.mjs",
     "verify:live-content": "node scripts/verify-live-content-readiness.mjs",
     "verify:launch-content": "node scripts/verify-live-content-readiness.mjs --strict",
-    "build": "npm run validate:content && npm run validate:approvals && npm run validate:content-policy && npm run validate:seo && npm run validate:marketing-claims && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:app-origin && npm run validate:learning-ownership && npm run validate:security && npm run validate:deployment-security && npm run validate:secret-boundaries && npm run validate:account-enumeration && npm run validate:diagnostic-scope && npm run validate:diagnostic-submission && npm run validate:diagnostic-finalization && npm run validate:diagnostic-recovery && npm run validate:spr && npm run validate:practice-security && npm run validate:adaptive-practice && npm run validate:learning-authority && npm run validate:acceptance-flow && npm run validate:parent-progress && npm run validate:admin-operations && npm run validate:billing-security && npm run validate:backend-contract && npm run validate:launch && npm run validate:regression && vite build && node scripts/validate-secret-boundaries.mjs --dist",
+    "build": "npm run validate:content && npm run validate:approvals && npm run validate:content-policy && npm run validate:seo && npm run validate:marketing-claims && npm run validate:accessibility && npm run validate:youth-privacy && npm run validate:privacy && npm run validate:private-content && npm run validate:privileges && npm run validate:app-origin && npm run validate:learning-ownership && npm run validate:security && npm run validate:deployment-security && npm run validate:secret-boundaries && npm run validate:account-enumeration && npm run validate:diagnostic-scope && npm run validate:diagnostic-submission && npm run validate:diagnostic-finalization && npm run validate:diagnostic-recovery && npm run validate:spr && npm run validate:practice-security && npm run validate:practice-recovery && npm run validate:adaptive-practice && npm run validate:learning-authority && npm run validate:acceptance-flow && npm run validate:parent-progress && npm run validate:admin-operations && npm run validate:billing-security && npm run validate:backend-contract && npm run validate:launch && npm run validate:regression && vite build && node scripts/validate-secret-boundaries.mjs --dist",
     "preview": "vite preview"
   },
   "dependencies": {
