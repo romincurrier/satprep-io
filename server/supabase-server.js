@@ -3,15 +3,28 @@ import {createHash} from 'node:crypto';
 const PUBLIC_APP_HOSTS=new Set(['satprep.io','www.satprep.io']);
 function apiConfig(){const url=process.env.VITE_SUPABASE_URL,anon=process.env.VITE_SUPABASE_ANON_KEY,serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!url||!anon||!serviceKey)throw new Error('Server data access is not configured.');return{url,anon,serviceKey}}
 function requestHost(req){const raw=String(req?.headers?.['x-forwarded-host']||req?.headers?.host||'').split(',')[0].trim().toLowerCase();return raw.replace(/:\d+$/,'')}
-export function assertAppRequestOrigin(req){
- const host=requestHost(req),rawOrigin=String(req?.headers?.origin||'').trim(),fetchSite=String(req?.headers?.['sec-fetch-site']||'').trim().toLowerCase();
- if(fetchSite&&!['same-origin','none'].includes(fetchSite))throw Object.assign(new Error('Request must originate from the SATprep.io application.'),{status:403});
- if(!rawOrigin){if(PUBLIC_APP_HOSTS.has(host))throw Object.assign(new Error('Request origin could not be verified.'),{status:403});return}
+function verifyExplicitOrigin(host,rawOrigin){
  try{
   const origin=new URL(rawOrigin),hostname=origin.hostname.toLowerCase(),local=['localhost','127.0.0.1'].includes(hostname);
   if(origin.protocol!=='https:'&&!(origin.protocol==='http:'&&local))throw new Error('protocol');
   if(!host||hostname!==host)throw new Error('host');
  }catch{throw Object.assign(new Error('Request origin could not be verified.'),{status:403})}
+}
+export function assertAppRequestOrigin(req){
+ const host=requestHost(req),rawOrigin=String(req?.headers?.origin||'').trim(),fetchSite=String(req?.headers?.['sec-fetch-site']||'').trim().toLowerCase();
+ if(fetchSite&&!['same-origin','none'].includes(fetchSite))throw Object.assign(new Error('Request must originate from the SATprep.io application.'),{status:403});
+ if(!rawOrigin){if(PUBLIC_APP_HOSTS.has(host))throw Object.assign(new Error('Request origin could not be verified.'),{status:403});return}
+ verifyExplicitOrigin(host,rawOrigin);
+}
+// Same-origin browser GET/fetch requests frequently omit Origin. For authenticated
+// proprietary item reads, accept that browser shape only when Fetch Metadata proves
+// the request is same-origin. Explicit Origin values still receive the strict host/
+// protocol validation used by mutations. Public-host requests with neither signal fail.
+export function assertAppReadOrigin(req){
+ const host=requestHost(req),rawOrigin=String(req?.headers?.origin||'').trim(),fetchSite=String(req?.headers?.['sec-fetch-site']||'').trim().toLowerCase();
+ if(fetchSite&&!['same-origin','none'].includes(fetchSite))throw Object.assign(new Error('Request must originate from the SATprep.io application.'),{status:403});
+ if(rawOrigin){verifyExplicitOrigin(host,rawOrigin);return}
+ if(PUBLIC_APP_HOSTS.has(host)&&fetchSite!=='same-origin')throw Object.assign(new Error('Request origin could not be verified.'),{status:403});
 }
 export function json(res,status,body){res.status(status).setHeader('Content-Type','application/json; charset=utf-8').setHeader('Cache-Control','no-store, max-age=0').setHeader('Pragma','no-cache').setHeader('X-Content-Type-Options','nosniff').setHeader('Referrer-Policy','no-referrer').setHeader('Cross-Origin-Resource-Policy','same-origin').setHeader('Content-Security-Policy',"default-src 'none'; frame-ancestors 'none'").setHeader('Vary','Authorization, Origin').send(JSON.stringify(body))}
 export async function authenticatedUser(req){const{url,anon}=apiConfig(),auth=String(req.headers.authorization||'');if(!/^Bearer\s+\S+$/i.test(auth))return null;const r=await fetch(`${url}/auth/v1/user`,{headers:{apikey:anon,Authorization:auth}});if(!r.ok)return null;const user=await r.json();return{user,auth,url,anon}}
