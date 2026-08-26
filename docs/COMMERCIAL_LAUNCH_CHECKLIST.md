@@ -4,7 +4,7 @@ Updated: 2026-08-26
 
 This file is the single operating checklist for commercial launch readiness. `docs/COMMERCIAL_LAUNCH_RUNBOOK.md` remains the detailed procedure; this checklist tracks what is actually complete and what still blocks launch.
 
-**Launch-ready definition:** every item in **BLOCKING BEFORE COMMERCIAL LAUNCH** must be complete, all owner/manual activation items must be intentionally approved, and the release-candidate build plus production-equivalent end-to-end regression must be green. Items under **IMPORTANT BEFORE/IMMEDIATELY AFTER LAUNCH** should be completed unless explicitly accepted as a documented launch exception.
+**Launch-ready definition:** every item in **BLOCKING BEFORE COMMERCIAL LAUNCH** must be complete, all owner/manual activation items must be intentionally approved, and the release-candidate build plus production-equivalent end-to-end regression must be green. Items under **IMPORTANT BEFORE / IMMEDIATELY AFTER LAUNCH** should be completed unless explicitly accepted as a documented launch exception.
 
 ## Current launch controls
 
@@ -18,15 +18,15 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Unreviewed proprietary questions remain inactive/unapproved.
 - [x] Production backend identity is reconciled to Supabase project `ataaiocpbjavmdpgmzlv` using live schema inspection.
 - [x] Production CSP permits only the active Supabase HTTPS/WSS origin, rejects the retired project origin, and is enforced by a production build validator.
-- [x] Production builds now fail if browser source or built output exposes server-only environment names, privileged Supabase JWTs, or credential-shaped Stripe/OpenAI/GitHub/AWS secrets.
-- [x] First production database performance-hardening tranche is applied and reconciled: ten secure-v3/household foreign-key paths now have covering indexes with no RLS, grant, content, or application-authority changes.
-- [x] Parent invitation acceptance is now atomic and service-role-only: household/profile/student/link/invitation/consent changes commit in one row-locked database transaction with no new browser grants.
+- [x] Production builds fail if browser source or built output exposes server-only environment names, privileged Supabase JWTs, or credential-shaped Stripe/OpenAI/GitHub/AWS secrets.
+- [x] All 24 foreign-key paths flagged by the production Supabase performance advisor are now covered by narrow indexes with no RLS, grant, content, or application-authority changes. A fresh advisor run reports **0 `unindexed_foreign_keys` findings**.
+- [x] Parent invitation acceptance is atomic and service-role-only: household/profile/student/link/invitation/consent changes commit in one row-locked database transaction with no new browser grants.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
 ## 1. Commercial content bank
 
-**Staging progress (2026-08-26):** the private Google Drive staging bank now contains **94 assistant-staged, unapproved drafts: 47 diagnostic and 47 practice items**. All **31 official skill keys** represented by the current taxonomy now have at least one diagnostic draft and one practice draft. The newest 62-item expansion added one difficulty-1 diagnostic and one difficulty-1 practice draft for every skill and includes **10 Math SPR items**. This is authoring inventory only: every row remains `production_approved=FALSE`, and live inspection of production project `ataaiocpbjavmdpgmzlv` confirms `public.content_items` currently contains **0 rows, 0 active items, and 0 items with `qa_status='production_approved'`**. The next autonomous authoring passes should fill difficulty-2 and difficulty-3/depth gaps; independent human review remains mandatory before any production import, approval, or activation.
+**Staging progress (2026-08-26):** the private Google Drive staging bank contains **94 assistant-staged, unapproved drafts: 47 diagnostic and 47 practice items**. All **31 official skill keys** represented by the current taxonomy have at least one diagnostic draft and one practice draft. The newest 62-item expansion added one difficulty-1 diagnostic and one difficulty-1 practice draft for every skill and includes **10 Math SPR items**. This is authoring inventory only: every row remains `production_approved=FALSE`. A fresh production query after the database-performance migration confirms `public.content_items` still contains **0 rows, 0 active items, and 0 items with `qa_status='production_approved'`**. The next autonomous authoring passes should fill difficulty-2 and difficulty-3/depth gaps; independent human review remains mandatory before any production import, approval, or activation.
 
 - [ ] Reach the commercial depth target for every exam-eligible skill: at least 6 approved diagnostic items and 8 approved practice items per skill, with required difficulty distribution.
 - [ ] Maintain sufficient Math student-produced-response representation in the reviewed bank.
@@ -66,7 +66,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify parent progress accurately reflects trusted server-scored learning state.
 - [ ] Verify administrator overview remains role-restricted and presentation-minimized.
 
-**Invitation hardening status (2026-08-26):** production migration `atomic_parent_invitation_acceptance` is applied. Invitation acceptance now locks the parent, invitation, student, and existing household as applicable and performs household creation/linking, invitation consumption, and the existing consent-record write in one transaction. The RPC is `SECURITY INVOKER`, has a fixed search path, and live privilege checks confirm `anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE` for execution. The application now calls only this trusted RPC for acceptance, and the production build contract checks enforce that architecture. Runtime synthetic expiration/reuse acceptance remains open and must still be tested before launch.
+**Invitation hardening status (2026-08-26):** production migration `atomic_parent_invitation_acceptance` is applied. Invitation acceptance locks the parent, invitation, student, and existing household as applicable and performs household creation/linking, invitation consumption, and the existing consent-record write in one transaction. The RPC is `SECURITY INVOKER`, has a fixed search path, and live privilege checks confirm `anon=FALSE`, `authenticated=FALSE`, `service_role=TRUE` for execution. The application calls only this trusted RPC for acceptance, and the production build contract checks enforce that architecture. Runtime synthetic expiration/reuse acceptance remains open and must still be tested before launch.
 
 ## 3. Final trusted-learning authority lock
 
@@ -83,8 +83,8 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Same-origin protection covers privileged student/parent/diagnostic/practice/billing paths.
 - [x] Durable service-only API rate limiting is live.
 - [x] Proprietary content, answer keys, diagnostic plans, secure practice responses, rate-limit counters, and marketing events are not browser-readable.
-- [x] Repository deployment guard now rejects a retired/wrong Supabase CSP endpoint, Supabase wildcard origins, `unsafe-eval`, premature removal of `noindex`, and weakened baseline permissions controls.
-- [x] Current worktree and production browser bundle are protected by a build-time secret-boundary validator; the validated Vercel build for commit `fe4f68547b75409af579792a6ef90ab3644a8bc5` passed.
+- [x] Repository deployment guard rejects a retired/wrong Supabase CSP endpoint, Supabase wildcard origins, `unsafe-eval`, premature removal of `noindex`, and weakened baseline permissions controls.
+- [x] Current worktree and production browser bundle are protected by a build-time secret-boundary validator.
 - [ ] Complete a launch-relevant repository-history secret scan and rotate/revoke any credential if historical exposure is found; the current connector can validate the present tree/build but does not certify every historical Git object.
 - [ ] Enable Supabase Auth leaked-password protection.
 - [ ] Run final security advisor review and document the intentional `is_admin()` SECURITY DEFINER exception or refactor it safely.
@@ -92,9 +92,9 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
 
-**Current advisor status (2026-08-26):** production remains healthy. A fresh security advisor review after the atomic invitation migration reports the same two actionable warnings as before: leaked-password protection is disabled and authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Live inspection confirms anonymous execution is revoked, authenticated execution is used by existing admin RLS policies, and browser profile UPDATE authority is restricted to `first_name` and `last_name`; the `is_admin()` warning therefore remains an intentional-but-not-yet-finally-documented launch exception pending final review. Service-only tables with RLS and no browser policy appear as informational lints and remain fail-closed by design. The new invitation RPC introduced no security-advisor warning and is independently verified as service-role-only.
+**Current advisor status (2026-08-26):** production remains healthy. A fresh security advisor review after the complete foreign-key indexing migration reports the same two actionable warnings: leaked-password protection is disabled and authenticated users can execute `public.is_admin()` as a SECURITY DEFINER function. Service-only tables with RLS and no browser policy continue to appear as informational lints and remain fail-closed by design. The indexing migration introduced no new security-advisor warning.
 
-**Performance hardening status (2026-08-26):** migration `core_secure_v3_fk_indexes` is recorded in the production migration ledger and adds covering indexes for ten high-value secure-v3/household foreign keys: diagnostic attempt items, diagnostic attempts, diagnostic responses (content item and student), practice responses (item and student), practice session items, parent-student links, and profile/student household links. Live `pg_indexes` verification confirms all ten indexes exist. A fresh Supabase performance advisor no longer reports those ten as unindexed foreign keys, reducing the outstanding unindexed-FK findings from **24 to 14**. Remaining RLS initialization-plan and multiple-permissive-policy warnings are intentionally deferred to authorization-equivalent migrations rather than changing policy semantics casually. The new indexes appear as unused in the prelaunch zero-traffic advisor, which is expected and is not a basis for removing them before representative production use.
+**Performance hardening status (2026-08-26):** production migrations `core_secure_v3_fk_indexes` and `remaining_secure_v3_fk_indexes` are recorded in the migration ledger. Together they add narrow covering indexes for all **24** foreign-key paths that the Supabase advisor previously reported as unindexed. A fresh performance-advisor run now reports **0 `unindexed_foreign_keys` warnings**. The remaining performance findings are `auth_rls_initplan` and `multiple_permissive_policies` warnings plus expected prelaunch `unused_index` informational results. Newly created indexes are expected to appear unused before representative traffic and should not be removed on that basis. Future RLS-performance work must preserve authorization semantics and be verified with equivalent-policy tests before production application.
 
 ## 5. Billing and entitlement acceptance
 
@@ -181,7 +181,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 
 # OWNER / MANUAL ACTIVATION ITEMS
 
-These should remain disabled until the blocking checklist is green and the user explicitly authorizes launch activation.
+These remain disabled until the blocking checklist is green and the user explicitly authorizes launch activation.
 
 - [ ] Owner approves final launch candidate.
 - [ ] Owner approves final public pricing/trial/refund/cancellation terms.
@@ -199,8 +199,8 @@ These should remain disabled until the blocking checklist is green and the user 
 - [ ] Exclude internal/test traffic from acquisition reporting.
 - [ ] Lock activation/conversion definitions before campaign reporting.
 - [ ] Confirm item-calibration reporting works once sufficient real response volume exists.
-- [x] Add covering indexes for the first ten highest-value secure-v3/household foreign-key paths without altering authorization semantics; production migration and advisor reconciliation completed 2026-08-26.
-- [ ] Continue the remaining 14 unindexed-foreign-key findings and RLS performance warnings only through authorization-preserving changes with equivalent-policy verification.
+- [x] Add covering indexes for all foreign keys reported as unindexed by the production Supabase advisor without altering authorization semantics; **24/24 covered and 0 `unindexed_foreign_keys` findings remain as of 2026-08-26**.
+- [ ] Address `auth_rls_initplan` and `multiple_permissive_policies` performance warnings only through authorization-preserving changes with policy-equivalence verification.
 - [ ] Establish dependency update cadence.
 - [ ] Prepare first-72-hours launch monitoring cadence and rollback decision rules.
 
@@ -212,12 +212,14 @@ These should remain disabled until the blocking checklist is green and the user 
 - [ ] Do not scale paid acquisition until activation, billing reliability, and support capacity are demonstrated.
 - [ ] Review content calibration only at meaningful sample sizes.
 - [ ] Run weekly commercial operating review covering uptime/errors, funnel conversion, retention, content QA, parent engagement, billing, support, privacy/security incidents, and acquisition efficiency.
+- [ ] Reassess newly created index usage only after representative production traffic; prelaunch `unused_index` informational lints are not sufficient reason to remove required FK indexes.
+- [ ] Revisit Supabase Auth database connection allocation strategy if instance scaling makes the current absolute connection allocation a constraint.
 
 # Current safest autonomous work order
 
 1. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
-2. Add/strengthen automated acceptance checks that do not require reviewed proprietary content.
-3. Continue the remaining 14 missing foreign-key indexes and only then address RLS initialization-plan/multiple-policy performance warnings with authorization-equivalent verification.
+2. Add/strengthen automated secure-v3 acceptance checks that do not require independently reviewed proprietary content, especially invitation expiry/reuse and idempotency/resume behavior.
+3. Address RLS initialization-plan/multiple-policy performance warnings only after creating authorization-equivalence checks that prove no access expansion or contraction.
 4. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
 5. Improve monitoring/recovery/support readiness documentation and testable operational controls.
 6. Exercise Stripe test-mode and preview-safe billing paths where credentials/configuration already permit it.
