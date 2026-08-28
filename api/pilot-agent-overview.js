@@ -1,5 +1,5 @@
 import {authenticatedUser,enforceRateLimit,json,service} from '../server/supabase-server.js';
-import {PILOT_AGENT_VERSION,PILOT_PERSONAS} from '../server/pilot-agent-core.js';
+import {PILOT_AGENT_VERSION,PILOT_PERSONAS} from '../server/pilot-agent-core-v2.js';
 
 async function adminContext(req){const auth=await authenticatedUser(req);if(!auth?.user)return null;const rows=await service(`/rest/v1/profiles?id=eq.${encodeURIComponent(auth.user.id)}&select=id,role&limit=1`),profile=rows?.[0];return profile?.role==='admin'?{...auth,profile}:null}
 
