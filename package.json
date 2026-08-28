@@ -17,7 +17,7 @@
     "validate:privileges": "node scripts/validate-privilege-boundaries.mjs",
     "validate:app-origin": "node scripts/validate-app-origin.mjs",
     "validate:learning-ownership": "node scripts/validate-learning-ownership.mjs",
-    "validate:rls-performance": "node scripts/validate-rls-performance.mjs && node scripts/validate-households-rls-performance.mjs",
+    "validate:rls-performance": "node scripts/validate-rls-performance.mjs && node scripts/validate-households-rls-performance.mjs && node scripts/validate-overnight-rls-performance.mjs",
     "validate:security": "node scripts/validate-security.mjs",
     "validate:deployment-security": "node scripts/validate-deployment-security.mjs",
     "validate:secret-boundaries": "node scripts/validate-secret-boundaries.mjs",
