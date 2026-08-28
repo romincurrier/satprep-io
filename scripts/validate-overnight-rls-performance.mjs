@@ -7,8 +7,9 @@ const subscriptions = read('migrations/20260828_subscriptions_read_rls_initplan.
 const journeyEvents = read('migrations/20260828_journey_events_read_rls_initplan.sql');
 const studentAchievements = read('migrations/20260828_student_achievements_read_rls_initplan.sql');
 const studentMissions = read('migrations/20260828_student_missions_read_rls_initplan.sql');
+const weeklyGoals = read('migrations/20260828_weekly_goals_read_rls_initplan.sql');
 
-for (const [label, migration] of [['test-telemetry', testTables], ['subscriptions', subscriptions], ['journey-events', journeyEvents], ['student-achievements', studentAchievements], ['student-missions', studentMissions]]) {
+for (const [label, migration] of [['test-telemetry', testTables], ['subscriptions', subscriptions], ['journey-events', journeyEvents], ['student-achievements', studentAchievements], ['student-missions', studentMissions], ['weekly-goals', weeklyGoals]]) {
   assert.match(migration, /\(select auth\.uid\(\)\)/i, `${label} optimization must cache auth.uid() through an InitPlan.`);
   assert.doesNotMatch(migration, /\bto\s+(authenticated|anon|public|service_role)\b/i, `${label} InitPlan migration must not change policy role targets.`);
   assert.doesNotMatch(migration, /drop\s+policy|create\s+policy/i, `${label} InitPlan migration must alter existing policies rather than replacing them.`);
@@ -63,4 +64,14 @@ assert.doesNotMatch(studentMissions, /\bfor\s+(insert|update|delete)\b|with\s+ch
 assert.match(studentMissions, /mission_parent_read[\s\S]*from public\.parent_students ps[\s\S]*ps\.student_id = student_missions\.student_id[\s\S]*ps\.parent_profile_id = \(select auth\.uid\(\)\)/i, 'Student-missions parent reads must preserve linked-parent scope.');
 assert.match(studentMissions, /mission_student_read[\s\S]*from public\.students s[\s\S]*s\.id = student_missions\.student_id[\s\S]*s\.profile_id = \(select auth\.uid\(\)\)/i, 'Student-missions student reads must preserve learner-self scope.');
 
-console.log('Overnight test-telemetry, subscription, journey-event, student-achievement, and student-missions RLS InitPlan boundary checks passed.');
+for (const policy of ['weekly_goal_parent_read', 'weekly_goal_student_read']) {
+  assert.match(weeklyGoals, new RegExp(`alter policy ["']?${policy}["']?`, 'i'), `${policy} must remain explicitly covered by the weekly-goals InitPlan migration.`);
+}
+assert.equal((weeklyGoals.match(/alter policy/gi) || []).length, 2, 'Weekly-goals tranche must alter exactly two reader policies.');
+assert.doesNotMatch(weeklyGoals, /alter\s+policy\s+["']?weekly_goal_admin_all["']?/i, 'Weekly-goals read tranche must leave the separate administrator policy untouched.');
+assert.doesNotMatch(weeklyGoals, /alter\s+policy\s+["']?weekly_goal_student_(insert|update)["']?/i, 'Weekly-goals read tranche must leave authenticated student write policies untouched.');
+assert.doesNotMatch(weeklyGoals, /\bfor\s+(insert|update|delete)\b|with\s+check/i, 'Weekly-goals tranche must remain read-only and must not introduce write predicates.');
+assert.match(weeklyGoals, /weekly_goal_parent_read[\s\S]*from public\.parent_students ps[\s\S]*ps\.student_id = weekly_goals\.student_id[\s\S]*ps\.parent_profile_id = \(select auth\.uid\(\)\)/i, 'Weekly-goal parent reads must preserve linked-parent scope.');
+assert.match(weeklyGoals, /weekly_goal_student_read[\s\S]*from public\.students s[\s\S]*s\.id = weekly_goals\.student_id[\s\S]*s\.profile_id = \(select auth\.uid\(\)\)/i, 'Weekly-goal student reads must preserve learner-self scope.');
+
+console.log('Overnight test-telemetry, subscription, journey-event, student-achievement, student-missions, and weekly-goals RLS InitPlan boundary checks passed.');
