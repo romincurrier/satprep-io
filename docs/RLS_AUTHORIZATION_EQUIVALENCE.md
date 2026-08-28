@@ -1,6 +1,6 @@
 # SATprep.io RLS Authorization-Equivalence Baseline
 
-Updated: 2026-08-26
+Updated: 2026-08-28
 
 Purpose: preserve the current parent/student/admin isolation semantics while optimizing Supabase RLS policies. No RLS performance migration should be accepted unless these invariants are re-run against the production-equivalent schema before and after the change and the results are equivalent.
 
@@ -41,6 +41,15 @@ The checks below were executed with PostgreSQL `SET LOCAL ROLE authenticated` pl
 - Secure-v3 proprietary content, answer keys, persisted diagnostic plan items, and secure practice response stores remain unavailable to browser roles.
 - Parent reporting is read-only with respect to trusted learning state.
 - The final `trusted_learning_authority` migration is expected to intentionally reduce legacy browser write authority to `skill_mastery`, `lesson_progress`, and legacy attempt tables; that future reduction is not an equivalence-preserving RLS optimization and must be accepted/tested as a separate launch gate.
+
+## Production equivalence log — 2026-08-28
+
+Two additional InitPlan-only tranches were verified and applied to production without changing role targets, policy commands, permissiveness, or authorization predicates.
+
+- `test_tables_admin_rls_initplan`: the exact profile-backed administrator predicate for `admin_test_runs_all` and `admin_test_events_all` evaluated true for the administrator identity and false for parent and student identities before and after the rewrite. Both policies remain PERMISSIVE, default PUBLIC, `ALL`, with the same predicate in `USING` and `WITH CHECK`; only `auth.uid()` evaluation changed to `(select auth.uid())`.
+- `subscriptions_read_rls_initplan`: for the two changed SELECT policies, the parent retained exactly one authorized subscription row, while the tested administrator and student identities retained zero rows through those changed reader predicates before and after. The separate `subscription_admin_all` policy was untouched. `subscription_self_read` remains profile-self scoped, and `subscription_household_billing_owner_read` remains household + billing-owner scoped; only `auth.uid()` evaluation changed to `(select auth.uid())`.
+
+A fresh Supabase performance-advisor pass after both migrations reports no `auth_rls_initplan` findings for `public.test_runs`, `public.test_events`, or `public.subscriptions`. A fresh security-advisor pass shows no new security warnings from these changes.
 
 ## Performance-change rule
 
