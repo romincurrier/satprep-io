@@ -7,6 +7,7 @@ const tranche2=read('migrations/20260826_rls_initplan_parent_read_optimization.s
 const priorAssessmentTranche=read('migrations/20260826_prior_assessments_rls_initplan.sql');
 const privacyRequestTranche=read('migrations/20260826_privacy_requests_rls_initplan.sql');
 const parentSetupRequestTranche=read('migrations/20260828_parent_setup_requests_rls_initplan.sql');
+const parentStudentInsertTranche=read('migrations/20260828_parent_students_insert_rls_initplan.sql');
 const adminHelper=read('migrations/20260826_private_admin_rls_helper.sql');
 
 for(const policy of ['profile_self_read','profile_self_update','student_self_read','student_self_update']){
@@ -27,7 +28,8 @@ for(const policy of privacyRequestPolicies){
  assert.match(privacyRequestTranche,new RegExp(`alter policy ["']${policy}["']`,'i'),`${policy} must remain explicitly covered by the privacy-request InitPlan migration.`);
 }
 assert.match(parentSetupRequestTranche,/alter policy ["']admin_parent_setup_request_read["']/i,'The parent-setup-request admin read policy must remain explicitly covered by its InitPlan migration.');
-for(const [label,migration] of [['self-policy',tranche1],['parent-read',tranche2],['prior-assessment',priorAssessmentTranche],['privacy-request',privacyRequestTranche],['parent-setup-request',parentSetupRequestTranche]]){
+assert.match(parentStudentInsertTranche,/alter policy ["']parent_link_household_student_insert["']/i,'The household parent/student link INSERT policy must remain explicitly covered by its InitPlan migration.');
+for(const [label,migration] of [['self-policy',tranche1],['parent-read',tranche2],['prior-assessment',priorAssessmentTranche],['privacy-request',privacyRequestTranche],['parent-setup-request',parentSetupRequestTranche],['parent-student-insert',parentStudentInsertTranche]]){
  assert.match(migration,/\(select auth\.uid\(\)\)/i,`${label} optimization must cache auth.uid() through an InitPlan.`);
  assert.doesNotMatch(migration,/\bto\s+(authenticated|anon|public|service_role)\b/i,`${label} InitPlan-only migration must not change policy role targets.`);
  assert.doesNotMatch(migration,/drop\s+policy|create\s+policy/i,`${label} InitPlan-only migration must alter existing policies rather than replacing them.`);
@@ -50,6 +52,9 @@ assert.match(privacyRequestTranche,/privacy_request_self_read[\s\S]*requester_pr
 assert.match(parentSetupRequestTranche,/admin_parent_setup_request_read[\s\S]*p\.id = \(select auth\.uid\(\)\)[\s\S]*p\.role = 'admin'/i,'Parent setup request reads must preserve the profile-backed administrator predicate.');
 assert.doesNotMatch(parentSetupRequestTranche,/public_parent_setup_request_insert/i,'The parent setup request InitPlan tranche must not touch the existing public insert policy.');
 assert.doesNotMatch(parentSetupRequestTranche,/\bfor\s+(insert|update|delete)\b|with\s+check/i,'The parent setup request InitPlan tranche must remain SELECT-only and must not introduce write predicates.');
+assert.match(parentStudentInsertTranche,/parent_link_household_student_insert[\s\S]*with check[\s\S]*parent_profile_id = \(select auth\.uid\(\)\)[\s\S]*join public\.profiles p on p\.id = \(select auth\.uid\(\)\)[\s\S]*s\.id = parent_students\.student_id[\s\S]*p\.role = 'parent'::text[\s\S]*p\.household_id is not null[\s\S]*s\.household_id = p\.household_id/i,'Parent/student link inserts must preserve self-parent identity, parent role, target student, and same-household predicates.');
+assert.doesNotMatch(parentStudentInsertTranche,/parent_link_read|parent_link_admin_all/i,'The parent/student link INSERT tranche must leave existing read and administrator policies unchanged.');
+assert.doesNotMatch(parentStudentInsertTranche,/\busing\s*\(/i,'The parent/student link INSERT tranche must remain WITH CHECK-only and must not introduce a USING predicate.');
 
 const adminPolicies=[
  'diagnostic_admin_all','diagnostic_response_admin_all','journey_event_admin_all','lesson_admin_read',
