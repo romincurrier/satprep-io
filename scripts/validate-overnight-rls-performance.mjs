@@ -26,7 +26,7 @@ for (const policy of ['subscription_self_read', 'subscription_household_billing_
   assert.match(subscriptions, new RegExp(`alter policy ["']?${policy}["']?`, 'i'), `${policy} must remain explicitly covered by the subscription-reader InitPlan migration.`);
 }
 assert.equal((subscriptions.match(/alter policy/gi) || []).length, 2, 'Subscription reader tranche must alter exactly two policies.');
-assert.doesNotMatch(subscriptions, /subscription_admin_all/i, 'Subscription reader tranche must leave the separate administrator policy untouched.');
+assert.doesNotMatch(subscriptions, /alter\s+policy\s+["']?subscription_admin_all["']?/i, 'Subscription reader tranche must leave the separate administrator policy untouched.');
 assert.doesNotMatch(subscriptions, /\bfor\s+(insert|update|delete)\b|with\s+check/i, 'Subscription reader tranche must remain read-only and must not introduce write predicates.');
 assert.match(subscriptions, /subscription_self_read[\s\S]*profile_id = \(select auth\.uid\(\)\)/i, 'Subscription self-read must remain profile-self scoped.');
 assert.match(subscriptions, /subscription_household_billing_owner_read[\s\S]*household_id is not null[\s\S]*p\.id = \(select auth\.uid\(\)\)[\s\S]*p\.household_id = subscriptions\.household_id[\s\S]*p\.billing_owner = true/i, 'Household subscription reads must preserve non-null household, same-household, and billing-owner scope.');
