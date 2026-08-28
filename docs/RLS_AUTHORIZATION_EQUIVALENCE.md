@@ -44,12 +44,13 @@ The checks below were executed with PostgreSQL `SET LOCAL ROLE authenticated` pl
 
 ## Production equivalence log — 2026-08-28
 
-Two additional InitPlan-only tranches were verified and applied to production without changing role targets, policy commands, permissiveness, or authorization predicates.
+Three additional InitPlan-only tranches were verified and applied to production without changing role targets, policy commands, permissiveness, or authorization predicates.
 
 - `test_tables_admin_rls_initplan`: the exact profile-backed administrator predicate for `admin_test_runs_all` and `admin_test_events_all` evaluated true for the administrator identity and false for parent and student identities before and after the rewrite. Both policies remain PERMISSIVE, default PUBLIC, `ALL`, with the same predicate in `USING` and `WITH CHECK`; only `auth.uid()` evaluation changed to `(select auth.uid())`.
 - `subscriptions_read_rls_initplan`: for the two changed SELECT policies, the parent retained exactly one authorized subscription row, while the tested administrator and student identities retained zero rows through those changed reader predicates before and after. The separate `subscription_admin_all` policy was untouched. `subscription_self_read` remains profile-self scoped, and `subscription_household_billing_owner_read` remains household + billing-owner scoped; only `auth.uid()` evaluation changed to `(select auth.uid())`.
+- `journey_events_read_rls_initplan`: because `journey_events` currently has no production rows, equivalence was tested against the exact ownership/link predicates using the current linked parent, linked learner, unrelated learner, and administrator identities. Before and after, the linked parent predicate was true only for the linked learner, each student-self predicate was true only for that student's own learner row, and unrelated combinations remained false. The separate `journey_event_admin_all` policy was untouched. Both changed reader policies remain PERMISSIVE, default PUBLIC, `SELECT`, with no `WITH CHECK`; only `auth.uid()` evaluation changed to `(select auth.uid())`.
 
-A fresh Supabase performance-advisor pass after both migrations reports no `auth_rls_initplan` findings for `public.test_runs`, `public.test_events`, or `public.subscriptions`. A fresh security-advisor pass shows no new security warnings from these changes.
+Fresh Supabase performance-advisor passes report no `auth_rls_initplan` findings for `public.test_runs`, `public.test_events`, `public.subscriptions`, or `public.journey_events`. Fresh security-advisor review is required after every production RLS tranche and must show no authorization/security regression before the tranche is considered complete.
 
 ## Performance-change rule
 
