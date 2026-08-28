@@ -35,7 +35,7 @@ need(ui.includes("profile?.role!=='admin'"),'Pilot control UI must fail closed f
 need(!ui.match(/password/i),'Pilot control browser source must not handle pilot passwords.');
 need(html.includes('noindex,nofollow,noarchive'),'Pilot control page must be non-indexable regardless of public launch state.');
 
-for(const key of ['public_indexing','public_billing','live_payments','first_party_measurement','outbound_marketing'])need(gates[key]===false,`Launch gate ${key} must remain false while pilot agents are enabled.`);
+for(const key of ['public_indexing','public_billing','live_payments','first_party_measurement','outbound_marketing'])need(gates[key]==='disabled',`Launch gate ${key} must remain disabled while pilot agents are enabled.`);
 
 if(errors.length){console.error(`Pilot-agent safety validation failed with ${errors.length} error(s):`);for(const e of errors)console.error(`- ${e}`);process.exit(1)}
 console.log('Pilot-agent safety validation passed: synthetic identity boundaries, admin-only mutations, content isolation, conflict-safe test state, and commercial launch gates remain enforced.');
