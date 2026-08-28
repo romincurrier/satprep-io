@@ -9,7 +9,7 @@
     "validate:approvals": "node scripts/validate-content-approvals.mjs",
     "validate:content-policy": "node scripts/validate-commercial-content-policy.mjs",
     "validate:ai-review-agent": "node --check ai-content-review-policy.js && node --check scripts/validate-ai-content-review.mjs",
-    "validate:pilot-agents": "node --check server/pilot-agent-core.js && node --check api/pilot-agent-run.js && node --check api/pilot-agent-overview.js && node --check api/pilot-agent-delete.js && node --check pilot-control.js && node scripts/validate-pilot-agents.mjs",
+    "validate:pilot-agents": "node --check server/pilot-agent-core-v2.js && node --check api/pilot-agent-run.js && node --check api/pilot-agent-overview.js && node --check api/pilot-agent-delete.js && node --check pilot-control.js && node scripts/validate-pilot-agents.mjs",
     "validate:seo": "node scripts/validate-seo.mjs",
     "validate:marketing-claims": "node scripts/validate-marketing-claims.mjs",
     "validate:accessibility": "node scripts/validate-accessibility.mjs",
