@@ -31,6 +31,9 @@ requireText(guard,"form.id !== 'teenForm'",'Teen signup must retain a defense-in
 requireText(guard,'age < 13','Teen signup must reject an entered date of birth indicating the learner is under 13.');
 requireText(guard,"#billingBtn,.billing-checkout,#manageSubscription",'Public-host billing controls must be blocked during prelaunch.');
 requireText(guard,"Public pricing and trial terms will be posted only after those launch checks are complete.",'Prelaunch pricing section must not imply unverified public billing terms.');
+requireText(guard,"if(a.textContent !== 'Plans') a.textContent = 'Plans';",'Mutation-observed navigation rewrites must be idempotent so the prelaunch guard cannot self-trigger an infinite render loop.');
+requireText(guard,"main.dataset.prelaunchBillingGuarded !== '1'",'Mutation-observed billing-page replacement must be one-shot and idempotent.');
+forbid(guard,/forEach\(a\s*=>\s*a\.textContent\s*=\s*['"]Plans['"]\)/,'Prelaunch guard must not unconditionally rewrite observed navigation text; that pattern can self-trigger indefinitely.');
 
 if(gates.college_board_independence_disclosure!=='required') errors.push('College Board independence disclosure must remain a required launch control.');
 requireText(index,'src="/independence-disclosure.js"','The application shell must load the College Board independence disclosure.');
