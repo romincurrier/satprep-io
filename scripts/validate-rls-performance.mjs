@@ -9,6 +9,7 @@ const privacyRequestTranche=read('migrations/20260826_privacy_requests_rls_initp
 const parentSetupRequestTranche=read('migrations/20260828_parent_setup_requests_rls_initplan.sql');
 const parentStudentInsertTranche=read('migrations/20260828_parent_students_insert_rls_initplan.sql');
 const studentsParentHouseholdTranche=read('migrations/20260828_students_parent_household_rls_initplan.sql');
+const studentsAdminTranche=read('migrations/20260828_students_admin_rls_initplan.sql');
 const adminHelper=read('migrations/20260826_private_admin_rls_helper.sql');
 
 for(const policy of ['profile_self_read','profile_self_update','student_self_read','student_self_update']){
@@ -33,7 +34,8 @@ assert.match(parentStudentInsertTranche,/alter policy ["']parent_link_household_
 for(const policy of ['parent_household_student_insert','parent_household_student_update']){
  assert.match(studentsParentHouseholdTranche,new RegExp(`alter policy ["']${policy}["']`,'i'),`${policy} must remain explicitly covered by the students parent-household InitPlan migration.`);
 }
-for(const [label,migration] of [['self-policy',tranche1],['parent-read',tranche2],['prior-assessment',priorAssessmentTranche],['privacy-request',privacyRequestTranche],['parent-setup-request',parentSetupRequestTranche],['parent-student-insert',parentStudentInsertTranche],['students-parent-household',studentsParentHouseholdTranche]]){
+assert.match(studentsAdminTranche,/alter policy ["']admin_students_all["']/i,'The legacy profile-backed students administrator policy must remain explicitly covered by its InitPlan migration.');
+for(const [label,migration] of [['self-policy',tranche1],['parent-read',tranche2],['prior-assessment',priorAssessmentTranche],['privacy-request',privacyRequestTranche],['parent-setup-request',parentSetupRequestTranche],['parent-student-insert',parentStudentInsertTranche],['students-parent-household',studentsParentHouseholdTranche],['students-admin',studentsAdminTranche]]){
  assert.match(migration,/\(select auth\.uid\(\)\)/i,`${label} optimization must cache auth.uid() through an InitPlan.`);
  assert.doesNotMatch(migration,/\bto\s+(authenticated|anon|public|service_role)\b/i,`${label} InitPlan-only migration must not change policy role targets.`);
  assert.doesNotMatch(migration,/drop\s+policy|create\s+policy/i,`${label} InitPlan-only migration must alter existing policies rather than replacing them.`);
@@ -63,6 +65,9 @@ assert.match(studentsParentHouseholdTranche,/parent_household_student_insert[\s\
 assert.match(studentsParentHouseholdTranche,/parent_household_student_update[\s\S]*using[\s\S]*household_id is not null[\s\S]*p\.id = \(select auth\.uid\(\)\)[\s\S]*p\.role = 'parent'::text[\s\S]*p\.household_id = students\.household_id/i,'Parent household student updates must preserve the non-null household, parent-role, and same-household predicates.');
 assert.doesNotMatch(studentsParentHouseholdTranche,/parent_household_student_read2|parent_linked_student_read|student_self_read|student_self_update|admin_students_all|student_admin_all/i,'The students parent-household write tranche must leave read, self, and administrator policies unchanged.');
 assert.doesNotMatch(studentsParentHouseholdTranche,/parent_household_student_update[\s\S]*with check/i,'The students parent-household update policy must preserve its existing implicit WITH CHECK behavior rather than adding a new explicit predicate.');
+assert.match(studentsAdminTranche,/admin_students_all[\s\S]*using[\s\S]*p\.id = \(select auth\.uid\(\)\)[\s\S]*p\.role = 'admin'::text[\s\S]*with check[\s\S]*p\.id = \(select auth\.uid\(\)\)[\s\S]*p\.role = 'admin'::text/i,'The legacy students administrator policy must preserve the same profile-backed admin predicate in both USING and WITH CHECK.');
+assert.doesNotMatch(studentsAdminTranche,/student_admin_all|parent_household_student_|parent_linked_student_read|student_self_/i,'The legacy students administrator InitPlan tranche must leave the private-helper, parent, and student-self policies unchanged.');
+assert.doesNotMatch(studentsAdminTranche,/\bfor\s+(select|insert|update|delete)\b/i,'The legacy students administrator InitPlan tranche must preserve the existing ALL command rather than changing its policy command.');
 
 const adminPolicies=[
  'diagnostic_admin_all','diagnostic_response_admin_all','journey_event_admin_all','lesson_admin_read',
