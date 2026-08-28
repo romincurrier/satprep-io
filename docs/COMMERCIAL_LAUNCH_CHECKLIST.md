@@ -47,6 +47,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Prelaunch MutationObserver rewrites are idempotent, and production build validation rejects the unconditional observed-text rewrite pattern that caused the 2026-08-27 homepage render loop.
 - [x] `docs/PRODUCTION_OPERATIONS_RUNBOOK.md` documents first-72-hours monitoring cadence, SEV-1 through SEV-4 handling, evidence capture, and explicit rollback criteria without weakening launch gates.
 - [x] Dependency-security hardening rejects regression to the abandoned npm SheetJS 0.18.5 line; private content tooling now resolves official SheetJS 0.20.3 and Vite is pinned to the production-verified 7.3.6 release, with a production-build regression guard enforcing both constraints.
+- [x] An administrator-only synthetic pilot-agent harness and control center are deployed with test-account/household/student markers, server-side parent/student Auth verification, deterministic diagnostic/practice simulation, cleanup, and a production-build guard that prohibits commercial content/billing activation through the pilot path.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
@@ -98,6 +99,8 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [ ] Verify administrator overview remains role-restricted and presentation-minimized.
 
 **Trusted-diagnostic status (2026-08-26):** production includes atomic parent-invitation acceptance, atomic secure-v3 diagnostic response submission, single-active-attempt resume protection, and atomic diagnostic finalization. These trusted RPC paths are service-role-only where appropriate, row-lock state before mutation, reject forged/out-of-sequence changes, preserve idempotency, and are protected by production-build regression validators. Full browser completion/resume/fault-injection acceptance remains open until independently reviewed secure-v3 content is available.
+
+**Synthetic pilot-agent status (2026-08-28):** the admin-only `pilot-agent-v1` harness is deployed and build-validated. It can create separately flagged synthetic parent/student Auth identities, verify their password authentication server-side, execute a deterministic 20-item QA-fixture diagnostic simulation, derive synthetic learning priorities, run targeted staged-fixture practice on two weak skills, record `test_runs`/`test_events`, and remove the synthetic family. It does **not** use or modify commercial content tables, billing state, or production approval fields. The first authenticated admin-triggered live pilot run remains open, and this harness does not satisfy the separate browser-level secure-v3 acceptance items above.
 
 ## 3. Final trusted-learning authority lock
 
