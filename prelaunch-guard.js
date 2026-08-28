@@ -65,7 +65,9 @@ function applyPrelaunchCommercialState(){
     pricing.dataset.prelaunchGuarded = '1';
     pricing.innerHTML = `<div class="section-heading"><span>PLANS</span><h2>Public plans are being finalized.</h2><p>SATprep.io is still completing commercial, billing, privacy, and content-quality validation. Public pricing and trial terms will be posted only after those launch checks are complete.</p></div>`;
   }
-  document.querySelectorAll('.marketing-links a[href="#pricing"]').forEach(a=>a.textContent='Plans');
+  document.querySelectorAll('.marketing-links a[href="#pricing"]').forEach(a=>{
+    if(a.textContent !== 'Plans') a.textContent = 'Plans';
+  });
   const trust = document.querySelector('.trust-row');
   if(trust && trust.dataset.prelaunchGuarded !== '1'){
     trust.dataset.prelaunchGuarded = '1';
@@ -79,8 +81,11 @@ function applyPrelaunchCommercialState(){
     const billingHeading = [...document.querySelectorAll('h1')].find(h=>/plans\s*&\s*billing/i.test(h.textContent||''));
     if(billingHeading){
       const main = billingHeading.closest('main');
-      if(main) main.innerHTML = `<section class="hero"><h1>Plans & Billing</h1><p>Billing is still in pre-launch validation. No public purchase, paid plan, or trial is available yet.</p></section><section class="card"><button class="btn" id="prelaunchBillingBack">Return to dashboard</button></section>`;
-      document.querySelector('#prelaunchBillingBack')?.addEventListener('click',()=>location.assign('/?app=1'));
+      if(main && main.dataset.prelaunchBillingGuarded !== '1'){
+        main.dataset.prelaunchBillingGuarded = '1';
+        main.innerHTML = `<section class="hero"><h1>Plans & Billing</h1><p>Billing is still in pre-launch validation. No public purchase, paid plan, or trial is available yet.</p></section><section class="card"><button class="btn" id="prelaunchBillingBack">Return to dashboard</button></section>`;
+        document.querySelector('#prelaunchBillingBack')?.addEventListener('click',()=>location.assign('/?app=1'));
+      }
     }
   }
 }
