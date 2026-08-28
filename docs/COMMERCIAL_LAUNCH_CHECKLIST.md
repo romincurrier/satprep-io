@@ -1,6 +1,6 @@
 # SATprep.io Commercial Launch Readiness Checklist
 
-Updated: 2026-08-26
+Updated: 2026-08-27
 
 This file is the single operating checklist for commercial launch readiness. `docs/COMMERCIAL_LAUNCH_RUNBOOK.md` remains the detailed procedure; this checklist tracks what is actually complete and what still blocks launch.
 
@@ -29,7 +29,9 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Prior-assessment reports use a private Storage bucket, immutable uploader/student-scoped object identity, and a server-mediated deletion path.
 - [x] All six `prior_assessments` student/parent `auth_rls_initplan` findings are resolved in production without changing policy commands, roles, or authorization predicates; the recorded parent/student/admin/cross-account baseline remained unchanged before and after.
 - [x] All three `privacy_requests` `auth_rls_initplan` findings are resolved in production without changing policy commands, role targets, target-student authorization, or permissiveness; rollback-only parent/unrelated/admin equivalence checks remained unchanged before and after.
+- [x] The single `parent_setup_requests` administrator-read `auth_rls_initplan` finding is resolved in production without changing its SELECT command, default PUBLIC role target, permissiveness, profile-backed administrator predicate, or separate public insert policy.
 - [x] Private content review tooling preserves spreadsheet display values so reviewed fractions, percentages, currency, and similar formatted answer text are not silently replaced by numeric/date serials during readiness or import.
+- [x] Prelaunch MutationObserver rewrites are idempotent, and production build validation rejects the unconditional observed-text rewrite pattern that caused the 2026-08-27 homepage render loop.
 
 # BLOCKING BEFORE COMMERCIAL LAUNCH
 
@@ -103,16 +105,17 @@ This file is the single operating checklist for commercial launch readiness. `do
 - [x] Refactor the exposed `public.is_admin()` SECURITY DEFINER helper into a non-Data-API private helper, preserve RLS authorization equivalence, and eliminate the advisor warning.
 - [x] Resolve the six `prior_assessments` student/parent `auth_rls_initplan` findings through InitPlan-only policy rewrites and verify authorization equivalence before and after production application.
 - [x] Resolve the three `privacy_requests` `auth_rls_initplan` findings through InitPlan-only policy rewrites and verify privacy-request authorization equivalence before and after production application.
+- [x] Resolve the `admin_parent_setup_request_read` `auth_rls_initplan` finding without changing the public insert policy or administrator/non-administrator authorization semantics.
 - [ ] Run the final release-candidate Supabase security-advisor review after remaining launch migrations/configuration are frozen.
 - [ ] Run a release-candidate dependency/security review.
 - [ ] Verify production security headers on the final public candidate.
 - [ ] Complete basic abuse testing on signup, invitations, diagnostic/practice submission, privacy requests, and billing endpoints.
 
-**Current advisor status (2026-08-26):** a fresh production security-advisor review reports no executable SECURITY DEFINER warning. The only remaining actionable security warning is that leaked-password protection is disabled; service-only RLS-with-no-policy findings remain informational and fail-closed by design. Enabling leaked-password protection remains an owner/manual activation item because the current automation tooling does not expose the required Auth setting.
+**Current advisor status (2026-08-27):** a fresh production security-advisor review reports no executable SECURITY DEFINER warning. The only remaining actionable security warning is that leaked-password protection is disabled; service-only RLS-with-no-policy findings remain informational and fail-closed by design. Enabling leaked-password protection remains an owner/manual activation item because the current automation tooling does not expose the required Auth setting.
 
-**Authorization-equivalence status (2026-08-26):** the reusable parent/student/admin baseline remains recorded in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md`. For the `prior_assessments` tranche, parent access remained limited to the linked learner/report, unrelated learner/report access remained zero, student access remained self-only, and the administrator retained the intended operational view. For the `privacy_requests` tranche, rollback-only production tests before and after the rewrite confirmed that a parent could create/read a request targeting the linked learner, an unrelated authenticated profile could not read that request, and an administrator could read it. The test row was rolled back each time; production `privacy_requests` remains empty.
+**Authorization-equivalence status (2026-08-27):** the reusable parent/student/admin baseline remains recorded in `docs/RLS_AUTHORIZATION_EQUIVALENCE.md`. For the `prior_assessments` tranche, parent access remained limited to the linked learner/report, unrelated learner/report access remained zero, student access remained self-only, and the administrator retained the intended operational view. For the `privacy_requests` tranche, rollback-only production tests before and after the rewrite confirmed that a parent could create/read a request targeting the linked learner, an unrelated authenticated profile could not read that request, and an administrator could read it. The test row was rolled back each time; production `privacy_requests` remains empty. For `parent_setup_requests`, the table was empty, so authorization equivalence was captured by evaluating the exact profile-backed read predicate before and after: it remained true for the administrator profile and false for parent/student profiles, while the SELECT policy stayed PERMISSIVE with the default PUBLIC target and the separate public INSERT policy remained unchanged.
 
-**Performance hardening status (2026-08-26):** production migrations `core_secure_v3_fk_indexes` and `remaining_secure_v3_fk_indexes` cover all **24** foreign-key paths previously reported as unindexed. Migration `prior_assessments_rls_initplan` is recorded in the production migration ledger and a fresh advisor reports **zero `auth_rls_initplan` findings for `public.prior_assessments`**. Migration `privacy_requests_rls_initplan` is also recorded and converts every raw `auth.uid()` call in `privacy_request_admin_read`, `privacy_request_self_insert`, and `privacy_request_self_read` to `(select auth.uid())` without changing policy commands, role targets, requester ownership, submitted-state checks, student/linked-parent target scope, or permissiveness. A fresh advisor reports **zero `auth_rls_initplan` findings for `public.privacy_requests`**. The existing `privacy_requests` multiple-permissive SELECT warning remains intentionally unchanged because policy consolidation was outside this authorization-equivalent tranche. Other InitPlan and multiple-permissive-policy warnings remain and must be addressed only in small authorization-equivalent tranches. Expected prelaunch `unused_index` informational results are not a reason to remove required indexes.
+**Performance hardening status (2026-08-27):** production migrations `core_secure_v3_fk_indexes` and `remaining_secure_v3_fk_indexes` cover all **24** foreign-key paths previously reported as unindexed. Migration `prior_assessments_rls_initplan` is recorded in the production migration ledger and a fresh advisor reports **zero `auth_rls_initplan` findings for `public.prior_assessments`**. Migration `privacy_requests_rls_initplan` is also recorded and converts every raw `auth.uid()` call in `privacy_request_admin_read`, `privacy_request_self_insert`, and `privacy_request_self_read` to `(select auth.uid())` without changing policy commands, role targets, requester ownership, submitted-state checks, student/linked-parent target scope, or permissiveness. A fresh advisor reports **zero `auth_rls_initplan` findings for `public.privacy_requests`**. Migration `parent_setup_requests_rls_initplan` is recorded and a fresh advisor reports **zero `auth_rls_initplan` findings for `public.parent_setup_requests`**; the public insert policy was not changed. The existing `privacy_requests` multiple-permissive SELECT warning remains intentionally unchanged because policy consolidation was outside that authorization-equivalent tranche. Other InitPlan and multiple-permissive-policy warnings remain and must be addressed only in small authorization-equivalent tranches. Expected prelaunch `unused_index` informational results are not a reason to remove required indexes.
 
 ## 5. Billing and entitlement acceptance
 
@@ -193,6 +196,7 @@ This file is the single operating checklist for commercial launch readiness. `do
 
 - [x] Required College Board independence disclosure is a machine-enforced homepage control.
 - [x] Public indexing remains disabled until final approval.
+- [x] The production prelaunch guard has a build-enforced idempotence regression check after the 2026-08-27 self-triggering MutationObserver outage was repaired.
 - [ ] Verify final public pricing/FAQ/How It Works/Content Quality copy exactly matches launch behavior.
 - [ ] Verify Privacy, Terms, support/contact, accessibility, and account/privacy-request routes are accessible from the public product.
 - [ ] Verify canonical URLs, sitemap, robots behavior, 404 behavior, titles, descriptions, H1s, and structured data for the final candidate.
@@ -220,7 +224,7 @@ These remain disabled until the blocking checklist is green and the user explici
 - [ ] Lock activation/conversion definitions before campaign reporting.
 - [ ] Confirm item-calibration reporting works once sufficient real response volume exists.
 - [x] Add covering indexes for all foreign keys reported as unindexed by the production Supabase advisor without altering authorization semantics; **24/24 covered and 0 `unindexed_foreign_keys` findings remain as of 2026-08-26**.
-- [ ] Address remaining `auth_rls_initplan` and `multiple_permissive_policies` performance warnings only through authorization-preserving changes with policy-equivalence verification; the six `prior_assessments` and three `privacy_requests` InitPlan findings are complete.
+- [ ] Address remaining `auth_rls_initplan` and `multiple_permissive_policies` performance warnings only through authorization-preserving changes with policy-equivalence verification; the six `prior_assessments`, three `privacy_requests`, and single `parent_setup_requests` InitPlan findings are complete.
 - [ ] Establish dependency update cadence.
 - [ ] Prepare first-72-hours launch monitoring cadence and rollback decision rules.
 
@@ -237,7 +241,7 @@ These remain disabled until the blocking checklist is green and the user explici
 
 # Current safest autonomous work order
 
-1. Continue narrow RLS initialization-plan optimization in small, authorization-equivalent batches. The next contained candidate is the single `admin_parent_setup_request_read` InitPlan finding on `public.parent_setup_requests`; capture administrator/non-administrator read behavior before and after, and do not change the existing public insert policy or policy permissiveness in the same tranche.
+1. Continue narrow RLS initialization-plan optimization in small, authorization-equivalent batches. The next contained candidate is `parent_link_household_student_insert` on `public.parent_students`; capture linked-parent, unrelated authenticated, student, and administrator behavior before and after, preserve the existing INSERT command/default PUBLIC role/permissiveness, and leave `parent_link_read` plus `parent_link_admin_all` unchanged in the same tranche.
 2. Continue expanding the fresh private commercial authoring inventory by filling difficulty-2, difficulty-3, and remaining per-skill depth gaps without approving or activating it.
 3. Harden account, parent, admin, privacy, and billing-preview authorization boundaries and regression guards.
 4. Improve monitoring/recovery/support readiness documentation and testable operational controls.
