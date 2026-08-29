@@ -5,11 +5,9 @@
   "functions": {
     "api/full-browser-self-pilot.js": { "maxDuration": 300 },
     "api/full-browser-self-pilot-downstream.js": { "maxDuration": 300 },
-    "api/full-browser-self-pilot-direct.js": { "maxDuration": 300 }
+    "api/full-browser-self-pilot-direct.js": { "maxDuration": 300 },
+    "api/full-browser-self-pilot-direct-trigger.js": { "maxDuration": 300 }
   },
-  "crons": [
-    { "path": "/api/full-browser-self-pilot-direct?auto=1", "schedule": "* * * * *" }
-  ],
   "headers": [
     {
       "source": "/(.*)",
