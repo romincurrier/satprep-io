@@ -11,10 +11,10 @@ need(/Sandbox\.create\(/,'Self-pilot must execute the rendered browser in Vercel
 need(/sandbox\.stop\(\)/,'Self-pilot must stop its ephemeral browser sandbox.');
 need(/agent-browser/,'Self-pilot must drive a real browser rather than substitute API-only simulation.');
 need(/pilotEnrollmentByToken\(token\)/,'Token-triggered self-pilot must validate the one-time pilot enrollment.');
-need(/cronEnrollment\(\)/,'Cron-triggered self-pilot must select only the explicitly reserved open pilot enrollment.');
-need(/CRON_LABEL=['"]Live Family Pilot #1['"]/,'Cron execution must be pinned to the single reserved pilot label.');
-need(/user-agent[^\n]+vercel-cron/,'Cron auto mode must require the Vercel Cron user agent in addition to auto=1.');
-need(/status=eq\.open&parent_profile_id=is\.null&household_id=is\.null&student_id=is\.null/,'Cron mode must select only a fresh unattached open enrollment.');
+need(/cronEnrollment\(\)/,'Cron-capable self-pilot source must select only the explicitly reserved open pilot enrollment.');
+need(/CRON_LABEL=['"]Live Family Pilot #1['"]/,'Automated execution must remain pinned to the reserved pilot label.');
+need(/user-agent[^\n]+vercel-cron/,'Auto mode must require the Vercel Cron user agent in addition to auto=1.');
+need(/status=eq\.open&parent_profile_id=is\.null&household_id=is\.null&student_id=is\.null/,'Auto mode must select only a fresh unattached open enrollment.');
 need(/enrollment\.status!==['"]open['"]/,'Self-pilot must start only from a fresh open enrollment.');
 need(/parent_profile_id\|\|enrollment\.household_id\|\|enrollment\.student_id/,'Self-pilot must reject an invitation already attached to a family.');
 need(/selfpilot\.parent\.\$\{id\}@satprep\.io/,'Parent identity must be a deterministic project-owned satprep.io test address.');
@@ -39,14 +39,12 @@ need(/self_pilot_report/,'Self-pilot must persist a sanitized report to the pilo
 forbid(/service\([^\n]*content_items[^\n]*\{\s*method\s*:/,'Self-pilot must never mutate commercial content_items.');
 forbid(/service\([^\n]*subscriptions[^\n]*\{\s*method\s*:/,'Self-pilot must never mutate subscription/billing state.');
 forbid(/production_approved\s*[:=]\s*true|qa_status\s*[:=]\s*['"]production_approved['"]/,'Self-pilot must never approve content.');
-forbid(/\/auth\/v1\/admin\/users['"`][^\n]*method:['"]POST['"]/,'Self-pilot must not create users through the admin Auth API; the parent must use the normal signup form.');
+forbid(/\/auth\/v1\/admin\/users['"`][^\n]*method:['"]POST['"]/,'Original self-pilot must not create users through the admin Auth API; its parent must use the normal signup form.');
 forbid(/live_payments|public_billing|public_indexing|marketing_measurement|outbound_marketing[^\n]*true/i,'Self-pilot must not enable commercial launch gates.');
 
 if(pkg.dependencies?.['@vercel/sandbox']!=='3.2.0')errors.push('@vercel/sandbox must remain pinned to the reviewed 3.2.0 release for this pilot runner.');
 const duration=vercel.functions?.['api/full-browser-self-pilot.js']?.maxDuration;
 if(duration!==300)errors.push('Full browser self-pilot function must retain a bounded 300-second maximum duration.');
-const cron=(vercel.crons||[]).find(x=>x.path==='/api/full-browser-self-pilot?auto=1');
-if(!cron||cron.schedule!=='* * * * *')errors.push('One-shot execution window must use the explicit every-minute Vercel Cron trigger until the first report is captured, then the cron must be removed.');
 
 if(errors.length){for(const error of errors)console.error(`Full browser self-pilot validation error: ${error}`);process.exit(1)}
-console.log('Full browser self-pilot guard passed: real-browser execution, one-shot Vercel Cron gating, project-owned test identities, report persistence, no commercial content/billing mutation, and parent/student/Journey checkpoints are enforced.');
+console.log('Full browser self-pilot guard passed: real-browser execution, reserved test identities, report persistence, no commercial content/billing mutation, and parent/student/Journey checkpoints are enforced.');
