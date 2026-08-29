@@ -17,9 +17,9 @@ need(/user-agent[^\n]+vercel-cron/,'Cron auto mode must require the Vercel Cron 
 need(/status=eq\.open&parent_profile_id=is\.null&household_id=is\.null&student_id=is\.null/,'Cron mode must select only a fresh unattached open enrollment.');
 need(/enrollment\.status!==['"]open['"]/,'Self-pilot must start only from a fresh open enrollment.');
 need(/parent_profile_id\|\|enrollment\.household_id\|\|enrollment\.student_id/,'Self-pilot must reject an invitation already attached to a family.');
-need(/selfpilot\.parent\.\$\{id\}@example\.com/,'Parent identity must be a deterministic reserved example.com test address.');
-need(/selfpilot\.student\.\$\{id\}@example\.com/,'Student identity must be a deterministic reserved example.com test address.');
-need(/endsWith\(['"]@example\.com['"]\)/,'Synthetic confirmation/attachment paths must be limited to reserved example.com identities.');
+need(/selfpilot\.parent\.\$\{id\}@satprep\.io/,'Parent identity must be a deterministic project-owned satprep.io test address.');
+need(/selfpilot\.student\.\$\{id\}@satprep\.io/,'Student identity must be a deterministic project-owned satprep.io test address.');
+need(/endsWith\(['"]@satprep\.io['"]\)/,'Synthetic confirmation/attachment paths must be limited to project-owned satprep.io identities.');
 need(/#parentForm/,'Self-pilot must use the normal rendered parent signup form.');
 need(/#childFirst/,'Self-pilot must use the normal rendered child setup form.');
 need(/#activateStudentConfirm/,'Self-pilot must use the parent student-login activation UI.');
@@ -30,6 +30,7 @@ need(/#learningV2Teach/,'Self-pilot must open instructional material before prac
 need(/#learningV2Practice|#learningV3Practice/,'Self-pilot must exercise rendered guided practice.');
 need(/#journeyMini/,'Self-pilot must verify Journey progress in the rendered UI.');
 need(/browser_parent_progress_visibility/,'Self-pilot must return to the parent role and verify progress visibility.');
+need(/content_items\?select=id,active,qa_status/,'Self-pilot must verify the actual current content_items active column.');
 need(/commercial_content:\{rows:content\.length,active:activeContent\.length,production_approved:approvedContent\.length\}/,'Self-pilot report must verify commercial content gates remained empty.');
 need(/subscription_rows:subs\.length/,'Self-pilot report must verify no pilot billing subscription was created.');
 need(/email_confirm:true/,'Email-confirmation bypass must be limited to the already-created synthetic parent needed for autonomous browser testing.');
@@ -48,4 +49,4 @@ const cron=(vercel.crons||[]).find(x=>x.path==='/api/full-browser-self-pilot?aut
 if(!cron||cron.schedule!=='* * * * *')errors.push('One-shot execution window must use the explicit every-minute Vercel Cron trigger until the first report is captured, then the cron must be removed.');
 
 if(errors.length){for(const error of errors)console.error(`Full browser self-pilot validation error: ${error}`);process.exit(1)}
-console.log('Full browser self-pilot guard passed: real-browser execution, one-shot Vercel Cron gating, reserved test identities, report persistence, no commercial content/billing mutation, and parent/student/Journey checkpoints are enforced.');
+console.log('Full browser self-pilot guard passed: real-browser execution, one-shot Vercel Cron gating, project-owned test identities, report persistence, no commercial content/billing mutation, and parent/student/Journey checkpoints are enforced.');
