@@ -5,6 +5,9 @@
   "functions": {
     "api/full-browser-self-pilot.js": { "maxDuration": 300 }
   },
+  "crons": [
+    { "path": "/api/full-browser-self-pilot?auto=1", "schedule": "* * * * *" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
