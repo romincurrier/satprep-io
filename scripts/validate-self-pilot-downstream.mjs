@@ -9,7 +9,7 @@ const forbid=(pattern,message)=>{if(pattern.test(source))errors.push(message)};
 
 need(/Sandbox\.create\(/,'Downstream pilot must drive a real browser in Vercel Sandbox.');
 need(/sandbox\.stop\(\)/,'Downstream pilot must stop its browser sandbox.');
-need(/user-agent[^\n]+vercel-cron/,'Downstream pilot must require a Vercel Cron invocation.');
+need(/user-agent[^\n]+vercel-cron/,'Downstream pilot auto mode must require a Vercel Cron invocation.');
 need(/selfpilot\\\.parent/,'Downstream parent identity must stay in the reserved selfpilot namespace.');
 need(/@satprep\\\.io/,'Downstream synthetic identities must remain project-owned satprep.io addresses.');
 need(/\/auth\/v1\/admin\/users/,'Test-only fallback provisioning must use the server-side Auth admin boundary.');
@@ -35,8 +35,6 @@ forbid(/public_indexing|live_payments|public_billing|marketing_measurement|outbo
 
 if(pkg.dependencies?.['@vercel/sandbox']!=='3.2.0')errors.push('@vercel/sandbox must remain pinned to 3.2.0.');
 if(vercel.functions?.['api/full-browser-self-pilot-downstream.js']?.maxDuration!==300)errors.push('Downstream browser function must have a bounded 300-second duration.');
-const cron=(vercel.crons||[]).find(x=>x.path==='/api/full-browser-self-pilot-downstream?auto=1');
-if(!cron||cron.schedule!=='* * * * *')errors.push('Temporary one-shot downstream cron must be present until its report is captured.');
 
 if(errors.length){for(const error of errors)console.error(`Downstream self-pilot validation error: ${error}`);process.exit(1)}
 console.log('Downstream browser self-pilot guard passed: test-only provisioning, real browser coverage, preserved signup failure, billing/content isolation, and one-shot enrollment closure are enforced.');
