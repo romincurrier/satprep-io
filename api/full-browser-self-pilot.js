@@ -15,8 +15,8 @@ function stableCredentials(enrollment,key){
  const id=String(enrollment.id).replace(/-/g,'').slice(0,12);
  const digest=createHash('sha256').update(`${key}|satprep-full-browser-self-pilot`).digest('hex');
  return{
-  parentEmail:`selfpilot.parent.${id}@example.com`,
-  studentEmail:`selfpilot.student.${id}@example.com`,
+  parentEmail:`selfpilot.parent.${id}@satprep.io`,
+  studentEmail:`selfpilot.student.${id}@satprep.io`,
   password:`Sp!${digest.slice(0,22)}a9`,
   parentFirst:'Pilot',parentLast:'Parent',studentFirst:'Pilot',studentLast:'Student'
  };
@@ -32,7 +32,7 @@ async function profileByEmail(email){return (await rows(`/rest/v1/profiles?email
 async function confirmSyntheticParent(email){
  let profile=null;
  for(let i=0;i<25&&!profile;i++){profile=await profileByEmail(email);if(!profile)await pause(300)}
- if(!profile||profile.role!=='parent'||!email.endsWith('@example.com'))throw new Error('Normal parent signup did not create the expected reserved synthetic parent profile.');
+ if(!profile||profile.role!=='parent'||!email.endsWith('@satprep.io'))throw new Error('Normal parent signup did not create the expected reserved synthetic parent profile.');
  await service(`/auth/v1/admin/users/${encodeURIComponent(profile.id)}`,{method:'PUT',body:JSON.stringify({email_confirm:true})});
  return profile;
 }
@@ -43,7 +43,7 @@ async function cronEnrollment(){
 async function attachCronEnrollment(enrollment,email){
  let profile=null;
  for(let i=0;i<25;i++){profile=await profileByEmail(email);if(profile?.household_id)break;await pause(300)}
- if(!profile?.household_id||profile.role!=='parent'||!email.endsWith('@example.com'))throw new Error('Synthetic parent household was not created by the normal signup flow.');
+ if(!profile?.household_id||profile.role!=='parent'||!email.endsWith('@satprep.io'))throw new Error('Synthetic parent household was not created by the normal signup flow.');
  const now=new Date().toISOString(),metadata={...(enrollment.metadata||{}),self_browser_pilot:true,self_browser_version:'full-browser-v1'};
  await service(`/rest/v1/pilot_enrollments?id=eq.${encodeURIComponent(enrollment.id)}&status=eq.open`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status:'claimed',parent_profile_id:profile.id,household_id:profile.household_id,claimed_at:now,metadata})});
  await Promise.all([
@@ -66,10 +66,10 @@ async function databaseReport(parentEmail,enrollmentId){
   sid?rows(`/rest/v1/student_journey?student_id=eq.${encodeURIComponent(sid)}&select=student_id,xp,level,stage_key,updated_at`):[],
   sid?rows(`/rest/v1/student_achievements?student_id=eq.${encodeURIComponent(sid)}&select=achievement_key,title,xp_awarded,earned_at`):[],
   household?rows(`/rest/v1/subscriptions?household_id=eq.${encodeURIComponent(household.id)}&select=id,status,plan_key,provider`):[],
-  rows('/rest/v1/content_items?select=id,is_active,qa_status'),
+  rows('/rest/v1/content_items?select=id,active,qa_status'),
   rows(`/rest/v1/pilot_enrollments?id=eq.${encodeURIComponent(enrollmentId)}&select=id,label,status,parent_profile_id,household_id,student_id,claimed_at,completed_at,metadata`)
  ]);
- const completedDiag=diag.find(x=>x.status==='completed')||null,completedLessons=lessons.filter(x=>x.completed_at),activeContent=content.filter(x=>x.is_active===true),approvedContent=content.filter(x=>x.qa_status==='production_approved');
+ const completedDiag=diag.find(x=>x.status==='completed')||null,completedLessons=lessons.filter(x=>x.completed_at),activeContent=content.filter(x=>x.active===true),approvedContent=content.filter(x=>x.qa_status==='production_approved');
  return{
   parent:{exists:!!parent,is_test_account:!!parent?.is_test_account,household_id:parent?.household_id||null},
   household:{exists:!!household,is_test_household:!!household?.is_test_household},
@@ -148,7 +148,7 @@ export default async function handler(req,res){
   let currentUrl=await url(),parentSignedIn=/[?&]app=1/.test(currentUrl),signupText=await bodyText();
   if(!parentSignedIn&&/Check your email to confirm your account/i.test(signupText)){
    await confirmSyntheticParent(credentials.parentEmail);
-   mark('browser_parent_account_creation',true,'Normal signup created the synthetic parent; automation confirmed only this reserved example.com account because email confirmation was required.');
+   mark('browser_parent_account_creation',true,'Normal signup created the synthetic parent; automation confirmed only this reserved satprep.io account because email confirmation was required.');
    if(cronMode){await attachCronEnrollment(enrollment,credentials.parentEmail);mark('browser_pilot_claim',true,'Server attached the one-shot open pilot to the normal synthetic parent account after signup; commercial customer paths remain unchanged.');}
    await ab(['open',BASE]);await sleep(700);await click('[data-auth="login"]');if(!await waitAny(['#loginForm'],3000))throw new Error('Parent login screen did not render after synthetic email confirmation.');
    await setValues({'#email':credentials.parentEmail,'#password':credentials.password});await submit('#loginForm');await sleep(1400);currentUrl=await url();parentSignedIn=/[?&]app=1/.test(currentUrl);
