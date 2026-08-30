@@ -28,6 +28,10 @@ This additive log records autonomous commercial-readiness work without replacing
 - AI-review coverage then advanced from 42 to 56 of 434 items; 378 remain.
 - The additional 14 `area-volume` drafts all passed AI accuracy/alignment/key/ambiguity QA. Six direct rectangular-prism volume items were recalibrated from author-rated Medium to AI-rated Easy because all dimensions are given and only direct formula substitution is required. Four similar-triangle area-scaling items were recalibrated from author-rated Hard to AI-rated Medium because the linear scale factor is explicit and the solution requires two routine steps. Four foundational rectangle-area items remained Easy.
 - The `AI Review` rows for all 14 area/volume items were written and re-read successfully. The `AI Review Summary` was updated to 56 reviewed / 378 remaining / 42 PASS / 14 REVISE / 0 REJECT, with 28 total difficulty changes and a reviewed difficulty mix of 28 Easy / 28 Medium / 0 Hard.
+- AI-review coverage then advanced from 56 to 70 of 434 items; 364 remain.
+- The additional 14 `statistical-claims` drafts all passed AI accuracy/alignment/key/ambiguity QA. Current College Board SAT Suite specifications were rechecked before review and confirm that evaluating statistical claims through observational studies and experiments is an SAT-only Problem-Solving and Data Analysis testing point; the batch's SAT-only eligibility is therefore aligned with the current framework.
+- Four author-rated Hard statistical-claims items were recalibrated to Medium because their design features and confounders are stated explicitly and the distractors test direct misconceptions. The other ten retained their author difficulty. The row-level AI Review ledger was written and re-read successfully.
+- The `AI Review Summary` now reads 70 reviewed / 364 remaining / 56 PASS / 14 REVISE / 0 REJECT, with 32 total difficulty changes and a reviewed difficulty mix of 32 Easy / 38 Medium / 0 Hard.
 - No AI review was represented as independent human approval. No question was imported, activated, production-approved, or externally published.
 
 ### Pilot/browser status
@@ -40,7 +44,7 @@ This additive log records autonomous commercial-readiness work without replacing
 
 ### Follow-up priorities
 
-1. Continue AI review of the 378 remaining unapproved expansion-bank drafts and isolate systematic editorial/calibration defects before human review.
+1. Continue AI review of the 364 remaining unapproved expansion-bank drafts and isolate systematic editorial/calibration defects before human review.
 2. Repair the 14 right-triangle/trigonometry explanation defects in staging with new content hashes, then re-run AI QA; keep them unapproved pending independent review.
 3. Resolve the production Auth email-delivery rate-limit/SMTP path when the SATprep Supabase project is available through an authorized connector.
 4. Run a fresh capability-scoped full browser pilot after a fresh service-only pilot enrollment can be authorized, then reconcile rendered checkpoints with parent/admin database state.
