@@ -15,6 +15,7 @@ This additive log records autonomous commercial-readiness work without replacing
 - Public indexing, public billing, live payments, first-party marketing measurement, outbound marketing, external publishing, and unreviewed-content activation remain disabled.
 - A subsequent production-state check confirmed the current `main` deployment is READY. Its build tail again shows the launch, regression, acceptance-flow, parent-progress, admin-operations, billing-security, learning-authority, pilot-output, and browser secret-boundary validators passing.
 - Vercel's last-24-hours grouped runtime errors initially contained only five older Node `DEP0169 url.parse()` deprecation warnings from the self-pilot endpoints, last seen 2026-08-29; a fresh third-cycle check on 2026-08-30 returned no runtime errors in the selected 24-hour window.
+- A later same-day production check again found the current deployment READY and no runtime errors in the selected prior-24-hour window. No launch-authority checkbox changed during the private staging-content work described below.
 
 ### Question-bank AI QA
 
@@ -31,7 +32,15 @@ This additive log records autonomous commercial-readiness work without replacing
 - AI-review coverage then advanced from 56 to 70 of 434 items; 364 remain.
 - The additional 14 `statistical-claims` drafts all passed AI accuracy/alignment/key/ambiguity QA. Current College Board SAT Suite specifications were rechecked before review and confirm that evaluating statistical claims through observational studies and experiments is an SAT-only Problem-Solving and Data Analysis testing point; the batch's SAT-only eligibility is therefore aligned with the current framework.
 - Four author-rated Hard statistical-claims items were recalibrated to Medium because their design features and confounders are stated explicitly and the distractors test direct misconceptions. The other ten retained their author difficulty. The row-level AI Review ledger was written and re-read successfully.
-- The `AI Review Summary` now reads 70 reviewed / 364 remaining / 56 PASS / 14 REVISE / 0 REJECT, with 32 total difficulty changes and a reviewed difficulty mix of 32 Easy / 38 Medium / 0 Hard.
+- The `AI Review Summary` then read 70 reviewed / 364 remaining / 56 PASS / 14 REVISE / 0 REJECT, with 32 total difficulty changes and a reviewed difficulty mix of 32 Easy / 38 Medium / 0 Hard.
+- The 14 right-triangle/trigonometry explanation defects were then repaired in the private staging bank. Each material edit received a newly generated canonical SHA-256 `content_hash`, and all 14 items were re-reviewed against the repaired content. They now pass AI QA while remaining `draft_unreviewed` and `production_approved=FALSE`; the four prior Hard-to-Medium difficulty recalibrations remain advisory.
+- A canonical-hash audit of all 434 staging rows found two additional stale hashes in unreviewed `boundaries` items. The hashes were regenerated against the exact current drafts without changing their approval state.
+- The same audit found that 56 previously completed AI Review records had blank `content_hash` cells even though their review decisions were present. Those advisory records were repaired to bind each review to the exact current question hash. A full-workbook verification then confirmed 434/434 question hashes match the repository canonicalization rule and all 70 completed AI Review records are hash-bound and policy-consistent.
+- Current College Board Reading and Writing specifications were rechecked before the next batch and still list Standard English Conventions with the `Boundaries` testing point, including punctuation choices that complete text according to Standard English conventions.
+- AI QA then covered all 14 `boundaries` drafts. Pre-review ambiguity screening repaired five choice sets before they were allowed to pass: one practice item had both a period and semicolon as conventionally valid answers, while four other items contained punctuation distractors that could support a defensible alternate reading. The repaired drafts received new canonical hashes and were rechecked before the AI records were written.
+- All 14 repaired/current `boundaries` drafts now pass AI accuracy, alignment, answer-key, and ambiguity review. Seven author difficulty ratings were recalibrated: five direct convention-recognition items moved to Easy and two direct independent-clause items moved from Hard to Medium.
+- AI-review coverage is now 84 of 434 items; 350 remain. Current advisory summary: 84 PASS / 0 REVISE / 0 REJECT / 0 NEEDS HUMAN REVIEW, 39 total difficulty changes, 41 Easy / 43 Medium / 0 Hard, with 39 Medium-priority and 45 Normal-priority human-review records.
+- A final exported-workbook validation after all repairs confirmed: 434 question rows, zero canonical hash mismatches, zero production-approved staging rows, zero non-`draft_unreviewed` staging rows, 84 completed AI Review records, and zero hash/policy/priority/timestamp validation errors among those completed AI records.
 - No AI review was represented as independent human approval. No question was imported, activated, production-approved, or externally published.
 
 ### Pilot/browser status
@@ -44,8 +53,8 @@ This additive log records autonomous commercial-readiness work without replacing
 
 ### Follow-up priorities
 
-1. Continue AI review of the 364 remaining unapproved expansion-bank drafts and isolate systematic editorial/calibration defects before human review.
-2. Repair the 14 right-triangle/trigonometry explanation defects in staging with new content hashes, then re-run AI QA; keep them unapproved pending independent review.
+1. Continue AI review of the 350 remaining unapproved expansion-bank drafts and isolate systematic editorial/calibration defects before human review.
+2. Keep running whole-workbook canonical-hash and AI-record integrity checks after every content edit/review batch so advisory reviews cannot drift from the exact drafts they describe.
 3. Resolve the production Auth email-delivery rate-limit/SMTP path when the SATprep Supabase project is available through an authorized connector.
 4. Run a fresh capability-scoped full browser pilot after a fresh service-only pilot enrollment can be authorized, then reconcile rendered checkpoints with parent/admin database state.
 5. Keep commercial content inactive until independent human review, cross-bank duplicate screening, reviewed-version hashes, inactive import, runtime QA, and explicit activation gates are complete.
