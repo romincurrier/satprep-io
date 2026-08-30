@@ -66,3 +66,22 @@ This additive log records autonomous commercial-readiness work without replacing
 3. Resolve the production Auth email-delivery rate-limit/SMTP path when the SATprep Supabase project is available through an authorized connector.
 4. Run a fresh capability-scoped full browser pilot after a fresh service-only pilot enrollment can be authorized, then reconcile rendered checkpoints with parent/admin database state.
 5. Keep commercial content inactive until independent human review, cross-bank duplicate screening, reviewed-version hashes, inactive import, runtime QA, and explicit activation gates are complete.
+
+## 2026-08-30 — quantitative command-evidence cycle
+
+### Question-bank construct repair and AI QA
+
+- The next 14 unreviewed Reading and Writing `command-evidence-quantitative` drafts were inspected against the current Information and Ideas / Command of Evidence construct before AI review.
+- A systematic construct defect was found: all 14 items were effectively bare maximum/minimum table-reading questions and did not present a stated claim or conclusion for the student to support. That was weaker than both the repository authoring standard for evidence items and the intended Command of Evidence construct.
+- All 14 staging drafts were repaired before review. Each now presents an explicit claim, asks which choice most effectively uses the table data to support that claim, supplies quantitative evidence statements as answer choices, and includes an item-specific explanation that compares the decisive values and avoids unsupported causal overclaim where relevant.
+- Every repaired draft received a newly generated canonical SHA-256 `content_hash`, and the exact edited rows were re-read after write. They remain `qa_status='draft_unreviewed'` and `production_approved=FALSE`.
+- All 14 repaired quantitative Command of Evidence drafts then passed AI accuracy, alignment, answer-key, ambiguity, and editorial/accessibility QA. Ten author difficulty ratings were recalibrated to Easy because the repaired items still require only a direct one-step quantitative comparison; four original Easy ratings remained Easy.
+- Advisory coverage is now 126 of 434 reviewed / 308 remaining / 126 PASS / 0 REVISE / 0 REJECT / 0 NEEDS HUMAN REVIEW, with 69 total difficulty changes, 69 Medium-priority and 57 Normal-priority human-review records, and a reviewed difficulty mix of 75 Easy / 51 Medium / 0 Hard.
+- A separate reporting defect was found in `AI Review Summary`: except for total staged questions, the visible totals were hard-coded at the prior 112-item state and therefore did not advance when new review rows were written. The hard-coded metrics were replaced with formulas derived from the authoritative `AI Review` columns. Re-read verification now returns the live 126/308/126 totals and the corresponding difficulty/priority counts automatically.
+- A whole-bank recheck of all 434 `production_approved` cells found zero TRUE values. No AI review was represented as independent human approval, and no question was imported, activated, production-approved, or externally published.
+
+### Access and launch gates
+
+- SATprep production Supabase access remains unavailable through the connected Supabase workspace; only the unrelated Marketing OS project is exposed, so no database/Auth/RLS changes were attempted against the wrong project.
+- The production Auth email-delivery rate-limit and capability-scoped full-browser pilot remain pending authorized SATprep production access. No capability, credential, or launch gate was bypassed.
+- Public indexing, public billing, live payments, first-party marketing measurement, outbound marketing, external publishing, and unreviewed-content activation remain disabled.
