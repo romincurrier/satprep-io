@@ -16,6 +16,7 @@ This additive log records autonomous commercial-readiness work without replacing
 - A subsequent production-state check confirmed the current `main` deployment is READY. Its build tail again shows the launch, regression, acceptance-flow, parent-progress, admin-operations, billing-security, learning-authority, pilot-output, and browser secret-boundary validators passing.
 - Vercel's last-24-hours grouped runtime errors initially contained only five older Node `DEP0169 url.parse()` deprecation warnings from the self-pilot endpoints, last seen 2026-08-29; a fresh third-cycle check on 2026-08-30 returned no runtime errors in the selected 24-hour window.
 - A later same-day production check again found the current deployment READY and no runtime errors in the selected prior-24-hour window. No launch-authority checkbox changed during the private staging-content work described below.
+- Before the latest content QA cycle, Vercel again reported the current production deployment READY, the complete diagnostic/practice/learning/parent/admin/billing/launch/regression/pilot/secret-boundary validation chain passed in the build tail, and the selected prior-two-hour runtime-error query returned no runtime errors.
 
 ### Question-bank AI QA
 
@@ -39,8 +40,15 @@ This additive log records autonomous commercial-readiness work without replacing
 - Current College Board Reading and Writing specifications were rechecked before the next batch and still list Standard English Conventions with the `Boundaries` testing point, including punctuation choices that complete text according to Standard English conventions.
 - AI QA then covered all 14 `boundaries` drafts. Pre-review ambiguity screening repaired five choice sets before they were allowed to pass: one practice item had both a period and semicolon as conventionally valid answers, while four other items contained punctuation distractors that could support a defensible alternate reading. The repaired drafts received new canonical hashes and were rechecked before the AI records were written.
 - All 14 repaired/current `boundaries` drafts now pass AI accuracy, alignment, answer-key, and ambiguity review. Seven author difficulty ratings were recalibrated: five direct convention-recognition items moved to Easy and two direct independent-clause items moved from Hard to Medium.
-- AI-review coverage is now 84 of 434 items; 350 remain. Current advisory summary: 84 PASS / 0 REVISE / 0 REJECT / 0 NEEDS HUMAN REVIEW, 39 total difficulty changes, 41 Easy / 43 Medium / 0 Hard, with 39 Medium-priority and 45 Normal-priority human-review records.
-- A final exported-workbook validation after all repairs confirmed: 434 question rows, zero canonical hash mismatches, zero production-approved staging rows, zero non-`draft_unreviewed` staging rows, 84 completed AI Review records, and zero hash/policy/priority/timestamp validation errors among those completed AI records.
+- AI-review coverage reached 84 of 434 items; 350 remained. At that point the advisory summary was 84 PASS / 0 REVISE / 0 REJECT / 0 NEEDS HUMAN REVIEW, 39 total difficulty changes, 41 Easy / 43 Medium / 0 Hard, with 39 Medium-priority and 45 Normal-priority human-review records.
+- A structural defect in the `AI Review` worksheet was then repaired: the old `ARRAYFORMULA` in the content-hash column collided with explicit immutable review-time hashes and produced a `#REF!`. The spill behavior was removed from the reviewed range while explicit hash snapshots were preserved; a full-sheet check then returned zero `#REF!` cells.
+- AI QA then covered all 14 `central-ideas-details` drafts. All passed accuracy, alignment, answer-key, ambiguity, and editorial/accessibility review. Ten advisory difficulty ratings changed: six Medium-to-Easy and four Hard-to-Medium. The ledger advanced to 98 reviewed / 336 remaining / 98 PASS, with 49 total difficulty changes and a reviewed mix of 51 Easy / 47 Medium / 0 Hard.
+- Current College Board Reading and Writing specifications were rechecked before the next batch and continue to list `Command of Evidence` under Information and Ideas, including the Textual testing point requiring students to determine textual evidence that best supports a specified claim or point.
+- AI QA then inspected all 14 `command-evidence-textual` drafts. Their answer keys, skill/domain/exam alignment, and distractor logic were sound, but all 14 shared a generic explanation that merely repeated an evidence-selection rule and did not identify the item-specific decisive evidence/result. That violated the repository's instructional-explanation standard, especially for practice content.
+- The 14 `command-evidence-textual` explanations were rewritten in the private staging bank to identify the decisive evidence, show why it supports the stated claim, state the correct result, and distinguish setup/control details from supporting evidence. Every material edit received a newly generated canonical SHA-256 `content_hash` before final AI review.
+- All 14 repaired `command-evidence-textual` drafts now pass AI accuracy, alignment, answer-key, ambiguity, and editorial/accessibility review. Ten advisory difficulty ratings changed: six Medium-to-Easy and four Hard-to-Medium; the four original Easy items remained Easy.
+- Post-write verification shows 112 reviewed / 322 remaining / 112 PASS / 0 REVISE / 0 REJECT / 0 NEEDS HUMAN REVIEW, 59 total difficulty changes, 59 Medium-priority and 53 Normal-priority human-review records, and a reviewed difficulty mix of 61 Easy / 51 Medium / 0 Hard.
+- The exact repaired question rows were re-read with `qa_status='draft_unreviewed'` and `production_approved=FALSE`; a whole-bank scan of the 434 `production_approved` cells returned zero TRUE values, and a full `AI Review` scan returned zero `#REF!` cells.
 - No AI review was represented as independent human approval. No question was imported, activated, production-approved, or externally published.
 
 ### Pilot/browser status
@@ -53,7 +61,7 @@ This additive log records autonomous commercial-readiness work without replacing
 
 ### Follow-up priorities
 
-1. Continue AI review of the 350 remaining unapproved expansion-bank drafts and isolate systematic editorial/calibration defects before human review.
+1. Continue AI review of the 322 remaining unapproved expansion-bank drafts and isolate systematic editorial/calibration defects before human review.
 2. Keep running whole-workbook canonical-hash and AI-record integrity checks after every content edit/review batch so advisory reviews cannot drift from the exact drafts they describe.
 3. Resolve the production Auth email-delivery rate-limit/SMTP path when the SATprep Supabase project is available through an authorized connector.
 4. Run a fresh capability-scoped full browser pilot after a fresh service-only pilot enrollment can be authorized, then reconcile rendered checkpoints with parent/admin database state.
