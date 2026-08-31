@@ -1,6 +1,6 @@
 # SATprep.io AI Content Review Agent
 
-Updated: 2026-08-28
+Updated: 2026-08-30
 
 ## Purpose
 
@@ -113,6 +113,16 @@ Each review record must include:
 - `reviewed_at`
 
 The record must be pinned to the exact current `content_hash`. If the item changes, the AI review is stale and must be rerun.
+
+## Spreadsheet write discipline
+
+The private expansion workbook intentionally separates mirrored authoring metadata from immutable review-time outputs. In the `AI Review` sheet, column `A` and columns `C:J` are populated by `ARRAYFORMULA` from the `Questions` sheet. Column `B` is the explicit review-time `content_hash`, and columns `K:Y` are the AI-review outputs.
+
+For normal review writes, the agent must therefore write **only column B and columns K:Y**. It must not place literal values into A or C:J, because doing so blocks the array spill and can turn the metadata formulas into `#REF!` errors. It must never replace or clear the formula anchors in row 2.
+
+Before a batch, confirm the mirrored metadata is healthy. After every batch write, scan the full `AI Review` range for `#REF!` and verify the reviewed rows still show the expected mirrored author metadata. If an accidental literal blocks a spill, clear only the unintended literal cells after confirming that the row-2 formula anchors are intact; do not rewrite the mirrored values manually.
+
+When an item itself needs a staging correction, edit only the necessary fields on `Questions`, regenerate the canonical content hash, re-read the exact edited row, and leave `qa_status='draft_unreviewed'` and `production_approved=FALSE`. Any content edit makes a prior AI review stale and requires a fresh review bound to the new hash.
 
 ## Separation from production approval
 
