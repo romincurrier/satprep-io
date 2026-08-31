@@ -85,3 +85,30 @@ This additive log records autonomous commercial-readiness work without replacing
 - SATprep production Supabase access remains unavailable through the connected Supabase workspace; only the unrelated Marketing OS project is exposed, so no database/Auth/RLS changes were attempted against the wrong project.
 - The production Auth email-delivery rate-limit and capability-scoped full-browser pilot remain pending authorized SATprep production access. No capability, credential, or launch gate was bypassed.
 - Public indexing, public billing, live payments, first-party marketing measurement, outbound marketing, external publishing, and unreviewed-content activation remain disabled.
+
+## 2026-08-30 — inference construct and explanation repair
+
+### Question-bank AI QA
+
+- The next 14 unreviewed Reading and Writing `inferences` drafts were inspected against the current College Board SAT Suite stem and skill definition before AI review. The current Student Question Bank lists Inferences under Information and Ideas and uses the stem `Which choice most logically completes the text?`.
+- A systematic format/instructional defect was found across all 14 drafts: they used `Which choice most logically follows from the text?` without a completion blank, and every item shared the same generic inference explanation. The underlying passages, keys, and distractor logic were otherwise sound.
+- All 14 staging drafts were repaired before final AI review. Each now presents a final completion blank, uses the current official-style completion stem, and has an item-specific teaching explanation identifying the decisive evidence and why the keyed inference is appropriately limited. Each material edit received a newly generated canonical SHA-256 `content_hash` and the exact edited rows were re-read after write.
+- All 14 repaired/current Inferences drafts passed AI accuracy, alignment, answer-key, ambiguity, and editorial/accessibility QA. Nine author difficulty ratings changed: five Medium items and all four author-rated Hard items were recalibrated to Easy; the bus-route synthesis item remained Medium. This reflects actual reasoning demand rather than preserving the authored distribution.
+- Advisory coverage is now 140 of 434 reviewed / 294 remaining / 140 PASS / 0 REVISE / 0 REJECT / 0 NEEDS HUMAN REVIEW, with 78 total difficulty changes, 78 Medium-priority and 62 Normal-priority human-review records, and a reviewed difficulty mix of 88 Easy / 52 Medium / 0 Hard.
+- The current 140-item reviewed sample still contains zero AI-rated Hard items despite many author-rated Hard labels. This is now an explicit content-quality risk: the staging generator's nominal difficulty distribution is not producing genuinely hard reasoning often enough. Human review should not be asked to preserve the authored Hard labels; later authoring/augmentation should add genuinely complex items before commercial depth can be considered satisfied.
+- A whole-bank recheck of all 434 `production_approved` cells again found zero TRUE values. No AI review was represented as independent human approval, and no question was imported, activated, production-approved, or externally published.
+
+### Production, pilot, and access checks
+
+- Before this staging-only content edit, the current production deployment was READY, its build tail showed the diagnostic, practice, adaptive-learning, trusted-learning, acceptance-flow, parent-progress, admin, billing, launch, regression, pilot-output, and browser secret-boundary validators passing, and the selected prior-two-hour production runtime-error query returned no errors.
+- The connected Supabase workspace still exposes only the unrelated Marketing OS project, not SATprep.io production project `ataaiocpbjavmdpgmzlv`; no database, Auth, RLS, SMTP, or pilot-capability change was attempted against the wrong project.
+- The production Auth email-delivery rate-limit and capability-scoped rendered-browser pilot remain pending authorized SATprep production access. No capability, credential, or launch gate was bypassed.
+- Public indexing, public billing, live payments, first-party marketing measurement, outbound marketing, external publishing, and unreviewed-content activation remain disabled.
+
+### Updated follow-up priorities
+
+1. Continue AI review of the 294 remaining unapproved expansion-bank drafts, while flagging systematic difficulty under-calibration and replacing/augmenting nominal Hard items that do not meet the rubric.
+2. Keep canonical-hash and AI-record integrity checks tied to the exact drafts after every material edit.
+3. Resolve the production Auth email-delivery/SMTP path only when the SATprep Supabase project is available through an authorized connector.
+4. Run a fresh capability-scoped rendered-browser pilot after a fresh service-only pilot enrollment can be authorized, then reconcile the parent/student journey with parent/admin trusted state.
+5. Keep all commercial content inactive until independent human review, cross-bank duplicate screening, reviewed-version hashes, inactive import, runtime QA, and explicit activation gates are complete.
