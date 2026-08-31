@@ -1,6 +1,6 @@
 # SATprep.io AI Content Review Agent
 
-Updated: 2026-08-30
+Updated: 2026-08-31
 
 ## Purpose
 
@@ -138,6 +138,8 @@ The agent may recommend content for human review, but it may never:
 
 ## Escalation rules
 
-Human review is `critical` when the answer key appears wrong or the item should be rejected; `high` for ambiguity or required revision; `medium` when the difficulty changes, confidence is below 0.85, or the AI cannot confidently resolve alignment; otherwise `normal`.
+The rubric-computed human-review priority is a **minimum floor**, not a maximum. It is `critical` when the answer key appears wrong or the item should be rejected; `high` for ambiguity or required revision; `medium` when the difficulty changes, confidence is below 0.85, or the AI cannot confidently resolve alignment; otherwise `normal`.
+
+A review may be conservatively escalated above that minimum—for example, a `pass_ai_qa` item that required a substantive pre-review repair may be routed to `high` so an independent human sees it early. The priority must never be reduced below the rubric minimum. Conservative escalation remains advisory routing only and does not constitute human approval.
 
 The safest operating model is to use this agent to reduce the human-review burden: humans can start with the critical/high/medium queue, while `pass_ai_qa` items still wait for the required human approval before commercial activation.
