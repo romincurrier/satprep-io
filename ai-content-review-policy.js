@@ -12,6 +12,7 @@ export const AI_REVIEW_DECISIONS = Object.freeze([
 ]);
 
 export const DIFFICULTY_LEVELS = Object.freeze(['easy', 'medium', 'hard']);
+export const HUMAN_REVIEW_PRIORITIES = Object.freeze(['normal', 'medium', 'high', 'critical']);
 
 export const ITEM_REVIEW_DIMENSIONS = Object.freeze({
   accuracy: {
@@ -73,11 +74,21 @@ export const REVIEW_OUTPUT_FIELDS = Object.freeze([
   'reviewed_at'
 ]);
 
+// Returns the minimum human-review priority required by the machine rubric.
+// Review records may be escalated above this floor for conservative routing after
+// substantive pre-review repairs or other material concerns, but may never be
+// de-escalated below it.
 export function humanReviewPriority({decision, confidence, difficultyChanged, ambiguityFlag, answerKeyValid}) {
   if (decision === 'reject' || answerKeyValid === false) return 'critical';
   if (decision === 'revise' || ambiguityFlag === true) return 'high';
   if (decision === 'needs_human_review' || difficultyChanged === true || Number(confidence) < 0.85) return 'medium';
   return 'normal';
+}
+
+export function isHumanReviewPriorityAtLeastMinimum(actual, minimum) {
+  const actualRank = HUMAN_REVIEW_PRIORITIES.indexOf(String(actual ?? '').trim().toLowerCase());
+  const minimumRank = HUMAN_REVIEW_PRIORITIES.indexOf(String(minimum ?? '').trim().toLowerCase());
+  return actualRank >= 0 && minimumRank >= 0 && actualRank >= minimumRank;
 }
 
 export function canEverCountAsHumanApproval() {
