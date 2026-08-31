@@ -5,7 +5,8 @@ import {
   AI_REVIEW_VERSION,
   DIFFICULTY_LEVELS,
   REVIEW_OUTPUT_FIELDS,
-  humanReviewPriority
+  humanReviewPriority,
+  isHumanReviewPriorityAtLeastMinimum
 } from '../ai-content-review-policy.js';
 
 const file = process.argv[2];
@@ -72,15 +73,18 @@ for (let index = 0; index < rows.length; index += 1) {
   const confidence = Number(row.ai_confidence);
   if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) errors.push(`Row ${rowNumber} (${itemId}): ai_confidence must be between 0 and 1.`);
 
-  const expectedPriority = humanReviewPriority({
+  const minimumPriority = humanReviewPriority({
     decision: clean(row.ai_decision),
     confidence,
     difficultyChanged: changed,
     ambiguityFlag,
     answerKeyValid
   });
-  if (clean(row.human_review_priority) !== expectedPriority) {
-    errors.push(`Row ${rowNumber} (${itemId}): human_review_priority should be ${expectedPriority}.`);
+  const actualPriority = clean(row.human_review_priority).toLowerCase();
+  if (!isHumanReviewPriorityAtLeastMinimum(actualPriority, minimumPriority)) {
+    errors.push(`Row ${rowNumber} (${itemId}): human_review_priority must be ${minimumPriority} or more conservative.`);
+  } else if (actualPriority !== minimumPriority) {
+    warnings.push(`Row ${rowNumber} (${itemId}): human_review_priority is conservatively escalated from ${minimumPriority} to ${actualPriority}.`);
   }
   if (!clean(row.ai_notes)) warnings.push(`Row ${rowNumber} (${itemId}): ai_notes is blank.`);
   if (!/^\d{4}-\d{2}-\d{2}T/.test(clean(row.reviewed_at))) errors.push(`Row ${rowNumber} (${itemId}): reviewed_at must be an ISO timestamp.`);
