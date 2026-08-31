@@ -1,6 +1,6 @@
 # SATprep.io Commercial Launch Readiness Checklist
 
-Updated: 2026-08-28
+Updated: 2026-08-31
 
 This file is the single operating checklist for commercial launch readiness. `docs/COMMERCIAL_LAUNCH_RUNBOOK.md` remains the detailed procedure; this checklist tracks what is actually complete and what still blocks launch.
 
@@ -60,6 +60,10 @@ This file is the single operating checklist for commercial launch readiness. `do
 
 **Authoring expansion (2026-08-28):** a separate private Google Sheets expansion bank now contains **434 additional original, unapproved drafts**, independently covering all 31 skill keys at the current authoring-depth target (6 diagnostic + 8 practice per skill) with diagnostic 2/2/2 and practice 2/4/2 difficulty distribution, plus **70 Math SPR items (25% of the 280 Math drafts)**. Automated within-wave validation confirms 434 unique IDs, exact content hashes, zero exact duplicates and zero near-duplicate pairs at the current importer threshold, and all rows `qa_status='draft_unreviewed'` / `production_approved=FALSE`. The prior 94-item bank remains separate because it is not accessible through the current Drive connection; **cross-bank duplicate screening and merge are still required before treating the combined staged inventory as unique**. No item was imported, approved, activated, or externally published.
 
+**AI advisory review progress (2026-08-31):** the 434-item expansion bank is now **196/434 AI-reviewed, with 238 remaining**. The advisory ledger currently shows **196 PASS / 0 REVISE / 0 REJECT / 0 NEEDS HUMAN REVIEW**, **104 difficulty changes**, human-review priority of **0 Critical / 11 High / 103 Medium / 82 Normal**, and a reviewed difficulty mix of **126 Easy / 62 Medium / 8 Hard**. The latest Cross-Text Connections batch repaired generic explanations across all 14 items and substantively strengthened four nominal-Hard items into original qualified author-response tasks before re-review. Those four remain high-priority for independent human review. AI QA is not human approval and does not satisfy the independent commercial-review gate.
+
+**Current staging integrity (2026-08-31):** exact post-write checks show **0/434 `production_approved=TRUE`** and zero `#REF!` cells in the AI Review range. Every edited Cross-Text Connections draft remains `qa_status='draft_unreviewed'`; its advisory review is pinned to the newly generated canonical SHA-256 hash. No reviewed staging item has been imported or activated.
+
 - [ ] Reach the commercial depth target for every exam-eligible skill: at least 6 approved diagnostic items and 8 approved practice items per skill, with required difficulty distribution.
 - [ ] Maintain sufficient Math student-produced-response representation in the reviewed bank.
 - [ ] Complete independent review for every launch item across accuracy, alignment, editorial, bias/accessibility, and originality.
@@ -104,6 +108,8 @@ This file is the single operating checklist for commercial launch readiness. `do
 **Synthetic pilot-agent status (2026-08-28):** the admin-only `pilot-agent-v1` harness is deployed and build-validated. It can create separately flagged synthetic parent/student Auth identities, verify their password authentication server-side, execute a deterministic 20-item QA-fixture diagnostic simulation, derive synthetic learning priorities, run targeted staged-fixture practice on two weak skills, record `test_runs`/`test_events`, and remove the synthetic family. It does **not** use or modify commercial content tables, billing state, or production approval fields. The first authenticated admin-triggered live pilot run remains open, and this harness does not satisfy the separate browser-level secure-v3 acceptance items above.
 
 **Live family pilot readiness (2026-08-28):** the human-operated `live-pilot-v1` path is deployed and production-build validated. A one-time enrollment, **Live Family Pilot #1**, is open but unclaimed. The path requires the parent to use the normal signup flow, creates the child through the normal household workflow, activates a real child login, routes only the exactly marked pilot child to the internal original QA diagnostic/materials, bridges the resulting diagnostic priorities into the normal adaptive learning-path ordering, and exposes diagnostic, mastery, lesson, question-attempt, Journey XP/level, achievement, and timeline state to an administrator-only monitor that refreshes every five seconds. The pilot ledger is RLS-enabled with no browser policies or anon/authenticated grants. The live-pilot billing bypass applies only to the matching claimed test household/student and does not affect normal customer activation. **No human has completed this run yet**, and QA-fixture use does not satisfy independent content approval or the separate secure-v3 reviewed-content acceptance gate.
+
+**Current pilot execution constraint (2026-08-31):** the authorized Supabase connector exposes only unrelated project `mirslobrzxdxvkgqlyht` (`Marketing OS Project`) and does not expose SATprep.io production project `ataaiocpbjavmdpgmzlv`. A fresh capability-scoped service-only pilot enrollment therefore cannot be safely minted or inspected from this runner, and the rendered browser pilot was not bypassed. This is recorded as an access/runner limitation rather than a product failure; normal signup's previously observed production email-delivery/rate-limit blocker also remains pending authorized SATprep production Auth/SMTP access.
 
 ## 3. Final trusted-learning authority lock
 
