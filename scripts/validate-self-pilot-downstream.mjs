@@ -14,7 +14,9 @@ need(/selfpilot\\\.parent/,'Downstream parent identity must stay in the reserved
 need(/@satprep\\\.io/,'Downstream synthetic identities must remain project-owned satprep.io addresses.');
 need(/\/auth\/v1\/admin\/users/,'Test-only fallback provisioning must use the server-side Auth admin boundary.');
 need(/signup_checkpoint:'blocked_by_auth_email_rate_limit'/,'Downstream continuation must preserve the real signup failure rather than convert it to a pass.');
+need(/browser_parent_signup_screen[^\n]+pass:false/,'Downstream continuation must not report prior signup-screen evidence as a current-run pass.');
 need(/browser_parent_signup_completion[^\n]+pass:false/,'Normal parent signup completion must remain a failed checkpoint while the email limiter blocks it.');
+need(/filter\(x=>!\['browser_parent_signup_screen','browser_parent_signup_completion'\]\.includes\(x\.name\)\)/,'Downstream status must exclude both unexecuted signup checkpoints rather than count historical evidence in a current run.');
 need(/#childFirst/,'Downstream pilot must exercise child creation UI.');
 need(/#activateStudentConfirm/,'Downstream pilot must exercise student activation UI.');
 need(/#onboard/,'Downstream pilot must exercise learner onboarding UI.');
@@ -37,4 +39,4 @@ if(pkg.dependencies?.['@vercel/sandbox']!=='3.2.0')errors.push('@vercel/sandbox 
 if(vercel.functions?.['api/full-browser-self-pilot-downstream.js']?.maxDuration!==300)errors.push('Downstream browser function must have a bounded 300-second duration.');
 
 if(errors.length){for(const error of errors)console.error(`Downstream self-pilot validation error: ${error}`);process.exit(1)}
-console.log('Downstream browser self-pilot guard passed: test-only provisioning, real browser coverage, preserved signup failure, billing/content isolation, and one-shot enrollment closure are enforced.');
+console.log('Downstream browser self-pilot guard passed: test-only provisioning, fresh current-run evidence accounting, real browser coverage, preserved signup failure, billing/content isolation, and one-shot enrollment closure are enforced.');
