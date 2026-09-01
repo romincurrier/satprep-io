@@ -50,6 +50,8 @@ Use current College Board SAT Suite specifications to confirm the skill construc
 
 For Reading and Writing Inferences, the current official-style stem is `Which choice most logically completes the text?`; items should require a defensible inference from stated and implied evidence. Medium/Hard coverage should include meaningful synthesis and plausible competing interpretations, with causal or chronological claims appropriately hedged when the evidence does not establish certainty.
 
+For Reading and Writing Text Structure and Purpose, the current official-style task asks for the function of a specified/underlined portion in the text as a whole. Medium/Hard items should require the reader to connect the target portion to the passage's larger rhetorical progression—for example, introducing a source limitation or competing mechanism that later evidence addresses, provisionally supporting an interpretation that is subsequently qualified, or supplying evidence that reconciles an apparent contradiction. Do not create difficulty by merely lengthening the passage or by attaching an obvious label such as `provides an example` to a sentence whose role is explicit in isolation.
+
 ## Production separation
 
 Staging edits are not production content changes. They must not change Supabase commercial content tables, Auth, RLS, billing, public indexing, marketing measurement, outbound marketing, or external publication. If the authorized Supabase connection does not expose the SATprep production project, do not use or modify another project as a substitute.
