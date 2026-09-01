@@ -30,6 +30,10 @@ The live family pilot exercises the normal parent and student customer journey w
 - Administrator monitoring must attribute learner state only to the exact selected `live-pilot:<enrollment-id>` student label. Household membership or a generic `is_test_student=TRUE` marker is not sufficient evidence because a test household can contain more than one student record.
 - The commercial-content database checkpoint is a launch-safety check, not an empty-table check. It fails when any commercial `content_items` row is active without `qa_status='production_approved'`. Inactive reviewed/staged rows and inactive approved rows do not by themselves fail the pilot. The pilot still may not create, approve, import, activate, or otherwise mutate commercial content.
 
+## Latest integrity QA
+
+On 2026-09-01, monitor attribution was hardened after QA found that the household fallback could select a generic test student when a pilot enrollment had no `student_id`. The monitor now requires both `is_test_student=TRUE` and the exact `live-pilot:<enrollment-id>` label for the selected enrollment, including when an enrollment already stores a student ID. The production build validator permanently guards this invariant. No billing, content-approval, launch-gate, Auth, or RLS state was changed by this fix.
+
 ## Safety boundary
 
 - `pilot_enrollments` is service-only, RLS-enabled and has no browser policies or anon/authenticated grants.
