@@ -44,6 +44,16 @@ Each reordered item received a fresh advisory AI answer-key and ambiguity rechec
 
 During verification, a secondary XLSX importer materialized true blank cells as placeholder strings and falsely suggested five stale hashes in `linear-equations-one-variable`. Native Google Sheets values showed those cells were blank and the original five hashes were correct; the temporary diagnostic hash writes were immediately reverted before completion. This runner/tooling discrepancy did not change question content or review status and is now explicitly guarded by the native-sheet verification rule above.
 
+## 2026-09-01 Systems of Linear Equations follow-up
+
+A subsequent contained pass found the 10-MCQ subset of `systems-linear-equations` concentrated at A=0, B=2, C=6, D=2. Three unapproved items were repaired solely by reordering their existing answer choices: two correct options moved from C to A and one moved from C to B. No stimulus, stem, substantive correct answer, distractor wording, explanation, construct, exam eligibility, or difficulty was changed. The MCQ subset now stands at **A=2, B=3, C=3, D=2**.
+
+All three reordered items received fresh advisory AI answer-key and ambiguity rechecks and remain `pass_ai_qa`; the review remains advisory and is not human approval. New canonical SHA-256 bindings were independently recomputed and written identically to the question and advisory-review rows, and immediate native-sheet readback confirmed the intended choices, letters, hashes, `draft_unreviewed` status, and `production_approved=FALSE` state.
+
+Full-bank regression after the repair confirms **434 staged / 434 advisory-AI reviewed / 434 PASS / 0 remaining**, **0 production-approved expansion items**, **0 authored-versus-AI difficulty-change flags**, and the unchanged advisory difficulty mix of **124 Easy / 186 Medium / 124 Hard**. All 434 question/review hashes match. Independent canonical recomputation across the exported bank resolves to 0 mismatches when the already documented native-Sheets blank/null rule is applied; the secondary XLSX path again materialized some true blank cells as placeholder values, so native Sheets remains authoritative for blank-cell semantics. No spreadsheet error value is present, and the full stimulus/stem duplicate screen remains at **0 pairs at or above 0.96 token-Jaccard**, with maximum observed similarity approximately **0.933**. Because only option order changed, prompt-level duplicate similarity is substantively unchanged.
+
+The full 364-MCQ answer-position distribution is now **A=89, B=129, C=99, D=47**. The broader B-heavy/D-light skew remains an open staging-QA item for future contained passes; it must continue to be reduced only through safe choice ordering and never by changing substantive answers or bypassing independent review.
+
 ## Production separation
 
 Answer-position staging QA must not modify Supabase commercial content tables, Auth, RLS, billing, public indexing, first-party marketing measurement, outbound marketing, or external publication. If the authorized Supabase connection does not expose the SATprep production project, do not use another project as a substitute. Browser-pilot execution that depends on unavailable production service-only credentials remains a runner/access limitation rather than a product failure.
