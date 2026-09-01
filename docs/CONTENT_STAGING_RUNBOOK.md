@@ -40,8 +40,10 @@ After every content write:
 - Search the workbook for `#REF!` and other spreadsheet error values.
 - Verify the edited `Questions.content_hash` exactly matches the matching `AI Review.content_hash`.
 - Recompute the canonical hash from the stored/displayed question values, not from a pre-write local draft.
+- After each content-edit batch, independently recompute the canonical hash for **every staged item** and compare it to both `Questions.content_hash` and `AI Review.content_hash`; equality between two stored hashes is not sufficient evidence that either hash still binds the current content.
 - Verify answer-key uniqueness and ambiguity, section/domain/skill alignment, exam eligibility, editorial/accessibility quality, and advisory difficulty.
 - Run exact/near-duplicate screening at the importer threshold (0.96 token Jaccard) within the affected skill and retain the broader within-bank duplicate guard.
+- Treat identical or near-identical stimulus/stem prompts across diagnostic and practice pools as duplicates even when the response format, answer-entry method, or distractor set differs; a format change does not create a distinct question.
 - Keep AI difficulty calibration explicitly advisory and escalate stronger/harder items for independent human review rather than treating AI confidence as approval.
 
 ## Difficulty and construct QA
