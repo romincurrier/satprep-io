@@ -27,6 +27,7 @@ The live family pilot exercises the normal parent and student customer journey w
 - `downstream_overall` evaluates only the downstream checkpoints actually exercised after the test-only provisioning boundary; it excludes both signup checkpoints rather than converting historical signup evidence into fresh evidence.
 - `signup_overall` remains separate and must not be inferred from a downstream pass. A downstream pass therefore proves the executed parent-login-through-parent-progress path, not completion of normal parent signup.
 - Administrator monitoring remains a separate authenticated-admin acceptance surface. The self-pilot must not manufacture or elevate a synthetic administrator merely to turn that checkpoint green.
+- The commercial-content database checkpoint is a launch-safety check, not an empty-table check. It fails when any commercial `content_items` row is active without `qa_status='production_approved'`. Inactive reviewed/staged rows and inactive approved rows do not by themselves fail the pilot. The pilot still may not create, approve, import, activate, or otherwise mutate commercial content.
 
 ## Safety boundary
 
