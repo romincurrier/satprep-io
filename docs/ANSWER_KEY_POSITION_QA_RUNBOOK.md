@@ -17,6 +17,7 @@ Correct-answer position is not part of the SAT/PSAT content construct, but sever
 - Leave formula-owned `AI Review` columns untouched and preserve all human-review fields.
 - Re-read the stored row after each write and confirm that the correct option now occupies the intended position and that the explanation still supports that option without relying on a stale choice letter.
 - After each batch, run the normal staging regression: 434 staged / 434 AI-reviewed / 0 remaining, no production-approved expansion item, no spreadsheet errors, full-bank canonical-hash recomputation, question/review hash equality, and duplicate screening at the 0.96 token-Jaccard threshold.
+- Canonical verification must be based on the native Google Sheets stored/displayed values. Treat true blank Sheets cells as null for `canonicalReviewContent` semantics; do not treat placeholder values materialized by a secondary workbook importer as source content. When an export/import tool disagrees with the native sheet on a blank cell, verify against the native sheet before changing stored hashes.
 
 ## Distribution rule
 
@@ -34,6 +35,14 @@ The initial 364-MCQ expansion bank showed a material answer-position skew: A=96,
 After those contained repairs, the full 364-MCQ distribution is A=93, B=128, C=99, D=44. The bank-wide B-heavy/D-light pattern therefore remains an open staging-QA item for future contained passes; it is not a reason to alter correct answers, bypass independent review, or activate content. The two repaired skills now have no severe local concentration.
 
 Post-write verification for this cycle confirmed 434/434 staged items remain `draft_unreviewed`, 0/434 are production-approved, 434/434 advisory reviews remain `pass_ai_qa`, advisory difficulty remains 124 Easy / 186 Medium / 124 Hard with zero difficulty-change flags, question/review hashes match, canonical recomputation is valid across all 434 items when true blank Google Sheets cells are treated as null, no spreadsheet formula errors are present, and no stimulus/stem pair reaches the 0.96 duplicate threshold (maximum observed similarity approximately 0.933).
+
+## 2026-09-01 Command of Evidence (Quantitative) follow-up
+
+A second contained answer-position pass found `command-evidence-quantitative` concentrated at A=10, B=2, C=1, D=1. Six unapproved items were repaired solely by reordering their existing choices: three correct options moved from A to C and three from A to D. No substantive answer, distractor wording, stimulus, stem, construct, exam eligibility, or difficulty was changed. The skill now stands at A=4, B=2, C=4, D=4.
+
+Each reordered item received a fresh advisory AI answer-key and ambiguity recheck and remains `pass_ai_qa`; AI review is not human approval. Post-write native-sheet verification confirms 434/434 items remain `draft_unreviewed`, 0/434 are production-approved, 434/434 advisory reviews remain PASS, difficulty remains 124 Easy / 186 Medium / 124 Hard with zero difficulty-change flags, all 434 canonical SHA-256 hashes bind the current native-sheet content and match the corresponding AI-review hash, and no spreadsheet-error value is present. A full stimulus/stem duplicate screen still finds 0 pairs at or above the 0.96 token-Jaccard threshold, with maximum observed similarity approximately 0.933. The full 364-MCQ distribution is now A=87, B=128, C=102, D=47, so the broader B-heavy/D-light pattern remains an open staging-QA item for future contained passes.
+
+During verification, a secondary XLSX importer materialized true blank cells as placeholder strings and falsely suggested five stale hashes in `linear-equations-one-variable`. Native Google Sheets values showed those cells were blank and the original five hashes were correct; the temporary diagnostic hash writes were immediately reverted before completion. This runner/tooling discrepancy did not change question content or review status and is now explicitly guarded by the native-sheet verification rule above.
 
 ## Production separation
 
