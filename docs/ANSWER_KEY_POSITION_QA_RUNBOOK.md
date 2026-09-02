@@ -1,6 +1,6 @@
 # SATprep.io Answer-Key Position QA Runbook
 
-Updated: 2026-09-01
+Updated: 2026-09-02
 
 This runbook governs answer-position QA for the private SAT/PSAT multiple-choice staging bank. It does not authorize human approval, commercial import, activation, publication, or any other launch-gate change.
 
@@ -16,6 +16,7 @@ Correct-answer position is not part of the SAT/PSAT content construct, but sever
 - Recompute the canonical SHA-256 content hash after every choice reorder and write the same current hash to `Questions.content_hash` and the matching writable `AI Review.content_hash` cell.
 - Leave formula-owned `AI Review` columns untouched and preserve all human-review fields.
 - Re-read the stored row after each write and confirm that the correct option now occupies the intended position and that the explanation still supports that option without relying on a stale choice letter.
+- Do not encode a meaningful answer choice solely through leading/trailing whitespace. The reviewed-content importer normalizes cell strings with `trim()`, so a whitespace-dependent display value can hash differently before and after import normalization. Use an explicit semantic label such as `no punctuation ... no punctuation` when the absence of punctuation is itself the choice.
 - After each batch, run the normal staging regression: 434 staged / 434 AI-reviewed / 0 remaining, no production-approved expansion item, no spreadsheet errors, full-bank canonical-hash recomputation, question/review hash equality, and duplicate screening at the 0.96 token-Jaccard threshold.
 - Canonical verification must be based on the native Google Sheets stored/displayed values. Treat true blank Sheets cells as null for `canonicalReviewContent` semantics; do not treat placeholder values materialized by a secondary workbook importer as source content. When an export/import tool disagrees with the native sheet on a blank cell, verify against the native sheet before changing stored hashes.
 
@@ -46,7 +47,7 @@ During verification, a secondary XLSX importer materialized true blank cells as 
 
 ## 2026-09-01 Systems of Linear Equations follow-up
 
-A subsequent contained pass found the 10-MCQ subset of `systems-linear-equations` concentrated at A=0, B=2, C=6, D=2. Three unapproved items were repaired solely by reordering their existing answer choices: two correct options moved from C to A and one moved from C to B. No stimulus, stem, substantive correct answer, distractor wording, explanation, construct, exam eligibility, or difficulty was changed. The MCQ subset now stands at **A=2, B=3, C=3, D=2**.
+A subsequent contained pass found the 10-MCQ subset of `systems-linear-equations` concentrated at A=0, B=2, C=6, D=2. Three unapproved items were repaired solely by reordering their existing answer choices: two correct options moved from C to A and one moved from C to B. No stimulus, stem, substantive correct answer, distractor wording, explanation, construct, exam eligibility, or difficulty changed. The MCQ subset now stands at **A=2, B=3, C=3, D=2**.
 
 All three reordered items received fresh advisory AI answer-key and ambiguity rechecks and remain `pass_ai_qa`; the review remains advisory and is not human approval. New canonical SHA-256 bindings were independently recomputed and written identically to the question and advisory-review rows, and immediate native-sheet readback confirmed the intended choices, letters, hashes, `draft_unreviewed` status, and `production_approved=FALSE` state.
 
@@ -85,6 +86,14 @@ Each reordered item received a fresh advisory AI answer-key and ambiguity rechec
 Post-write native CSV regression confirms **434 staged items / 364 MCQ / 70 SPR**, **434/434 `draft_unreviewed`**, **0 production-approved expansion items**, and **0/434 stale canonical hashes** under the repository `canonicalReviewContent` semantics. The AI Review Summary remains **434 reviewed / 434 PASS / 0 remaining / 0 difficulty changes**, with the unchanged advisory difficulty mix of **124 Easy / 186 Medium / 124 Hard**. The four touched question/review hash pairs were re-read and match. A workbook-wide error-string scan found no spreadsheet error values in Questions, AI Review, Coverage, Instructions, Review Guide, or AI Review Summary. Full stimulus/stem screening remains at **0 pairs at or above 0.96 token-Jaccard**, with maximum observed similarity approximately **0.933**.
 
 The full 364-MCQ expansion distribution is now **A=88 / B=125 / C=99 / D=52**. The broader B-heavy pattern remains an open staging-QA item for future contained passes; it must continue to be reduced only through safe choice ordering and never by changing substantive answers or bypassing independent review.
+
+## 2026-09-02 Text Structure and Purpose + importer-normalization follow-up
+
+A contained pass found the 14-MCQ `text-structure-purpose` skill concentrated at **A=5 / B=8 / C=1 / D=0**. Five unapproved items were repaired through safe option ordering: four B-keyed items were moved to C/D positions and one A-keyed item was moved to D. Three explanations that named the old answer letter were made letter-neutral so the rationale could not become stale after reordering; the underlying reasoning did not change. Fresh advisory answer-key and ambiguity checks found one uniquely correct answer in every touched item. The skill now stands at **A=4 / B=4 / C=3 / D=3**.
+
+The same importer-equivalence audit exposed a separate staging defect in two `boundaries` rows. Their no-punctuation distractor was stored as the whitespace-dependent string ` ... `. The sheet's raw hash therefore matched the raw cell text, but the reviewed-content importer normalizes string cells with `trim()` before reconstructing the item, which would have changed that distractor to `...` and caused exact hash validation to fail at import time. Both unapproved distractors were rewritten explicitly as `no punctuation ... no punctuation`, leaving the correct answers (B and C), explanations, construct, difficulty, and exam eligibility unchanged. Fresh advisory AI checks remain PASS and the two rows were rebound to hashes computed with the same normalized semantics used by the importer.
+
+Full post-write regression confirms **434 staged / 364 MCQ / 70 SPR**, **434/434 `draft_unreviewed`**, **0 production-approved expansion items**, **434/434 advisory reviews PASS**, **0 difficulty-change flags**, and the unchanged advisory difficulty mix of **124 Easy / 186 Medium / 124 Hard**. Importer-equivalent canonical recomputation from the current native CSV reports **0/434 hash mismatches**, every Questions hash matches the corresponding writable AI Review hash, and a workbook-wide error-value scan found **0 spreadsheet errors**. Full stimulus/stem screening remains at **0 pairs at or above 0.96 token-Jaccard**, with maximum similarity approximately **0.933**. The full 364-MCQ distribution is now **A=87 / B=121 / C=101 / D=55**. The remaining B-heavy/D-light imbalance stays open for further contained staging QA; it is not a basis for changing substantive answers or bypassing independent human review.
 
 ## Production separation
 
