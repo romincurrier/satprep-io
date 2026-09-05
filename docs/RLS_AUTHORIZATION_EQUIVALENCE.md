@@ -1,6 +1,6 @@
 # SATprep.io RLS Authorization-Equivalence Baseline
 
-Updated: 2026-08-28
+Updated: 2026-09-05
 
 Purpose: preserve the current parent/student/admin isolation semantics while optimizing Supabase RLS policies. No RLS performance migration should be accepted unless these invariants are re-run against the production-equivalent schema before and after the change and the results are equivalent.
 
@@ -58,6 +58,17 @@ Ten additional InitPlan-only tranches were verified and applied to production wi
 - `parental_consents_reader_rls_initplan`: production contains one parental-consent row. The exact `consent_parties_read` predicate was evaluated before and after against the current administrator, linked parent, consent-owning student, and unrelated student identities. The administrator remained 0→0 through the changed reader predicate, the linked parent retained exactly 1→1 row, the consent-owning student retained exactly 1→1 row, and the unrelated student remained 0→0. `consent_parties_read` remains PERMISSIVE, default PUBLIC, `SELECT`, with no `WITH CHECK` and the same parent-or-student-party predicate; only `auth.uid()` evaluation changed to `(select auth.uid())`. The separate `admin_consent_all` ALL policy and `parent_consent_insert` INSERT policy were intentionally untouched.
 
 Fresh Supabase performance-advisor passes report no `auth_rls_initplan` findings for `public.test_runs`, `public.test_events`, `public.subscriptions`, `public.journey_events`, the two changed `public.student_achievements` reader policies, the two changed `public.student_missions` reader policies, the two changed `public.weekly_goals` reader policies, `public.parent_rewards.reward_student_read`, `public.parent_invitations.student_invite_read`, the two changed `public.student_journey` reader policies, or `public.parental_consents.consent_parties_read`. The separate student write-policy InitPlan warnings on `student_achievements`, `student_missions`, `weekly_goals`, and `student_journey` remain intentionally deferred; `parent_rewards.reward_parent_all` remains intentionally deferred because it is an ALL/write boundary; the separate `parent_invitations` administrator ALL and student INSERT InitPlan warnings remain intentionally deferred; and the separate `parental_consents` administrator ALL and parent INSERT InitPlan warnings remain intentionally deferred outside these read-only tranches. A fresh security-advisor pass after `parental_consents` hardening reports no new executable RLS/security regression. The only actionable security warning remains disabled Supabase Auth leaked-password protection; RLS-enabled/no-policy notices remain informational for intentionally fail-closed service-only tables.
+
+## Production equivalence log — 2026-09-05
+
+The `diagnostic_parent_read_rls_initplan` tranche was applied after the corresponding repository migration passed the full production build/launch guard chain. It changed only repeated `auth.uid()` evaluation to `(select auth.uid())` in the two linked-parent diagnostic reader policies.
+
+- Before and after the migration, the linked parent retained visibility of exactly **1** linked `diagnostic_attempts` row and **20** linked `diagnostic_responses` rows for the tested learner.
+- Before and after, an unrelated authenticated learner retained **0 / 0** visibility to those linked target rows.
+- Before and after, the administrator retained **1 / 20** visibility through the existing administrator path.
+- `diagnostic_parent_read` and `diagnostic_response_parent_read` remain **PERMISSIVE**, default **PUBLIC**, `SELECT`, with no `WITH CHECK`; the linked-parent predicates are unchanged.
+- A fresh Supabase performance-advisor pass no longer reports `auth_rls_initplan` for either changed parent-reader policy. The separate student-write/ALL policies and multiple-permissive-policy warnings were intentionally left unchanged.
+- A fresh security-advisor pass reported no new security regression. Intentionally fail-closed service-only tables continue to appear as informational RLS-enabled/no-policy notices. Supabase Auth leaked-password protection remains the only actionable security warning identified by that pass.
 
 ## Performance-change rule
 
