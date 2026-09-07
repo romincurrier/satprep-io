@@ -1,28 +1,29 @@
-import { supabase } from "./supabase.js";
+import { supabase } from './supabase.js';
+import { authReturnKind, createRecoveryController, verifiedAccountDestination } from './auth-flow.js';
 
-function looksLikeEmailVerificationReturn(){
-  const params=new URLSearchParams(location.search);
-  const hash=new URLSearchParams((location.hash||"").replace(/^#/,""));
-  return params.get("verified")==="1" || params.has("code") || params.has("token_hash") || params.get("type")==="signup" || hash.get("type")==="signup" || hash.has("access_token");
-}
+// Capture callback kind before the auth client consumes its URL fragment.
+export const initialAuthReturn = authReturnKind(location);
+export const passwordRecovery = createRecoveryController(supabase?.auth);
 
-async function routeVerifiedAccount(){
-  if(!looksLikeEmailVerificationReturn()) return;
-  for(let i=0;i<20;i++){
-    const {data:{session}}=await supabase.auth.getSession();
-    if(session){
-      const {data:profile}=await supabase.from("profiles").select("role").eq("id",session.user.id).maybeSingle();
-      if(profile?.role==="parent"){
-        location.replace("/?app=1&onboarding=child");
-        return;
+// Keep this callback synchronous to avoid the client's auth session lock.
+supabase?.auth.onAuthStateChange((event, session) => passwordRecovery.handleAuthEvent(event, session));
+
+async function routeVerifiedAccount() {
+  // Recovery must stay on the password screen and never enter onboarding.
+  if (initialAuthReturn !== 'verification' || !supabase) return;
+  try {
+    for (let i = 0; i < 20; i++) {
+      const {data} = await supabase.auth.getSession();
+      if (data?.session) {
+        const {data:profile} = await supabase.from('profiles').select('role').eq('id',data.session.user.id).maybeSingle();
+        const destination = verifiedAccountDestination(profile?.role);
+        if (destination) { location.replace(destination); return; }
       }
-      if(profile?.role==="student"){
-        location.replace("/?app=1");
-        return;
-      }
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
-    await new Promise(r=>setTimeout(r,150));
+    location.replace('/?auth=login&confirmation=unavailable');
+  } catch {
+    location.replace('/?auth=login&confirmation=unavailable');
   }
 }
-
 routeVerifiedAccount();

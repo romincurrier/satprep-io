@@ -1,14 +1,14 @@
 # SATprep.io Commercial Content Batch Policy
 
-Updated: 2026-09-06
+Updated: 2026-09-07
 
 ## Batch A
 
 Batch A contains every commercial SAT/PSAT question authored before the first external human reviewer receives a calibration/review file.
 
-Batch A is currently OPEN. The private staging bank now contains 496 items labeled `review_batch=A`: the prior 465-item bank plus a second 31-item 2026-09-06 expansion that added one new diagnostic item across each of the 31 tracked skills. Additional questions authored before the external calibration cutoff are also Batch A.
+Batch A is currently OPEN. The private staging bank contains 558 items labeled `review_batch=A`: 198 Reading & Writing and 360 Math. Two 31-item practice expansions on 2026-09-07 followed the prior 496-item checkpoint. All 31 tracked skills now have 7 diagnostic and 11 practice questions. Additional questions authored before the external calibration cutoff also belong to Batch A.
 
-The current Batch A bank remains `draft_unreviewed` and `production_approved=FALSE`. After the latest expansion, all 496 canonical hashes were recomputed from the exported staging file and matched exactly. Importer-equivalent exact duplicate screening found 0 duplicates, and near-duplicate screening at the production importer threshold of 0.96 found 0 pairs. The highest importer-equivalent similarity remains approximately 0.906; same-skill prompt-only similarity remains below 0.96. The combined 496-item bank contains 416 MCQ and 80 SPR items, preserving a 25% SPR share within Math. Cumulative MCQ answer positions are exactly balanced: A=104, B=104, C=104, D=104. AI QA is advisory only and does not satisfy the human-review gate.
+All items remain `draft_unreviewed` and `production_approved=FALSE`. After the latest expansion, all 558 canonical hashes were recomputed from live displayed staging values and matched the separately read human-review queue and AI-review hashes. Importer-equivalent exact and near-duplicate screening found 0 pairs at the 0.96 threshold; maximum importer-equivalent similarity is 0.90625. Same-skill prompt-only maximum is 0.9333333333. The bank contains 468 MCQ and 90 Math SPR items, preserving a 25% SPR share within Math. MCQ positions are exactly balanced: A=117, B=117, C=117, D=117. Provisional difficulty counts are 166 Easy, 231 Medium and 161 Hard. All 558 have advisory AI QA, with 0 human approvals and 0 release-eligible items. AI QA does not satisfy the human-review gate.
 
 Immediately before the first external calibration file is shared:
 

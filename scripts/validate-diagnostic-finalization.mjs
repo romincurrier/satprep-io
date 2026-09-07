@@ -14,3 +14,4 @@ assert.ok(migration.includes('from public, anon, authenticated'),'Browser roles 
 assert.ok(migration.includes('to service_role'),'Only the trusted service path should receive finalization execute authority.');
 
 console.log('Atomic secure-v3 diagnostic finalization checks passed.');
+await import('./validate-diagnostic-finalization-result.mjs');

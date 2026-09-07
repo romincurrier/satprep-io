@@ -1,27 +1,30 @@
-const app=document.querySelector('#app');
+import { confirmationCopy, escapeAuthHtml, requestAuthEmail } from './auth-flow.js';
+import { supabase } from './supabase.js';
 
-function showEmailConfirmation(email=''){
-  app.innerHTML=`
+export function showEmailConfirmation(email = '', role = '') {
+  const copy = confirmationCopy(role);
+  document.querySelector('#app').innerHTML=`
     <div class="top"><div class="logo">SAT<span>prep.io</span></div><div class="navlinks"><button class="linkbtn" id="confirmHome">Home</button></div></div>
     <main class="wrap"><div class="auth"><div class="card" style="text-align:center;padding:40px 28px">
-      <div style="font-size:46px;line-height:1;margin-bottom:18px">✓</div>
-      <div class="eyebrow">ACCOUNT CREATED</div>
-      <h1 style="margin:0 0 14px">Please confirm your email address</h1>
-      <p class="muted" style="font-size:17px;line-height:1.6;max-width:520px;margin:0 auto 22px">Your parent account was created successfully. We sent a confirmation link${email?` to <strong>${email}</strong>`:''}. Open that email and click the confirmation link to continue setting up your family.</p>
-      <div class="notice" style="text-align:left;max-width:520px;margin:0 auto 22px"><strong>Next step:</strong> Check your inbox for the SATprep.io verification email. If you don't see it within a few minutes, check your spam or junk folder.</div>
+      <div class="eyebrow">CHECK YOUR EMAIL</div>
+      <h1 tabindex="-1" id="confirmationHeading">Please confirm your email address</h1>
+      <p class="muted">To finish setting up your ${copy.account}, open the confirmation link${email ? ` sent to <strong>${escapeAuthHtml(email)}</strong>` : ' in your email'} and ${copy.next}.</p>
+      <div class="notice" style="text-align:left;margin-bottom:22px"><strong>Next step:</strong> Check your inbox for the SATprep.io verification email. If you don't see it within a few minutes, check your spam or junk folder. If you already have an account, you can log in.</div>
+      <div id="confirmationStatus" role="status" aria-live="polite"></div>
       <button class="btn" id="confirmLogin">I've confirmed my email — Log in</button>
+      ${email ? '<p><button class="linkbtn" id="confirmResend">Resend confirmation email</button></p>' : ''}
     </div></div></main>`;
   document.querySelector('#confirmHome').onclick=()=>location.assign('/');
-  document.querySelector('#confirmLogin').onclick=()=>location.assign('/');
+  document.querySelector('#confirmLogin').onclick=()=>location.assign('/?auth=login');
+  const resend = document.querySelector('#confirmResend');
+  if (resend) resend.onclick = async () => {
+    if (resend.disabled) return;
+    resend.disabled = true;
+    const status = document.querySelector('#confirmationStatus');
+    try { status.textContent = await requestAuthEmail(supabase?.auth, 'confirmation', email, location.origin); }
+    catch (error) { status.textContent = error.message; }
+    finally { setTimeout(() => { if (resend.isConnected) resend.disabled = false; }, 60000); }
+  };
+  document.querySelector('#confirmationHeading').focus();
 }
-
-function detectConfirmation(){
-  const success=[...document.querySelectorAll('.success')].find(el=>/check your email to confirm your account/i.test(el.textContent||''));
-  if(!success) return;
-  const email=document.querySelector('#pEmail')?.value?.trim()||document.querySelector('#sEmail')?.value?.trim()||'';
-  showEmailConfirmation(email);
-}
-
-const observer=new MutationObserver(()=>detectConfirmation());
-observer.observe(document.documentElement,{childList:true,subtree:true});
-setTimeout(detectConfirmation,0);
+// Signup calls this with its explicit role; no observer reclassifies learner accounts.
