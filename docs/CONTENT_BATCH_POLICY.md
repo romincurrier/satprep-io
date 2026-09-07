@@ -6,9 +6,9 @@ Updated: 2026-09-06
 
 Batch A contains every commercial SAT/PSAT question authored before the first external human reviewer receives a calibration/review file.
 
-Batch A is currently OPEN. The private staging bank now contains 465 items labeled `review_batch=A`: the prior 434-item bank plus a 31-item 2026-09-06 expansion that added one new practice item across each of the 31 tracked skills. Additional questions authored before the external calibration cutoff are also Batch A.
+Batch A is currently OPEN. The private staging bank now contains 496 items labeled `review_batch=A`: the prior 465-item bank plus a second 31-item 2026-09-06 expansion that added one new diagnostic item across each of the 31 tracked skills. Additional questions authored before the external calibration cutoff are also Batch A.
 
-The 2026-09-06 expansion remains `draft_unreviewed` and `production_approved=FALSE`. Its canonical hashes were recomputed from the exported staging file and matched 31/31 items. Importer-equivalent exact duplicate screening found 0 duplicates, and near-duplicate screening at the production importer threshold of 0.96 found 0 pairs. The combined 465-item bank contains 390 MCQ and 75 SPR items; cumulative MCQ answer positions are A=96, B=102, C=96, D=96. AI QA is advisory only and does not satisfy the human-review gate.
+The current Batch A bank remains `draft_unreviewed` and `production_approved=FALSE`. After the latest expansion, all 496 canonical hashes were recomputed from the exported staging file and matched exactly. Importer-equivalent exact duplicate screening found 0 duplicates, and near-duplicate screening at the production importer threshold of 0.96 found 0 pairs. The highest importer-equivalent similarity remains approximately 0.906; same-skill prompt-only similarity remains below 0.96. The combined 496-item bank contains 416 MCQ and 80 SPR items, preserving a 25% SPR share within Math. Cumulative MCQ answer positions are exactly balanced: A=104, B=104, C=104, D=104. AI QA is advisory only and does not satisfy the human-review gate.
 
 Immediately before the first external calibration file is shared:
 
